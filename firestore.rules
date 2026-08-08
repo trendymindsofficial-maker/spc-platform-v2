@@ -1,0 +1,105 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isStudent(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isBusiness(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // =========================
+    // ADMINS
+    // =========================
+    match /admins/{adminId} {
+      allow read, write: if isAdmin();
+    }
+
+    // =========================
+    // STUDENTS
+    // =========================
+    match /students/{studentId} {
+      allow create: if signedIn();
+      allow read, update: if isStudent(studentId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // BUSINESSES
+    // =========================
+    match /businesses/{businessId} {
+      allow create: if signedIn();
+      allow read, update: if isBusiness(businessId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // OFFERS
+    // =========================
+    match /offers/{offerId} {
+
+      // Students & Businesses can read offers
+      allow read: if signedIn();
+
+      // Business creates only its own offer
+      allow create: if signedIn()
+        && request.resource.data.businessId == request.auth.uid;
+
+      // Business updates only its own offer
+      allow update: if isAdmin() ||
+        (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+
+      // Business deletes only its own offer
+      allow delete: if isAdmin() ||
+        (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+    }
+
+    // =========================
+    // REDEMPTIONS
+    // =========================
+    match /redemptions/{redeemId} {
+
+      // Business creates redemption
+      allow create: if signedIn()
+        && request.resource.data.businessId == request.auth.uid;
+
+      // Student sees only own history
+      allow read: if isAdmin()
+        || (
+          signedIn() &&
+          resource.data.studentId == request.auth.uid
+        )
+        || (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================
+    // BLOCK EVERYTHING ELSE
+    // =========================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
