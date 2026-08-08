@@ -66,10 +66,15 @@ export default function StudentLogin() {
         console.log("Student Data:", student);
 console.log("Status:", student.status);
 console.log("UID:", uid);
-             if ((student.status || "").toLowerCase() !== "approved") {
+             const status = (student.status || "").toLowerCase();
+
+
+
+if (status !== "approved" && status !== "active") {
   alert("Your account is waiting for admin approval.");
   return;
 }
+
 
       router.replace("/student/dashboard");
 
