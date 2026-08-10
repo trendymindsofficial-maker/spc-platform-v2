@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import BusinessProtected from "@/components/BusinessProtected";
-
 import { auth, db } from "@/lib/firebase";
 
 import {
@@ -56,22 +55,22 @@ export default function ScanPage() {
         return;
       }
 
-      const q = query(
+      const offerQuery = query(
         collection(db, "offers"),
         where("businessId", "==", user.uid),
         where("status", "==", "active")
       );
 
-      const snap = await getDocs(q);
+      const offerSnap = await getDocs(offerQuery);
 
-      if (!snap.empty) {
-        const offerData = snap.docs[0].data();
+      if (!offerSnap.empty) {
+        const data = offerSnap.docs[0].data();
 
         setOffer({
-          id: snap.docs[0].id,
-          title: offerData.title || "",
-          discount: offerData.discount || "",
-          businessId: offerData.businessId || user.uid,
+          id: offerSnap.docs[0].id,
+          title: data.title || "",
+          discount: data.discount || "",
+          businessId: data.businessId || user.uid,
         });
       }
     } catch (error) {
@@ -86,24 +85,27 @@ export default function ScanPage() {
     try {
       console.log("QR Scanned:", decodedText);
 
-      let qr: any;
+      let qrData: any;
 
       try {
-        qr = JSON.parse(decodedText);
+        qrData = JSON.parse(decodedText);
       } catch {
         alert("Invalid SPC QR Code");
         return;
       }
 
-      if (!qr?.studentId) {
+      if (!qrData?.studentId) {
         alert("Invalid SPC QR Code");
         return;
       }
 
+      /*
+       * Find student
+       */
       const studentRef = doc(
         db,
         "students",
-        qr.studentId
+        qrData.studentId
       );
 
       const studentSnap = await getDoc(studentRef);
@@ -113,11 +115,14 @@ export default function ScanPage() {
         return;
       }
 
-      const studentData = {
+      const studentData: Student = {
         id: studentSnap.id,
         ...(studentSnap.data() as Omit<Student, "id">),
       };
 
+      /*
+       * Current business
+       */
       const user = auth.currentUser;
 
       if (!user) {
@@ -126,7 +131,7 @@ export default function ScanPage() {
       }
 
       /*
-       * Get current active offer
+       * Find active offer
        */
       const offerQuery = query(
         collection(db, "offers"),
@@ -153,36 +158,48 @@ export default function ScanPage() {
       setOffer(activeOffer);
 
       /*
-       * Check redemption history
+       * Check previous redemptions
        */
-      const redeemQuery = query(
+      const redemptionQuery = query(
         collection(db, "redemptions"),
         where("studentId", "==", studentSnap.id),
         where("offerId", "==", activeOffer.id)
       );
 
-      const redeemSnap = await getDocs(redeemQuery);
+      const redemptionSnap = await getDocs(
+        redemptionQuery
+      );
 
-      setUsedCount(redeemSnap.size);
+      setUsedCount(redemptionSnap.size);
       setStudent(studentData);
 
       /*
        * Stop scanner after successful scan
        */
-      try {
-        await scannerRef.current?.clear();
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.clear();
+        } catch (error) {
+          console.warn(
+            "Scanner clear warning:",
+            error
+          );
+        }
+
         scannerRef.current = null;
-      } catch (error) {
-        console.warn("Scanner clear warning:", error);
       }
     } catch (error) {
-      console.error("QR processing error:", error);
+      console.error(
+        "QR processing error:",
+        error
+      );
+
       alert("Invalid QR Code");
     }
   };
 
   /*
-   * Start QR scanner ONLY in browser
+   * Start QR scanner only in browser
    */
   useEffect(() => {
     let mounted = true;
@@ -193,28 +210,31 @@ export default function ScanPage() {
         setScannerError("");
 
         /*
-         * IMPORTANT:
-         * Dynamically import html5-qrcode.
-         * This prevents Vercel/server-side runtime problems.
+         * Dynamic import prevents server-side
+         * html5-qrcode problems.
          */
-        const module = await import("html5-qrcode");
+        const module = await import(
+          "html5-qrcode"
+        );
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         const Html5QrcodeScanner =
           module.Html5QrcodeScanner;
 
-        const readerElement =
+        const reader =
           document.getElementById("reader");
 
-        if (!readerElement) {
+        if (!reader) {
           throw new Error(
             "QR reader element not found"
           );
         }
 
         /*
-         * Prevent duplicate scanner
+         * Remove previous scanner if any
          */
         if (scannerRef.current) {
           try {
@@ -222,18 +242,19 @@ export default function ScanPage() {
           } catch {}
         }
 
-        const scanner = new Html5QrcodeScanner(
-          "reader",
-          {
-            fps: 10,
-            qrbox: {
-              width: 250,
-              height: 250,
+        const scanner =
+          new Html5QrcodeScanner(
+            "reader",
+            {
+              fps: 10,
+              qrbox: {
+                width: 250,
+                height: 250,
+              },
+              rememberLastUsedCamera: true,
             },
-            rememberLastUsedCamera: true,
-          },
-          false
-        );
+            false
+          );
 
         scanner.render(
           onScanSuccess,
@@ -249,16 +270,22 @@ export default function ScanPage() {
         if (mounted) {
           setScannerLoading(false);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           "QR scanner initialization failed:",
           error
         );
 
+        const exactError =
+          error?.message ||
+          error?.name ||
+          String(error);
+
         if (mounted) {
           setScannerLoading(false);
+
           setScannerError(
-            "Unable to start camera scanner. Please allow camera permission and reload."
+            `Camera Error: ${exactError}`
           );
         }
       }
@@ -330,13 +357,17 @@ export default function ScanPage() {
       } else if (nextCount === 4) {
         alert("🏆 Final Use (4/4)");
       } else {
-        alert(`✅ Used : ${nextCount} / 4`);
+        alert(
+          `✅ Used : ${nextCount} / 4`
+        );
       }
 
       setStudent(null);
       setUsedCount(0);
 
-      router.replace("/business/dashboard");
+      router.replace(
+        "/business/dashboard"
+      );
     } catch (error) {
       console.error(
         "Redemption error:",
@@ -362,7 +393,9 @@ export default function ScanPage() {
 
             <button
               onClick={() =>
-                router.push("/business/dashboard")
+                router.push(
+                  "/business/dashboard"
+                )
               }
               className="rounded-xl bg-gray-700 px-6 py-3 font-bold text-white hover:bg-gray-800"
             >
@@ -380,18 +413,20 @@ export default function ScanPage() {
                 </p>
 
                 <p className="mt-2 text-sm text-gray-600">
-                  Please allow camera permission when asked.
+                  Please allow camera permission
+                  when asked.
                 </p>
               </div>
             )}
 
             {scannerError && (
               <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+
                 <p className="font-bold text-red-700">
                   ❌ Scanner Error
                 </p>
 
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-3 break-words text-sm text-gray-700">
                   {scannerError}
                 </p>
 
@@ -399,14 +434,16 @@ export default function ScanPage() {
                   onClick={() =>
                     window.location.reload()
                   }
-                  className="mt-4 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700"
+                  className="mt-5 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700"
                 >
                   🔄 Reload Scanner
                 </button>
+
               </div>
             )}
 
             <div id="reader" />
+
           </div>
 
           {/* Student Details */}
@@ -461,7 +498,7 @@ export default function ScanPage() {
 
               </div>
 
-              {/* Usage Status */}
+              {/* Usage */}
               <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
 
                 {usedCount === 0 && (
@@ -485,9 +522,10 @@ export default function ScanPage() {
 
               </div>
 
-              {/* Offer */}
+              {/* Current Offer */}
               {offer && (
                 <div className="mt-6 rounded-2xl bg-blue-50 p-6">
+
                   <p className="text-sm text-gray-500">
                     Current Offer
                   </p>
@@ -499,11 +537,13 @@ export default function ScanPage() {
                   <p className="mt-2 text-xl font-bold text-green-600">
                     {offer.discount}
                   </p>
+
                 </div>
               )}
 
-              {/* Redeem */}
+              {/* Redeem Button */}
               <div className="mt-8">
+
                 <button
                   disabled={usedCount >= 4}
                   onClick={redeemOffer}
@@ -517,6 +557,7 @@ export default function ScanPage() {
                     ? "❌ Limit Reached"
                     : "🎉 Redeem Offer"}
                 </button>
+
               </div>
 
             </div>
