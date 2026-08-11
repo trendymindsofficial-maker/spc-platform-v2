@@ -14,10 +14,11 @@ import {
 } from "firebase/firestore";
 
 export default function StudentOffers() {
-  
   const router = useRouter();
 
-  const [offers, setOffers] = useState<any[]>([]);
+  const [offers, setOffers] =
+    useState<any[]>([]);
+
   const [filteredOffers, setFilteredOffers] =
     useState<any[]>([]);
 
@@ -33,173 +34,235 @@ export default function StudentOffers() {
   const [selectedOffer, setSelectedOffer] =
     useState<any>(null);
 
+  /*
+   * Load active offers
+   */
   useEffect(() => {
-
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
-
           if (!user) {
-
-            router.replace("/student/login");
-
+            router.replace(
+              "/student/login"
+            );
             return;
-
           }
 
-          const q = query(
-            collection(db, "offers"),
-            where("status", "==", "active")
-          );
+          try {
+            const q = query(
+              collection(db, "offers"),
+              where(
+                "status",
+                "==",
+                "active"
+              )
+            );
 
-          const snap =
-            await getDocs(q);
+            const snap =
+              await getDocs(q);
 
-          const data =
-            snap.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
+            const data =
+              snap.docs.map((item) => ({
+                id: item.id,
+                ...item.data(),
+              }));
 
-          setOffers(data);
-
-          setFilteredOffers(data);
-
-          setLoading(false);
-
+            setOffers(data);
+            setFilteredOffers(data);
+          } catch (error) {
+            console.error(
+              "Error loading offers:",
+              error
+            );
+          } finally {
+            setLoading(false);
+          }
         }
       );
 
-    return () => unsubscribe();
-
+    return () =>
+      unsubscribe();
   }, [router]);
 
+  /*
+   * Search + category filter
+   */
   useEffect(() => {
-
-    let list = offers;
+    let list = [...offers];
 
     if (category !== "All") {
-
       list = list.filter(
         (offer) =>
-          offer.category === category
+          offer.category ===
+          category
       );
-
     }
 
-    if (search) {
-
+    if (search.trim()) {
       list = list.filter(
         (offer) =>
-          offer.title
+          String(
+            offer.title || ""
+          )
             .toLowerCase()
             .includes(
-              search.toLowerCase()
+              search
+                .toLowerCase()
+                .trim()
             )
       );
-
     }
 
     setFilteredOffers(list);
-
   }, [
     offers,
     search,
     category,
   ]);
 
+  /*
+   * Loading
+   */
   if (loading) {
-
     return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
 
-      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
-        <h1 className="text-3xl font-bold text-green-600">
+          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
-          Loading Offers...
+          <h1 className="text-2xl font-bold text-green-600">
+            Loading Offers...
+          </h1>
 
-        </h1>
+        </div>
 
       </div>
-
     );
-
   }
 
   return (
+    <main className="min-h-screen bg-slate-100 py-8 md:py-10">
 
-    <main className="min-h-screen bg-white py-10">
+      <div className="mx-auto max-w-7xl px-5 md:px-6">
 
-      <div className="mx-auto max-w-7xl px-6">
+        {/* =====================================
+            HEADER
+        ====================================== */}
 
-        <div className="mb-10 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
           <div>
 
-            <h1 className="text-5xl font-extrabold text-green-600">
-
+            <h1 className="text-4xl font-extrabold text-green-600 md:text-5xl">
               🎁 Student Offers
-
             </h1>
 
-            <p className="mt-2 text-lg text-gray-500">
-
+            <p className="mt-2 text-base text-gray-500 md:text-lg">
               Exclusive Discounts for SPC Students
-
             </p>
 
           </div>
 
           <button
             onClick={() =>
-              router.push("/student/dashboard")
+              router.push(
+                "/student/dashboard"
+              )
             }
-            className="rounded-2xl bg-green-600 px-8 py-4 font-bold text-white transition-all hover:bg-green-700"
+            className="rounded-2xl bg-green-600 px-7 py-4 font-bold text-white shadow-md transition hover:bg-green-700"
           >
             🏠 Dashboard
           </button>
 
         </div>
 
-        <div className="mb-10 grid gap-6 md:grid-cols-2">
+
+        {/* =====================================
+            SEARCH + CATEGORY
+        ====================================== */}
+
+        <div className="mb-10 grid gap-5 md:grid-cols-2">
 
           <input
+            type="text"
             placeholder="🔍 Search Offers..."
             value={search}
-            onChange={(e)=>
-              setSearch(e.target.value)
+            onChange={(e) =>
+              setSearch(
+                e.target.value
+              )
             }
-            className="rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600"
+            className="rounded-2xl border border-gray-300 bg-white p-4 shadow-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           <select
             value={category}
-            onChange={(e)=>
-              setCategory(e.target.value)
+            onChange={(e) =>
+              setCategory(
+                e.target.value
+              )
             }
-            className="rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600"
+            className="rounded-2xl border border-gray-300 bg-white p-4 shadow-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           >
+            <option value="All">
+              All
+            </option>
 
-            <option>All</option>
-            <option>Restaurant</option>
-            <option>Hospital</option>
-            <option>Shopping</option>
-            <option>Clothing</option>
-            <option>Gym</option>
-            <option>Education</option>
-            <option>Electronics</option>
-            <option>Salon</option>
-            <option>Other</option>
+            <option value="Restaurant">
+              Restaurant
+            </option>
 
+            <option value="Hospital">
+              Hospital
+            </option>
+
+            <option value="Shopping">
+              Shopping
+            </option>
+
+            <option value="Clothing">
+              Clothing
+            </option>
+
+            <option value="Gym">
+              Gym
+            </option>
+
+            <option value="Education">
+              Education
+            </option>
+
+            <option value="Electronics">
+              Electronics
+            </option>
+
+            <option value="Salon">
+              Salon
+            </option>
+
+            <option value="Other">
+              Other
+            </option>
           </select>
 
         </div>
-                {filteredOffers.length === 0 ? (
+
+
+        {/* =====================================
+            NO OFFERS
+        ====================================== */}
+
+        {filteredOffers.length === 0 ? (
 
           <div className="rounded-3xl bg-white p-16 text-center shadow-xl">
 
-            <h2 className="text-4xl font-bold text-green-600">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">
+              🎁
+            </div>
+
+            <h2 className="mt-6 text-3xl font-bold text-green-600">
               No Offers Found
             </h2>
 
@@ -211,214 +274,291 @@ export default function StudentOffers() {
 
         ) : (
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          /* =====================================
+             OFFERS GRID
+          ====================================== */
 
-            {filteredOffers.map((offer) => (
+          <div className="grid items-stretch gap-7 md:grid-cols-2 lg:grid-cols-3">
 
-              <div
-                key={offer.id}
-                className="group overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.45)]"
-              >
+            {filteredOffers.map(
+              (offer) => (
 
-                {/* Offer Image */}
+                <div
+                  key={offer.id}
+                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.35)]"
+                >
 
-                <div className="overflow-hidden">
+                  {/* ============================
+                      IMAGE
+                  ============================= */}
 
-                  <img
-                    src={offer.image}
-                    alt={offer.title}
-                    className="h-64 w-full object-cover transition duration-700 group-hover:scale-110"
-                  />
+                  <div className="h-64 w-full shrink-0 overflow-hidden bg-gray-200">
 
-                </div>
+                    {offer.image ? (
 
-                {/* Content */}
+                      <img
+                        src={offer.image}
+                        alt={
+                          offer.title ||
+                          "Offer"
+                        }
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
 
-                <div className="rounded-b-3xl bg-slate-100 p-6">
+                    ) : (
 
-                  {/* Category + Ribbon */}
+                      <div className="flex h-full w-full items-center justify-center text-6xl">
+                        🎁
+                      </div>
 
-                  <div className="mb-4 flex flex-wrap gap-3">
-
-                    <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white shadow">
-
-                      {offer.category}
-
-                    </span>
-
-                    <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black shadow">
-
-                      🔥 SPC Exclusive
-
-                    </span>
+                    )}
 
                   </div>
 
-                  {/* Business */}
 
-                  <p className="text-sm font-semibold text-slate-500">
+                  {/* ============================
+                      CONTENT
+                  ============================= */}
 
-                    🏢 {offer.businessName || "SPC Partner Business"}
+                  <div className="flex flex-1 flex-col bg-slate-100 p-6">
 
-                  </p>
+                    {/* Category */}
 
-                  {/* Offer Title */}
+                    <div className="flex min-h-[42px] flex-wrap content-start gap-2">
 
-                  <h2 className="mt-2 text-3xl font-bold text-green-600">
+                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-xs font-bold text-white shadow">
+                        {offer.category ||
+                          "Other"}
+                      </span>
 
-                    {offer.title}
+                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-xs font-bold text-black shadow">
+                        🔥 SPC Exclusive
+                      </span>
 
-                  </h2>
+                    </div>
 
-                  {/* Discount */}
 
-                  <h3 className="mt-3 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent">
+                    {/* Business */}
 
-                    {offer.discount}
+                    <div className="mt-3 h-6 overflow-hidden">
 
-                  </h3>
+                      <p className="truncate text-sm font-semibold text-slate-500">
+                        🏢{" "}
+                        {offer.businessName ||
+                          "SPC Partner Business"}
+                      </p>
 
-                  {/* Description */}
+                    </div>
 
-                  <p className="mt-4 line-clamp-2 text-gray-600">
 
-                    {offer.description}
+                    {/* Title */}
 
-                  </p>
+                    <div className="mt-2 min-h-[76px]">
 
-                  <div className="mt-8 flex gap-3">
+                      <h2 className="line-clamp-2 text-2xl font-bold leading-tight text-green-600 md:text-[27px]">
+                        {offer.title ||
+                          "Special Offer"}
+                      </h2>
 
-                    <button
-                      onClick={() =>
-                        setSelectedOffer(offer)
-                      }
-                      className="flex-1 rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-700"
-                    >
-                      👁 View Details
-                    </button>
+                    </div>
 
-                    <button
-                      onClick={() =>
-                        router.push("/student/dashboard")
-                      }
-                      className="flex-1 rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-700"
-                    >
-                      📱 My QR
-                    </button>
+
+                    {/* Discount */}
+
+                    <div className="mt-2 flex h-[52px] items-start">
+
+                      <h3 className="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent">
+                        {offer.discount ||
+                          ""}
+                      </h3>
+
+                    </div>
+
+
+                    {/* Description
+                        FIXED HEIGHT
+                    */}
+
+                    <div className="mt-3 h-[72px] overflow-hidden">
+
+                      <p className="line-clamp-3 text-sm leading-6 text-gray-600">
+                        {offer.description ||
+                          "Exclusive offer for SPC students."}
+                      </p>
+
+                    </div>
+
+
+                    {/* Spacer
+                        Pushes buttons
+                        to bottom
+                    */}
+
+                    <div className="flex-1" />
+
+
+                    {/* Buttons */}
+
+                    <div className="mt-6 grid grid-cols-2 gap-3">
+
+                      <button
+                        onClick={() =>
+                          setSelectedOffer(
+                            offer
+                          )
+                        }
+                        className="rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 md:text-base"
+                      >
+                        👁 View Details
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          router.push(
+                            "/student/dashboard"
+                          )
+                        }
+                        className="rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 md:text-base"
+                      >
+                        📱 My QR
+                      </button>
+
+                    </div>
 
                   </div>
 
                 </div>
 
-              </div>
-
-            ))}
+              )
+            )}
 
           </div>
 
         )}
-                {/* Premium Offer Popup */}
+
+
+        {/* =====================================
+            PREMIUM OFFER POPUP
+        ====================================== */}
 
         {selectedOffer && (
 
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={() => setSelectedOffer(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() =>
+              setSelectedOffer(null)
+            }
           >
 
             <div
-              onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl transition-all duration-300"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
             >
 
-              {/* Offer Image */}
+              {/* Popup Image */}
 
-              <img
-                src={selectedOffer.image}
-                alt={selectedOffer.title}
-                className="h-80 w-full object-cover"
-              />
+              {selectedOffer.image && (
+                <img
+                  src={
+                    selectedOffer.image
+                  }
+                  alt={
+                    selectedOffer.title
+                  }
+                  className="h-64 w-full object-cover md:h-80"
+                />
+              )}
 
-              {/* Details */}
 
-              <div className="bg-slate-100 p-8">
+              {/* Popup Content */}
 
-                {/* Category + Ribbon */}
+              <div className="bg-slate-100 p-6 md:p-8">
+
+                {/* Category */}
 
                 <div className="mb-5 flex flex-wrap gap-3">
 
                   <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
-
-                    {selectedOffer.category}
-
+                    {
+                      selectedOffer.category
+                    }
                   </span>
 
                   <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
-
                     🔥 SPC Exclusive
-
                   </span>
 
                 </div>
 
+
                 {/* Business */}
 
-                <p className="text-lg font-semibold text-slate-500">
-
-                  🏢 {selectedOffer.businessName || "SPC Partner Business"}
-
+                <p className="text-base font-semibold text-slate-500 md:text-lg">
+                  🏢{" "}
+                  {selectedOffer.businessName ||
+                    "SPC Partner Business"}
                 </p>
+
 
                 {/* Title */}
 
-                <h1 className="mt-2 text-4xl font-extrabold text-green-600">
-
-                  {selectedOffer.title}
-
+                <h1 className="mt-2 text-3xl font-extrabold text-green-600 md:text-4xl">
+                  {
+                    selectedOffer.title
+                  }
                 </h1>
+
 
                 {/* Discount */}
 
-                <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-5xl font-extrabold text-transparent">
-
-                  {selectedOffer.discount}
-
+                <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent md:text-5xl">
+                  {
+                    selectedOffer.discount
+                  }
                 </h2>
+
 
                 {/* Description */}
 
-                <div className="mt-8 rounded-2xl bg-white p-6 shadow">
+                <div className="mt-7 rounded-2xl bg-white p-6 shadow">
 
-                  <h3 className="mb-3 text-2xl font-bold text-green-600">
-
+                  <h3 className="mb-3 text-xl font-bold text-green-600 md:text-2xl">
                     Offer Description
-
                   </h3>
 
-                  <p className="leading-8 text-gray-700">
-
-                    {selectedOffer.description}
-
+                  <p className="leading-7 text-gray-700">
+                    {
+                      selectedOffer.description
+                    }
                   </p>
 
                 </div>
 
-                <div className="mt-8 flex gap-4">
+
+                {/* Popup Buttons */}
+
+                <div className="mt-7 grid gap-3 md:grid-cols-2">
 
                   <button
                     onClick={() =>
-                      router.push("/student/dashboard")
+                      router.push(
+                        "/student/dashboard"
+                      )
                     }
-                    className="flex-1 rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700"
+                    className="rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700"
                   >
                     📱 Show My QR
                   </button>
 
                   <button
                     onClick={() =>
-                      setSelectedOffer(null)
+                      setSelectedOffer(
+                        null
+                      )
                     }
-                    className="flex-1 rounded-xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
+                    className="rounded-xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
                   >
                     ✖ Close
                   </button>
@@ -432,40 +572,39 @@ export default function StudentOffers() {
           </div>
 
         )}
-                {/* Total Offers */}
 
-        <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-8 shadow-xl">
 
-          <div className="flex items-center justify-between">
+        {/* =====================================
+            TOTAL OFFERS
+        ====================================== */}
+
+        <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-6 shadow-xl md:p-8">
+
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 
             <div>
 
-              <h2 className="text-3xl font-bold text-green-600">
-
+              <h2 className="text-2xl font-bold text-green-600 md:text-3xl">
                 🎉 Total Active Offers
-
               </h2>
 
               <p className="mt-2 text-gray-600">
-
-                Discover amazing discounts from SPC Partner Businesses.
-
+                Discover amazing discounts
+                from SPC Partner Businesses.
               </p>
 
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 px-10 py-6 shadow-lg">
+            <div className="rounded-3xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 px-8 py-5 shadow-lg md:px-10 md:py-6">
 
-              <span className="block text-center text-5xl font-extrabold text-white">
-
-                {filteredOffers.length}
-
+              <span className="block text-center text-4xl font-extrabold text-white md:text-5xl">
+                {
+                  filteredOffers.length
+                }
               </span>
 
-              <p className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-white">
-
+              <p className="mt-1 text-center text-xs font-bold uppercase tracking-wide text-white">
                 Active Offers
-
               </p>
 
             </div>
@@ -473,10 +612,9 @@ export default function StudentOffers() {
           </div>
 
         </div>
-              </div>
+
+      </div>
 
     </main>
-
   );
-
 }
