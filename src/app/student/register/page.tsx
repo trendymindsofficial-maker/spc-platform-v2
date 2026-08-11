@@ -107,6 +107,15 @@ const userCredential =
     <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
 
       <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mb-6">
+    <button
+      type="button"
+      onClick={() => router.push("/")}
+      className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
+    >
+      ← Back to Home
+    </button>
+  </div>
 
         <h1 className="mb-6 text-center text-3xl font-bold">
           🎓 Student Registration
