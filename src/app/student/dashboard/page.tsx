@@ -32,11 +32,124 @@ interface Student {
 export default function StudentDashboard() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(true);
-
+  const [loading, setLoading] = useState(true);
   const [student, setStudent] =
     useState<Student | null>(null);
+
+  const [error, setError] = useState("");
+
+  /*
+   * ==========================================
+   * LOAD STUDENT DETAILS
+   * ==========================================
+   */
+
+  const loadStudent = async (
+    uid: string,
+    email?: string | null
+  ) => {
+    const studentRef = doc(
+      db,
+      "students",
+      uid
+    );
+
+    /*
+     * Firebase / Firestore can sometimes
+     * take a moment after navigation.
+     *
+     * Try a few times instead of immediately
+     * showing "Student Details Not Available".
+     */
+
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const snap =
+          await getDoc(studentRef);
+
+        if (snap.exists()) {
+          const data = snap.data();
+
+          const studentData: Student = {
+            uid,
+
+            fullName:
+              data.fullName || "",
+
+            cardNumber:
+              data.cardNumber || "",
+
+            college:
+              data.college || "",
+
+            course:
+              data.course || "",
+
+            year:
+              data.year || "",
+
+            mobile:
+              data.mobile || "",
+
+            email:
+              data.email ||
+              email ||
+              "",
+
+            status:
+              data.status || "pending",
+          };
+
+          setStudent(studentData);
+          setError("");
+
+          return true;
+        }
+
+        /*
+         * Document not found.
+         *
+         * Wait and try again because the page may
+         * have loaded before Firestore/Auth state
+         * is fully settled.
+         */
+
+        if (attempt < 3) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 800)
+          );
+        }
+      } catch (err) {
+        lastError = err;
+
+        console.error(
+          `Student loading attempt ${attempt} failed:`,
+          err
+        );
+
+        if (attempt < 3) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 800)
+          );
+        }
+      }
+    }
+
+    console.error(
+      "Unable to load student document:",
+      lastError
+    );
+
+    return false;
+  };
+
+  /*
+   * ==========================================
+   * AUTH + STUDENT LOAD
+   * ==========================================
+   */
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +160,10 @@ export default function StudentDashboard() {
         async (user) => {
           if (!mounted) return;
 
+          /*
+           * User is not logged in
+           */
+
           if (!user) {
             router.replace(
               "/student/login"
@@ -54,75 +171,30 @@ export default function StudentDashboard() {
             return;
           }
 
-          try {
-            const studentRef = doc(
-              db,
-              "students",
-              user.uid
+          /*
+           * Auth is ready.
+           *
+           * Now load the student document.
+           */
+
+          setLoading(true);
+          setError("");
+
+          const success =
+            await loadStudent(
+              user.uid,
+              user.email
             );
 
-            const snap =
-              await getDoc(studentRef);
+          if (!mounted) return;
 
-            if (!mounted) return;
-
-            if (snap.exists()) {
-              const data = snap.data();
-
-              /*
-               * Always use Firebase Auth UID
-               * as the student UID.
-               */
-              setStudent({
-                uid: user.uid,
-                fullName:
-                  data.fullName || "",
-                cardNumber:
-                  data.cardNumber || "",
-                college:
-                  data.college || "",
-                course:
-                  data.course || "",
-                year:
-                  data.year || "",
-                mobile:
-                  data.mobile || "",
-                email:
-                  data.email ||
-                  user.email ||
-                  "",
-                status:
-                  data.status || "pending",
-              });
-            } else {
-              /*
-               * IMPORTANT:
-               * Do NOT clear student state here.
-               *
-               * If Firestore temporarily doesn't
-               * return the document, don't make
-               * the dashboard suddenly empty.
-               */
-              console.warn(
-                "Student document not found:",
-                user.uid
-              );
-            }
-          } catch (error) {
-            /*
-             * Keep existing student details
-             * if a temporary Firestore error
-             * happens.
-             */
-            console.error(
-              "Student loading error:",
-              error
+          if (!success) {
+            setError(
+              "Unable to load your student details."
             );
-          } finally {
-            if (mounted) {
-              setLoading(false);
-            }
           }
+
+          setLoading(false);
         }
       );
 
@@ -131,6 +203,12 @@ export default function StudentDashboard() {
       unsubscribe();
     };
   }, [router]);
+
+  /*
+   * ==========================================
+   * LOGOUT
+   * ==========================================
+   */
 
   const logout = async () => {
     try {
@@ -148,18 +226,61 @@ export default function StudentDashboard() {
   };
 
   /*
-   * Loading screen
+   * ==========================================
+   * RETRY
+   * ==========================================
    */
-  if (loading && !student) {
+
+  const retryLoading = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      router.replace(
+        "/student/login"
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const success =
+      await loadStudent(
+        user.uid,
+        user.email
+      );
+
+    if (success) {
+      setError("");
+    } else {
+      setError(
+        "Unable to load your student details. Please try again."
+      );
+    }
+
+    setLoading(false);
+  };
+
+  /*
+   * ==========================================
+   * LOADING SCREEN
+   * ==========================================
+   */
+
+  if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+        <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow-xl">
 
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
 
           <h2 className="text-2xl font-bold text-blue-700">
-            Loading...
+            Loading Student Dashboard...
           </h2>
+
+          <p className="mt-2 text-gray-500">
+            Please wait...
+          </p>
 
         </div>
       </main>
@@ -167,35 +288,43 @@ export default function StudentDashboard() {
   }
 
   /*
-   * If there is genuinely no student data
-   * after loading, show a simple message.
+   * ==========================================
+   * ERROR SCREEN
+   * ==========================================
+   *
+   * This is shown only after the retry attempts
+   * are completed.
    */
+
   if (!student) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
 
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
 
-          <h2 className="text-2xl font-bold text-red-600">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">
+            ⚠️
+          </div>
+
+          <h2 className="mt-5 text-2xl font-bold text-red-600">
             Student Details Not Available
           </h2>
 
           <p className="mt-3 text-gray-600">
-            Please reload the page.
+            {error ||
+              "We could not load your SPC student details."}
           </p>
 
           <button
-            onClick={() =>
-              window.location.reload()
-            }
-            className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-bold text-white hover:bg-blue-700"
+            onClick={retryLoading}
+            className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700"
           >
-            🔄 Reload
+            🔄 Try Again
           </button>
 
           <button
             onClick={logout}
-            className="mt-3 w-full rounded-xl bg-red-600 py-4 font-bold text-white"
+            className="mt-3 w-full rounded-xl bg-red-600 py-4 font-bold text-white transition hover:bg-red-700"
           >
             Logout
           </button>
@@ -207,10 +336,11 @@ export default function StudentDashboard() {
   }
 
   /*
+   * ==========================================
    * QR DATA
-   *
-   * This is the important fix.
+   * ==========================================
    */
+
   const qrValue = JSON.stringify({
     studentId: student.uid,
     cardNumber:
@@ -218,14 +348,20 @@ export default function StudentDashboard() {
     type: "student",
   });
 
+  /*
+   * ==========================================
+   * DASHBOARD
+   * ==========================================
+   */
+
   return (
     <main className="min-h-screen bg-slate-100 p-6">
 
       <div className="mx-auto max-w-6xl">
 
-        {/* Header */}
+        {/* HEADER */}
 
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
           <div>
             <h1 className="text-4xl font-bold text-blue-700">
@@ -239,19 +375,18 @@ export default function StudentDashboard() {
 
           <button
             onClick={logout}
-            className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700"
+            className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white transition hover:bg-red-700"
           >
             Logout
           </button>
 
         </div>
 
-
-        {/* Card + QR */}
+        {/* CARD + QR */}
 
         <div className="grid gap-6 lg:grid-cols-2">
 
-          {/* Digital SPC Card */}
+          {/* DIGITAL SPC CARD */}
 
           <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-8 text-white shadow-xl">
 
@@ -295,7 +430,6 @@ export default function StudentDashboard() {
 
           </div>
 
-
           {/* QR */}
 
           <div className="rounded-3xl bg-white p-8 shadow-xl">
@@ -306,16 +440,18 @@ export default function StudentDashboard() {
 
             <div className="flex flex-col items-center">
 
-              <QRCode
-                value={qrValue}
-                size={220}
-              />
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <QRCode
+                  value={qrValue}
+                  size={220}
+                />
+              </div>
 
               <p className="mt-5 text-lg font-bold">
                 {student.cardNumber || "-"}
               </p>
 
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-center text-sm text-gray-500">
                 Show this QR to Business Partner
               </p>
 
@@ -325,12 +461,11 @@ export default function StudentDashboard() {
 
         </div>
 
-
-        {/* Quick Actions */}
+        {/* QUICK ACTIONS */}
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
 
-          {/* Offers */}
+          {/* OFFERS */}
 
           <div className="rounded-3xl bg-white p-8 shadow-xl">
 
@@ -349,15 +484,14 @@ export default function StudentDashboard() {
                   "/student/offers"
                 )
               }
-              className="w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white hover:bg-blue-700"
+              className="w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white transition hover:bg-blue-700"
             >
               🎁 View Offers
             </button>
 
           </div>
 
-
-          {/* Account Status */}
+          {/* ACCOUNT STATUS */}
 
           <div className="rounded-3xl bg-white p-8 shadow-xl">
 
@@ -383,8 +517,7 @@ export default function StudentDashboard() {
 
         </div>
 
-
-        {/* Bottom */}
+        {/* BOTTOM */}
 
         <div className="mt-10 rounded-3xl bg-white p-6 shadow-xl">
 
@@ -405,7 +538,7 @@ export default function StudentDashboard() {
 
             <button
               onClick={logout}
-              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700"
+              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white transition hover:bg-red-700"
             >
               Logout
             </button>
