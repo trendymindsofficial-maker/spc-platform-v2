@@ -1,363 +1,341 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+
+import {
+  onAuthStateChanged,
+} from "firebase/auth";
 
 import {
   collection,
   getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 
 interface Offer {
   id: string;
-  title: string;
-  discount: string;
-  description: string;
-  image?: string;
+
+  title?: string;
+  discount?: string;
+  description?: string;
+
   category?: string;
-  status?: string;
+  image?: string;
+
   businessId?: string;
   businessName?: string;
   businessMobile?: string;
   businessAddress?: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  status?: string;
+}
+
 export default function StudentOffers() {
   const router = useRouter();
 
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [filteredOffers, setFilteredOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] =
+    useState<Offer[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] =
+    useState<string[]>([]);
 
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
+  const [loading, setLoading] =
+    useState(true);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("All");
 
   const [selectedOffer, setSelectedOffer] =
     useState<Offer | null>(null);
 
-  /*
-   * ==========================================
-   * LOAD OFFERS
-   * ==========================================
-   */
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (user) => {
-        if (!user) {
-          router.replace("/student/login");
-          return;
-        }
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        async (user) => {
 
-        try {
-          setLoading(true);
-
-          /*
-           * LOAD ACTIVE OFFERS
-           */
-
-          const offerQuery = query(
-            collection(db, "offers"),
-            where("status", "==", "active")
-          );
-
-          const offerSnap =
-            await getDocs(offerQuery);
-
-          /*
-           * LOAD BUSINESSES
-           *
-           * This is used to get:
-           * - Business Name
-           * - Mobile
-           * - Address
-           */
-
-          const businessSnap =
-            await getDocs(
-              collection(db, "businesses")
+          if (!user) {
+            router.replace(
+              "/student/login"
             );
+            return;
+          }
 
-          const businessMap =
-            new Map<
-              string,
-              {
-                name: string;
-                mobile: string;
-                address: string;
-              }
-            >();
+          await Promise.all([
+            loadOffers(),
+            loadCategories(),
+          ]);
 
-          businessSnap.docs.forEach(
-            (businessDoc) => {
-              const data =
-                businessDoc.data();
+          setLoading(false);
+        }
+      );
 
-              const mobile =
+    return () =>
+      unsubscribe();
+  }, [router]);
+
+  const loadOffers = async () => {
+    try {
+      const offerSnap =
+        await getDocs(
+          collection(db, "offers")
+        );
+
+      const businessSnap =
+        await getDocs(
+          collection(db, "businesses")
+        );
+
+      const businessMap =
+        new Map<
+          string,
+          {
+            name: string;
+            mobile: string;
+            address: string;
+          }
+        >();
+
+      businessSnap.docs.forEach(
+        (businessDoc) => {
+
+          const data =
+            businessDoc.data();
+
+          businessMap.set(
+            businessDoc.id,
+            {
+              name:
+                data.businessName ||
+                "",
+
+              mobile:
                 data.mobile ||
                 data.phone ||
-                data.ownerMobile ||
                 data.businessMobile ||
-                data.contactNumber ||
-                "";
+                data.ownerMobile ||
+                "",
 
-              const address =
+              address:
                 data.address ||
                 data.businessAddress ||
                 data.location ||
-                data.businessLocation ||
                 data.fullAddress ||
-                "";
-
-              const name =
-                data.businessName ||
-                data.name ||
-                "";
-
-              businessMap.set(
-                businessDoc.id,
-                {
-                  name: String(name),
-                  mobile: String(mobile),
-                  address: String(address),
-                }
-              );
+                "",
             }
           );
-
-          /*
-           * MERGE OFFER + BUSINESS DATA
-           */
-
-          const data: Offer[] =
-            offerSnap.docs.map(
-              (offerDoc) => {
-                const offerData =
-                  offerDoc.data();
-
-                const businessId =
-                  offerData.businessId || "";
-
-                const business =
-                  businessMap.get(
-                    businessId
-                  );
-
-                /*
-                 * Some existing offers may already
-                 * have businessName / businessMobile /
-                 * address saved directly.
-                 *
-                 * So we support both.
-                 */
-
-                const businessName =
-                  offerData.businessName ||
-                  business?.name ||
-                  "SPC Partner Business";
-
-                const businessMobile =
-                  offerData.businessMobile ||
-                  offerData.businessPhone ||
-                  business?.mobile ||
-                  "";
-
-                const businessAddress =
-                  offerData.businessAddress ||
-                  offerData.address ||
-                  business?.address ||
-                  "";
-
-                return {
-                  id: offerDoc.id,
-
-                  title:
-                    offerData.title || "",
-
-                  discount:
-                    offerData.discount || "",
-
-                  description:
-                    offerData.description || "",
-
-                  image:
-                    offerData.image || "",
-
-                  category:
-                    offerData.category ||
-                    "Other",
-
-                  status:
-                    offerData.status ||
-                    "active",
-
-                  businessId,
-
-                  businessName:
-                    String(businessName),
-
-                  businessMobile:
-                    String(businessMobile),
-
-                  businessAddress:
-                    String(businessAddress),
-                };
-              }
-            );
-
-          setOffers(data);
-          setFilteredOffers(data);
-        } catch (error) {
-          console.error(
-            "Offers loading error:",
-            error
-          );
-
-          alert(
-            "Unable to load offers."
-          );
-        } finally {
-          setLoading(false);
         }
-      }
-    );
+      );
 
-    return () => unsubscribe();
-  }, [router]);
+      const data: Offer[] =
+        offerSnap.docs
+          .map((item) => {
 
-  /*
-   * ==========================================
-   * FILTER OFFERS
-   * ==========================================
-   */
+            const offerData =
+              item.data();
 
-  useEffect(() => {
-    let list = [...offers];
+            const businessId =
+              offerData.businessId ||
+              "";
 
-    /*
-     * CATEGORY
-     */
+            const business =
+              businessMap.get(
+                businessId
+              );
 
-    if (category !== "All") {
-      list = list.filter(
-        (offer) =>
-          offer.category === category
+            return {
+              id: item.id,
+
+              title:
+                offerData.title ||
+                "",
+
+              discount:
+                offerData.discount ||
+                "",
+
+              description:
+                offerData.description ||
+                "",
+
+              category:
+                offerData.category ||
+                "Other",
+
+              image:
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+
+              businessId,
+
+              businessName:
+                offerData.businessName ||
+                business?.name ||
+                "SPC Partner Business",
+
+              businessMobile:
+                offerData.businessMobile ||
+                business?.mobile ||
+                "",
+
+              businessAddress:
+                offerData.businessAddress ||
+                offerData.address ||
+                business?.address ||
+                "",
+            };
+          })
+          .filter((offer) => {
+            return true;
+          });
+
+      setOffers(data);
+    } catch (error) {
+      console.error(
+        "Offer loading error:",
+        error
       );
     }
-
-    /*
-     * SEARCH
-     */
-
-    const searchText =
-      search.trim().toLowerCase();
-
-    if (searchText) {
-      list = list.filter(
-        (offer) =>
-          offer.title
-            ?.toLowerCase()
-            .includes(searchText) ||
-
-          offer.businessName
-            ?.toLowerCase()
-            .includes(searchText) ||
-
-          offer.category
-            ?.toLowerCase()
-            .includes(searchText)
-      );
-    }
-
-    setFilteredOffers(list);
-  }, [
-    offers,
-    search,
-    category,
-  ]);
-
-  /*
-   * ==========================================
-   * CALL BUSINESS
-   * ==========================================
-   */
-
-  const callBusiness = (
-    mobile?: string
-  ) => {
-    if (!mobile) {
-      alert(
-        "📞 Business phone number is not available."
-      );
-      return;
-    }
-
-    const cleanNumber =
-      mobile.replace(/[^\d+]/g, "");
-
-    if (!cleanNumber) {
-      alert(
-        "❌ Invalid business phone number."
-      );
-      return;
-    }
-
-    window.location.href =
-      `tel:${cleanNumber}`;
   };
 
-  /*
-   * ==========================================
-   * LOADING
-   * ==========================================
-   */
+  const loadCategories = async () => {
+    try {
+      const snap =
+        await getDocs(
+          collection(db, "categories")
+        );
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600" />
+      const data =
+        snap.docs
+          .map(
+            (item) =>
+              item.data()
+          )
+          .filter(
+            (item: any) =>
+              item.status !==
+              "inactive"
+          )
+          .map(
+            (item: any) =>
+              item.name
+          )
+          .filter(Boolean);
 
-          <h1 className="text-2xl font-bold text-green-600">
-            Loading Offers...
-          </h1>
-        </div>
-      </div>
-    );
-  }
+      setCategories(
+        Array.from(
+          new Set(data)
+        ) as string[]
+      );
+    } catch (error) {
+      console.error(
+        "Category loading error:",
+        error
+      );
+    }
+  };
 
-  /*
-   * ==========================================
-   * PAGE
-   * ==========================================
-   */
+  const filteredOffers =
+    useMemo(() => {
+
+      let list =
+        [...offers];
+
+      if (
+        category !==
+        "All"
+      ) {
+        list =
+          list.filter(
+            (offer) =>
+              offer.category ===
+              category
+          );
+      }
+
+      const searchText =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (searchText) {
+        list =
+          list.filter(
+            (offer) =>
+              offer.title
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.businessName
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.category
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                )
+          );
+      }
+
+      return list;
+    }, [
+      offers,
+      search,
+      category,
+    ]);
+
+  const callBusiness =
+    (offer: Offer) => {
+
+      const phone =
+        offer.businessMobile ||
+        "";
+
+      if (!phone) {
+        alert(
+          "📞 Business phone number is not available."
+        );
+        return;
+      }
+
+      window.location.href =
+        `tel:${phone}`;
+    };
 
   return (
-    <main className="min-h-screen bg-white py-10">
+    <main className="min-h-screen bg-white py-8">
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-        {/* ==================================
-            HEADER
-        =================================== */}
+        {/* HEADER */}
 
-        <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
-            <h1 className="text-4xl font-extrabold text-green-600 sm:text-5xl">
+
+            <h1 className="text-4xl font-extrabold text-green-600">
               🎁 Student Offers
             </h1>
 
-            <p className="mt-2 text-base text-gray-500 sm:text-lg">
+            <p className="mt-2 text-gray-500">
               Exclusive Discounts for SPC Students
             </p>
+
           </div>
 
           <button
@@ -366,16 +344,14 @@ export default function StudentOffers() {
                 "/student/dashboard"
               )
             }
-            className="w-full rounded-2xl bg-green-600 px-7 py-4 font-bold text-white shadow transition hover:bg-green-700 sm:w-auto"
+            className="rounded-2xl bg-green-600 px-7 py-4 font-bold text-white hover:bg-green-700"
           >
             🏠 Dashboard
           </button>
 
         </div>
 
-        {/* ==================================
-            SEARCH + FILTER
-        =================================== */}
+        {/* FILTERS */}
 
         <div className="mb-10 grid gap-5 md:grid-cols-2">
 
@@ -384,74 +360,65 @@ export default function StudentOffers() {
             placeholder="🔍 Search Offers..."
             value={search}
             onChange={(e) =>
-              setSearch(e.target.value)
+              setSearch(
+                e.target.value
+              )
             }
-            className="w-full rounded-2xl border border-gray-300 bg-white p-4 text-base outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="w-full rounded-2xl border border-gray-300 p-4 outline-none focus:border-green-600"
           />
 
           <select
             value={category}
             onChange={(e) =>
-              setCategory(e.target.value)
+              setCategory(
+                e.target.value
+              )
             }
-            className="w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="w-full rounded-2xl border border-gray-300 p-4 outline-none focus:border-green-600"
           >
+
             <option value="All">
-              All
+              All Categories
             </option>
 
-            <option value="Restaurant">
-              Restaurant
-            </option>
+            {categories.map(
+              (item) => (
+                <option
+                  key={item}
+                  value={item}
+                >
+                  {item}
+                </option>
+              )
+            )}
 
-            <option value="Hospital">
-              Hospital
-            </option>
-
-            <option value="Shopping">
-              Shopping
-            </option>
-
-            <option value="Clothing">
-              Clothing
-            </option>
-
-            <option value="Gym">
-              Gym
-            </option>
-
-            <option value="Education">
-              Education
-            </option>
-
-            <option value="Electronics">
-              Electronics
-            </option>
-
-            <option value="Salon">
-              Salon
-            </option>
-
-            <option value="Other">
-              Other
-            </option>
           </select>
 
         </div>
 
-        {/* ==================================
-            NO OFFERS
-        =================================== */}
+        {/* LOADING */}
 
-        {filteredOffers.length === 0 ? (
+        {loading ? (
+
+          <div className="rounded-3xl bg-white p-12 text-center shadow-xl">
+
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600" />
+
+            <h2 className="text-2xl font-bold">
+              Loading Offers...
+            </h2>
+
+          </div>
+
+        ) : filteredOffers.length === 0 ? (
 
           <div className="rounded-3xl bg-white p-16 text-center shadow-xl">
 
             <div className="text-6xl">
-              😔
+              🎁
             </div>
 
-            <h2 className="mt-5 text-3xl font-bold text-green-600">
+            <h2 className="mt-4 text-3xl font-bold text-green-600">
               No Offers Found
             </h2>
 
@@ -463,9 +430,7 @@ export default function StudentOffers() {
 
         ) : (
 
-          /* ==================================
-             OFFER GRID
-          =================================== */
+          /* OFFER GRID */
 
           <div className="grid items-stretch gap-8 md:grid-cols-2 lg:grid-cols-3">
 
@@ -474,12 +439,12 @@ export default function StudentOffers() {
 
                 <div
                   key={offer.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-500 hover:-translate-y-2 hover:scale-[1.01] hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.45)]"
+                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-2xl"
                 >
 
                   {/* IMAGE */}
 
-                  <div className="h-64 shrink-0 overflow-hidden bg-gray-100">
+                  <div className="h-64 overflow-hidden bg-gray-100">
 
                     {offer.image ? (
 
@@ -487,19 +452,16 @@ export default function StudentOffers() {
                         src={offer.image}
                         alt={
                           offer.title ||
-                          "SPC Offer"
+                          "Offer"
                         }
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+                        loading="lazy"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                       />
 
                     ) : (
 
-                      <div className="flex h-full items-center justify-center bg-slate-100">
-
-                        <span className="text-6xl">
-                          🎁
-                        </span>
-
+                      <div className="flex h-full items-center justify-center text-6xl">
+                        🎁
                       </div>
 
                     )}
@@ -508,39 +470,33 @@ export default function StudentOffers() {
 
                   {/* CONTENT */}
 
-                  <div className="flex flex-1 flex-col rounded-b-3xl bg-slate-100 p-6">
+                  <div className="flex flex-1 flex-col bg-slate-100 p-6">
 
-                    {/* CATEGORY */}
+                    <div className="flex flex-wrap gap-3">
 
-                    <div className="mb-4 flex flex-wrap gap-3">
-
-                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white shadow">
+                      <span className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white">
                         {offer.category ||
                           "Other"}
                       </span>
 
-                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black shadow">
+                      <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
                         🔥 SPC Exclusive
                       </span>
 
                     </div>
 
-                    {/* BUSINESS NAME */}
-
-                    <p className="text-sm font-bold text-slate-500">
+                    <p className="mt-4 text-sm font-bold text-slate-500">
                       🏢{" "}
                       {offer.businessName ||
                         "SPC Partner Business"}
                     </p>
 
-                    {/* ADDRESS */}
-
                     <div className="mt-2 min-h-[40px]">
 
                       {offer.businessAddress ? (
 
-                        <p className="flex items-start gap-1 text-sm font-medium leading-5 text-slate-500">
-                          <span className="shrink-0">
+                        <p className="flex items-start gap-1 text-sm text-slate-500">
+                          <span>
                             📍
                           </span>
 
@@ -561,32 +517,19 @@ export default function StudentOffers() {
 
                     </div>
 
-                    {/* DIVIDER */}
-
-                    <div className="my-3 border-t border-gray-300" />
-
-                    {/* TITLE */}
-
-                    <h2 className="min-h-[56px] text-2xl font-bold leading-7 text-green-600">
+                    <h2 className="mt-3 min-h-[56px] text-2xl font-bold text-green-600">
                       {offer.title}
                     </h2>
 
-                    {/* DISCOUNT */}
-
-                    <h3 className="mt-3 min-h-[48px] bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent">
+                    <h3 className="mt-3 min-h-[45px] text-4xl font-extrabold text-yellow-500">
                       {offer.discount}
                     </h3>
 
-                    {/* DESCRIPTION */}
-
-                    <p className="mt-3 min-h-[48px] line-clamp-2 text-gray-600">
-                      {offer.description ||
-                        "Exclusive offer for SPC students."}
+                    <p className="mt-3 line-clamp-2 min-h-[48px] text-gray-600">
+                      {offer.description}
                     </p>
 
-                    {/* BUTTONS */}
-
-                    <div className="mt-auto flex gap-3 pt-8">
+                    <div className="mt-auto grid grid-cols-2 gap-3 pt-8">
 
                       <button
                         onClick={() =>
@@ -594,7 +537,7 @@ export default function StudentOffers() {
                             offer
                           )
                         }
-                        className="flex-1 rounded-xl bg-green-600 px-3 py-4 text-sm font-bold text-white transition hover:bg-green-700 sm:text-base"
+                        className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
                       >
                         👁 View Details
                       </button>
@@ -602,10 +545,10 @@ export default function StudentOffers() {
                       <button
                         onClick={() =>
                           callBusiness(
-                            offer.businessMobile
+                            offer
                           )
                         }
-                        className="flex-1 rounded-xl bg-green-600 px-3 py-4 text-sm font-bold text-white transition hover:bg-green-700 sm:text-base"
+                        className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
                       >
                         📞 Call Us
                       </button>
@@ -623,52 +566,52 @@ export default function StudentOffers() {
 
         )}
 
-        {/* ==================================
-            TOTAL OFFERS
-        =================================== */}
+        {/* TOTAL */}
 
-        <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-6 shadow-xl sm:p-8">
+        {!loading && (
+          <div className="mt-12 rounded-3xl bg-slate-100 p-8 shadow-xl">
 
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-            <div>
+              <div>
 
-              <h2 className="text-2xl font-bold text-green-600 sm:text-3xl">
-                🎉 Total Active Offers
-              </h2>
+                <h2 className="text-3xl font-bold text-green-600">
+                  🎉 Total Active Offers
+                </h2>
 
-              <p className="mt-2 text-gray-600">
-                Discover amazing discounts from SPC Partner Businesses.
-              </p>
+                <p className="mt-2 text-gray-600">
+                  Discover amazing discounts from SPC Partner Businesses.
+                </p>
 
-            </div>
+              </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 px-10 py-6 shadow-lg">
+              <div className="rounded-3xl bg-yellow-400 px-10 py-6">
 
-              <span className="block text-center text-5xl font-extrabold text-white">
-                {filteredOffers.length}
-              </span>
+                <span className="block text-center text-5xl font-extrabold text-white">
+                  {filteredOffers.length}
+                </span>
 
-              <p className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-white">
-                Active Offers
-              </p>
+                <p className="text-center text-sm font-bold uppercase text-white">
+                  Offers
+                </p>
+
+              </div>
 
             </div>
 
           </div>
-
-        </div>
+        )}
 
       </div>
 
-      {/* ==================================
-          PREMIUM OFFER POPUP
-      =================================== */}
+      {/* ==================================================
+          MODAL
+      ================================================== */}
 
       {selectedOffer && (
 
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-5"
           onClick={() =>
             setSelectedOffer(null)
           }
@@ -678,131 +621,113 @@ export default function StudentOffers() {
             onClick={(e) =>
               e.stopPropagation()
             }
-            className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
+            className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           >
 
-            {/* POPUP IMAGE */}
+            {/* CLOSE */}
 
-            {selectedOffer.image ? (
+            <button
+              onClick={() =>
+                setSelectedOffer(null)
+              }
+              className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-bold shadow-lg"
+            >
+              ✕
+            </button>
 
-              <img
-                src={
-                  selectedOffer.image
-                }
-                alt={
-                  selectedOffer.title
-                }
-                className="h-72 w-full object-cover sm:h-80"
-              />
+            <div className="min-h-0 flex-1 overflow-y-auto">
 
-            ) : (
+              {/* IMAGE */}
 
-              <div className="flex h-72 items-center justify-center bg-slate-100">
-                <span className="text-7xl">
-                  🎁
-                </span>
-              </div>
+              <div className="bg-gray-100 md:hidden">
 
-            )}
+                {selectedOffer.image ? (
 
-            {/* POPUP CONTENT */}
-
-            <div className="bg-slate-100 p-6 sm:p-8">
-
-              {/* CATEGORY */}
-
-              <div className="mb-5 flex flex-wrap gap-3">
-
-                <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
-                  {selectedOffer.category ||
-                    "Other"}
-                </span>
-
-                <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
-                  🔥 SPC Exclusive
-                </span>
-
-              </div>
-
-              {/* BUSINESS */}
-
-              <p className="text-lg font-bold text-slate-500">
-                🏢{" "}
-                {selectedOffer.businessName ||
-                  "SPC Partner Business"}
-              </p>
-
-              {/* ADDRESS */}
-
-              {selectedOffer.businessAddress && (
-
-                <p className="mt-2 flex items-start gap-2 text-base font-medium leading-6 text-slate-500">
-
-                  <span className="shrink-0">
-                    📍
-                  </span>
-
-                  <span>
-                    {
-                      selectedOffer.businessAddress
+                  <img
+                    src={
+                      selectedOffer.image
                     }
-                  </span>
+                    alt={
+                      selectedOffer.title
+                    }
+                    className="block max-h-[42vh] w-full object-contain"
+                  />
 
-                </p>
+                ) : (
 
-              )}
+                  <div className="flex h-56 items-center justify-center text-6xl">
+                    🎁
+                  </div>
 
-              {/* TITLE */}
-
-              <h1 className="mt-4 text-3xl font-extrabold text-green-600 sm:text-4xl">
-                {selectedOffer.title}
-              </h1>
-
-              {/* DISCOUNT */}
-
-              <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-5xl font-extrabold text-transparent">
-                {selectedOffer.discount}
-              </h2>
-
-              {/* DESCRIPTION */}
-
-              <div className="mt-8 rounded-2xl bg-white p-6 shadow">
-
-                <h3 className="mb-3 text-2xl font-bold text-green-600">
-                  Offer Description
-                </h3>
-
-                <p className="leading-8 text-gray-700">
-                  {selectedOffer.description ||
-                    "Exclusive offer for SPC students."}
-                </p>
+                )}
 
               </div>
 
-              {/* CALL BUSINESS */}
+              {/* DESKTOP */}
 
-              <button
-                onClick={() =>
-                  callBusiness(
-                    selectedOffer.businessMobile
-                  )
-                }
-                className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700"
-              >
-                📞 Call{" "}
-                {selectedOffer.businessName ||
-                  "Business"}
-              </button>
+              <div className="hidden md:grid md:grid-cols-2">
 
-              {/* CLOSE */}
+                <div className="flex min-h-[500px] items-center justify-center bg-gray-100">
+
+                  {selectedOffer.image ? (
+
+                    <img
+                      src={
+                        selectedOffer.image
+                      }
+                      alt={
+                        selectedOffer.title
+                      }
+                      className="max-h-[620px] w-full object-contain"
+                    />
+
+                  ) : (
+
+                    <span className="text-7xl">
+                      🎁
+                    </span>
+
+                  )}
+
+                </div>
+
+                <OfferDetails
+                  offer={
+                    selectedOffer
+                  }
+                  callBusiness={
+                    callBusiness
+                  }
+                />
+
+              </div>
+
+              {/* MOBILE */}
+
+              <div className="md:hidden">
+
+                <OfferDetails
+                  offer={
+                    selectedOffer
+                  }
+                  callBusiness={
+                    callBusiness
+                  }
+                />
+
+              </div>
+
+            </div>
+
+            <div className="border-t bg-white p-4">
 
               <button
                 onClick={() =>
                   setSelectedOffer(null)
                 }
-                className="mt-4 w-full rounded-2xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
+                className="w-full rounded-xl bg-gray-700 py-3 font-bold text-white hover:bg-gray-800"
               >
-                ✖ Close
+                ✕ Close
               </button>
 
             </div>
@@ -814,5 +739,135 @@ export default function StudentOffers() {
       )}
 
     </main>
+  );
+}
+
+/*
+ * ============================================================
+ * OFFER DETAILS
+ * ============================================================
+ */
+
+function OfferDetails({
+  offer,
+  callBusiness,
+}: {
+  offer: Offer;
+  callBusiness: (
+    offer: Offer
+  ) => void;
+}) {
+  return (
+    <div className="p-5 sm:p-7">
+
+      <div className="flex flex-wrap gap-2">
+
+        <span className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white">
+          {offer.category ||
+            "Other"}
+        </span>
+
+        <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
+          🔥 SPC Exclusive
+        </span>
+
+      </div>
+
+      <h2 className="mt-4 text-2xl font-bold text-slate-700 sm:text-3xl">
+        🏢{" "}
+        {offer.businessName ||
+          "SPC Partner Business"}
+      </h2>
+
+      {offer.businessAddress && (
+
+        <p className="mt-2 flex items-start gap-2 text-sm text-gray-500">
+          <span>📍</span>
+
+          <span>
+            {offer.businessAddress}
+          </span>
+        </p>
+
+      )}
+
+      <div className="my-5 border-t" />
+
+      <h1 className="text-3xl font-extrabold text-green-600">
+        {offer.title}
+      </h1>
+
+      <h2 className="mt-3 text-4xl font-extrabold text-yellow-500">
+        {offer.discount}
+      </h2>
+
+      <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+
+        <h3 className="text-xl font-bold text-green-600">
+          Offer Description
+        </h3>
+
+        <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
+          {offer.description ||
+            "Exclusive offer for SPC students."}
+        </p>
+
+      </div>
+
+      {/* TERMS */}
+
+      <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+
+        <h3 className="text-xl font-bold text-green-600">
+          Terms & Conditions
+        </h3>
+
+        <div className="mt-3 space-y-2 text-sm leading-6 text-gray-700">
+
+          <p>
+            • Offer valid for SPC students
+          </p>
+
+          <p>
+            • Valid Student ID must be shown
+          </p>
+
+          <p>
+            • Offer cannot be combined with other offers
+          </p>
+
+        </div>
+
+      </div>
+
+      {/* CALL */}
+
+      <div className="mt-5 rounded-2xl bg-green-50 p-5">
+
+        <h3 className="text-xl font-bold text-green-700">
+          Contact Business
+        </h3>
+
+        {offer.businessMobile && (
+
+          <p className="mt-2 font-bold text-green-700">
+            📞{" "}
+            {offer.businessMobile}
+          </p>
+
+        )}
+
+        <button
+          onClick={() =>
+            callBusiness(offer)
+          }
+          className="mt-4 w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700"
+        >
+          📞 Call Business
+        </button>
+
+      </div>
+
+    </div>
   );
 }
