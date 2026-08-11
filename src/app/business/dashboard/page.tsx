@@ -228,11 +228,11 @@ export default function BusinessDashboard() {
               className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105"
             >
               <h2 className="text-2xl font-bold text-purple-700">
-                📷 Scan Student QR
+                📷 Redeem Student Offer here
               </h2>
 
               <p className="mt-3 text-gray-600">
-                Redeem Student Offer
+                Redeem Student Offer here by searching student SPC Card Number.
               </p>
 
             </Link>
