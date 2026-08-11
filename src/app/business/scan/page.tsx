@@ -47,6 +47,8 @@ export default function ScanPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [showConfirm, setShowConfirm] = useState(false);
+
   /*
    * Load current business active offer
    */
@@ -67,6 +69,7 @@ export default function ScanPage() {
       const offerSnap = await getDocs(offerQuery);
 
       if (offerSnap.empty) {
+        setOffer(null);
         return null;
       }
 
@@ -85,6 +88,9 @@ export default function ScanPage() {
       return activeOffer;
     } catch (error) {
       console.error("Error loading offer:", error);
+
+      setOffer(null);
+
       return null;
     }
   };
@@ -101,14 +107,14 @@ export default function ScanPage() {
     const enteredCardNumber = cardNumber.trim();
 
     if (!enteredCardNumber) {
-      setError("Please enter Student Card Number");
+      setError("Please enter Student Card Number.");
       return;
     }
 
     const user = auth.currentUser;
 
     if (!user) {
-      setError("Business login required");
+      setError("Business login required.");
       return;
     }
 
@@ -116,7 +122,7 @@ export default function ScanPage() {
       setLoading(true);
 
       /*
-       * Find student by cardNumber
+       * Find student by Card Number
        */
       const studentQuery = query(
         collection(db, "students"),
@@ -191,9 +197,9 @@ export default function ScanPage() {
   };
 
   /*
-   * Redeem active offer
+   * Open confirmation popup
    */
-  const redeemOffer = async () => {
+  const openConfirmPopup = () => {
     if (!student || !offer) {
       setError("Student or Offer not found.");
       return;
@@ -206,10 +212,45 @@ export default function ScanPage() {
       return;
     }
 
+    setError("");
+    setSuccess("");
+    setShowConfirm(true);
+  };
+
+  /*
+   * Close confirmation popup
+   */
+  const closeConfirmPopup = () => {
+    if (redeeming) {
+      return;
+    }
+
+    setShowConfirm(false);
+  };
+
+  /*
+   * Confirm and redeem offer
+   */
+  const confirmRedeem = async () => {
+    if (!student || !offer) {
+      setShowConfirm(false);
+      setError("Student or Offer not found.");
+      return;
+    }
+
+    if (usedCount >= 4) {
+      setShowConfirm(false);
+      setError(
+        "This student has already used this offer 4 times."
+      );
+      return;
+    }
+
     const user = auth.currentUser;
 
     if (!user) {
-      setError("Business login required");
+      setShowConfirm(false);
+      setError("Business login required.");
       return;
     }
 
@@ -219,8 +260,8 @@ export default function ScanPage() {
       setSuccess("");
 
       /*
-       * Double-check existing redemptions
-       * before creating a new one.
+       * Double-check previous redemptions
+       * before creating a new redemption.
        */
       const redemptionQuery = query(
         collection(db, "redemptions"),
@@ -235,8 +276,12 @@ export default function ScanPage() {
       const currentUsedCount =
         redemptionSnap.size;
 
+      /*
+       * Safety limit
+       */
       if (currentUsedCount >= 4) {
         setUsedCount(currentUsedCount);
+        setShowConfirm(false);
 
         setError(
           "This offer has already reached the 4-use limit."
@@ -252,16 +297,25 @@ export default function ScanPage() {
         collection(db, "redemptions"),
         {
           studentId: student.id,
+
           studentName: student.fullName,
+
           studentCardNumber:
-            student.cardNumber || cardNumber.trim(),
-          studentMobile: student.mobile || "",
-          studentEmail: student.email || "",
+            student.cardNumber ||
+            cardNumber.trim(),
+
+          studentMobile:
+            student.mobile || "",
+
+          studentEmail:
+            student.email || "",
 
           businessId: user.uid,
 
           offerId: offer.id,
+
           offerTitle: offer.title,
+
           discount: offer.discount,
 
           redeemedAt: serverTimestamp(),
@@ -274,6 +328,8 @@ export default function ScanPage() {
         currentUsedCount + 1;
 
       setUsedCount(nextCount);
+
+      setShowConfirm(false);
 
       /*
        * Success message
@@ -297,6 +353,8 @@ export default function ScanPage() {
         error
       );
 
+      setShowConfirm(false);
+
       setError(
         "❌ Redemption failed. Please try again."
       );
@@ -306,7 +364,7 @@ export default function ScanPage() {
   };
 
   /*
-   * Load offer when page opens
+   * Load active offer when page opens
    */
   useEffect(() => {
     loadOffer();
@@ -324,7 +382,7 @@ export default function ScanPage() {
   };
 
   /*
-   * Reset search
+   * Reset page for next student
    */
   const resetSearch = () => {
     setCardNumber("");
@@ -332,14 +390,19 @@ export default function ScanPage() {
     setUsedCount(0);
     setError("");
     setSuccess("");
+    setShowConfirm(false);
   };
 
   return (
     <BusinessProtected>
       <main className="min-h-screen bg-slate-100 p-5 md:p-8">
+
         <div className="mx-auto max-w-5xl">
 
-          {/* Header */}
+          {/* ========================================
+              HEADER
+          ======================================== */}
+
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
@@ -366,7 +429,11 @@ export default function ScanPage() {
 
           </div>
 
-          {/* Search Card */}
+
+          {/* ========================================
+              SEARCH CARD
+          ======================================== */}
+
           <div className="rounded-3xl bg-white p-6 shadow-xl md:p-8">
 
             <h2 className="text-2xl font-bold text-gray-800">
@@ -405,27 +472,39 @@ export default function ScanPage() {
 
             </div>
 
+
             {/* Error */}
+
             {error && (
               <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
+
                 <p className="font-bold text-red-700">
                   ❌ {error}
                 </p>
+
               </div>
             )}
 
+
             {/* Success */}
+
             {success && (
               <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5">
+
                 <p className="font-bold text-green-700">
                   {success}
                 </p>
+
               </div>
             )}
 
           </div>
 
-          {/* Student Details */}
+
+          {/* ========================================
+              STUDENT DETAILS
+          ======================================== */}
+
           {student && (
             <div className="mt-8 rounded-3xl bg-white p-6 shadow-xl md:p-8">
 
@@ -437,18 +516,24 @@ export default function ScanPage() {
 
                 <button
                   onClick={resetSearch}
-                  className="rounded-xl bg-gray-100 px-5 py-3 font-bold text-gray-700 hover:bg-gray-200"
+                  className="rounded-xl bg-gray-100 px-5 py-3 font-bold text-gray-700 transition hover:bg-gray-200"
                 >
                   🔄 New Student
                 </button>
 
               </div>
 
-              {/* Student Information */}
+
+              {/* ====================================
+                  STUDENT INFORMATION
+              ==================================== */}
+
               <div className="mt-8 grid gap-5 md:grid-cols-2">
 
-                {/* Name */}
+                {/* Student Name */}
+
                 <div className="rounded-2xl bg-slate-100 p-5">
+
                   <p className="text-sm text-gray-500">
                     👤 Student Name
                   </p>
@@ -456,10 +541,14 @@ export default function ScanPage() {
                   <h3 className="mt-2 text-xl font-bold text-gray-800">
                     {student.fullName}
                   </h3>
+
                 </div>
 
+
                 {/* Card Number */}
+
                 <div className="rounded-2xl bg-slate-100 p-5">
+
                   <p className="text-sm text-gray-500">
                     🎫 Card Number
                   </p>
@@ -468,10 +557,14 @@ export default function ScanPage() {
                     {student.cardNumber ||
                       cardNumber}
                   </h3>
+
                 </div>
 
+
                 {/* College */}
+
                 <div className="rounded-2xl bg-slate-100 p-5">
+
                   <p className="text-sm text-gray-500">
                     🏫 College
                   </p>
@@ -479,10 +572,14 @@ export default function ScanPage() {
                   <h3 className="mt-2 text-xl font-bold text-gray-800">
                     {student.college || "-"}
                   </h3>
+
                 </div>
 
+
                 {/* Mobile */}
+
                 <div className="rounded-2xl bg-slate-100 p-5">
+
                   <p className="text-sm text-gray-500">
                     📱 Mobile
                   </p>
@@ -490,10 +587,14 @@ export default function ScanPage() {
                   <h3 className="mt-2 text-xl font-bold text-gray-800">
                     {student.mobile || "-"}
                   </h3>
+
                 </div>
 
+
                 {/* Email */}
+
                 <div className="rounded-2xl bg-slate-100 p-5 md:col-span-2">
+
                   <p className="text-sm text-gray-500">
                     📧 Email
                   </p>
@@ -501,11 +602,16 @@ export default function ScanPage() {
                   <h3 className="mt-2 break-all text-lg font-bold text-gray-800">
                     {student.email || "-"}
                   </h3>
+
                 </div>
 
               </div>
 
-              {/* Usage Status */}
+
+              {/* ====================================
+                  USAGE STATUS
+              ==================================== */}
+
               <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
 
                 {usedCount === 0 && (
@@ -525,6 +631,7 @@ export default function ScanPage() {
                   </>
                 )}
 
+
                 {usedCount > 0 &&
                   usedCount < 4 && (
                     <>
@@ -542,6 +649,7 @@ export default function ScanPage() {
                       </p>
                     </>
                   )}
+
 
                 {usedCount >= 4 && (
                   <>
@@ -562,7 +670,11 @@ export default function ScanPage() {
 
               </div>
 
-              {/* Current Offer */}
+
+              {/* ====================================
+                  CURRENT OFFER
+              ==================================== */}
+
               {offer && (
                 <div className="mt-6 rounded-2xl bg-blue-50 p-6">
 
@@ -581,7 +693,11 @@ export default function ScanPage() {
                 </div>
               )}
 
-              {/* Redeem Button */}
+
+              {/* ====================================
+                  REDEEM BUTTON
+              ==================================== */}
+
               <div className="mt-8">
 
                 <button
@@ -589,7 +705,7 @@ export default function ScanPage() {
                     usedCount >= 4 ||
                     redeeming
                   }
-                  onClick={redeemOffer}
+                  onClick={openConfirmPopup}
                   className={`w-full rounded-2xl py-5 text-xl font-bold text-white transition-all ${
                     usedCount >= 4 ||
                     redeeming
@@ -610,6 +726,163 @@ export default function ScanPage() {
           )}
 
         </div>
+
+
+        {/* ==========================================
+            CONFIRM REDEMPTION MODAL
+        ========================================== */}
+
+        {showConfirm && student && offer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+
+            <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl md:p-8">
+
+              {/* Icon */}
+
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100 text-3xl">
+                ⚠️
+              </div>
+
+
+              {/* Title */}
+
+              <h2 className="mt-5 text-center text-2xl font-bold text-gray-900">
+                Confirm Redemption
+              </h2>
+
+              <p className="mt-2 text-center text-gray-500">
+                Please verify the details before
+                redeeming this offer.
+              </p>
+
+
+              {/* Details */}
+
+              <div className="mt-6 space-y-3 rounded-2xl bg-slate-100 p-5">
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    Student
+                  </span>
+
+                  <span className="text-right font-bold text-gray-900">
+                    {student.fullName}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    Card Number
+                  </span>
+
+                  <span className="text-right font-bold text-purple-700">
+                    {student.cardNumber ||
+                      cardNumber}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    Offer
+                  </span>
+
+                  <span className="text-right font-bold text-blue-700">
+                    {offer.title}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    Discount
+                  </span>
+
+                  <span className="text-right font-bold text-green-600">
+                    {offer.discount}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    Current Usage
+                  </span>
+
+                  <span className="text-right font-bold text-gray-900">
+                    {usedCount} / 4
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <span className="text-sm text-gray-500">
+                    After Redeeming
+                  </span>
+
+                  <span className="text-right font-bold text-green-700">
+                    {usedCount + 1} / 4
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              {/* Warning */}
+
+              <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+
+                <p className="text-sm font-semibold text-yellow-800">
+                  ⚠️ Once confirmed, this redemption
+                  will be recorded and cannot be undone.
+                </p>
+
+              </div>
+
+
+              {/* Buttons */}
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+
+                <button
+                  onClick={closeConfirmPopup}
+                  disabled={redeeming}
+                  className="rounded-2xl bg-gray-200 px-4 py-4 font-bold text-gray-800 transition hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+
+                <button
+                  onClick={confirmRedeem}
+                  disabled={redeeming}
+                  className="rounded-2xl bg-green-600 px-4 py-4 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                >
+                  {redeeming
+                    ? "⏳ Saving..."
+                    : "✅ Confirm Redeem"}
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
       </main>
     </BusinessProtected>
   );
