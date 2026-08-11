@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import AdminProtected from "@/components/AdminProtected";
@@ -21,98 +21,400 @@ interface Business {
   mobile: string;
   category: string;
   status: string;
+  createdAt?: any;
 }
 
 export default function AdminBusinesses() {
-
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  /*
+   * ==========================================
+   * LOAD BUSINESSES
+   * ==========================================
+   */
+
+  const loadBusinesses = async () => {
+    try {
+      setLoading(true);
+
+      const snap = await getDocs(
+        collection(db, "businesses")
+      );
+
+      const data = snap.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      })) as Business[];
+
+      setBusinesses(data);
+    } catch (error) {
+      console.error(
+        "Error loading businesses:",
+        error
+      );
+
+      alert(
+        "Unable to load businesses."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadBusinesses();
   }, []);
 
-  const loadBusinesses = async () => {
+  /*
+   * ==========================================
+   * APPROVE BUSINESS
+   * ==========================================
+   */
 
-    const snap = await getDocs(
-      collection(db, "businesses")
+  const approveBusiness = async (
+    id: string,
+    name: string
+  ) => {
+    const ok = window.confirm(
+      `Approve "${name}" as an SPC Partner Business?`
     );
 
-    const data = snap.docs.map((item) => ({
-      id: item.id,
-      ...item.data(),
-    })) as Business[];
+    if (!ok) {
+      return;
+    }
 
-    setBusinesses(data);
-    setLoading(false);
+    try {
+      setActionLoading(id);
 
+      await updateDoc(
+        doc(db, "businesses", id),
+        {
+          status: "approved",
+        }
+      );
+
+      setBusinesses(
+        (currentBusinesses) =>
+          currentBusinesses.map(
+            (business) =>
+              business.id === id
+                ? {
+                    ...business,
+                    status: "approved",
+                  }
+                : business
+          )
+      );
+
+      alert(
+        `${name} approved successfully.`
+      );
+    } catch (error) {
+      console.error(
+        "Error approving business:",
+        error
+      );
+
+      alert(
+        "Unable to approve business."
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const approveBusiness = async (id: string) => {
+  /*
+   * ==========================================
+   * REJECT BUSINESS
+   * ==========================================
+   */
 
-    await updateDoc(
-      doc(db, "businesses", id),
-      {
-        status: "approved",
-      }
+  const rejectBusiness = async (
+    id: string,
+    name: string
+  ) => {
+    const ok = window.confirm(
+      `Reject "${name}"?`
     );
 
-    loadBusinesses();
+    if (!ok) {
+      return;
+    }
 
+    try {
+      setActionLoading(id);
+
+      await updateDoc(
+        doc(db, "businesses", id),
+        {
+          status: "rejected",
+        }
+      );
+
+      setBusinesses(
+        (currentBusinesses) =>
+          currentBusinesses.map(
+            (business) =>
+              business.id === id
+                ? {
+                    ...business,
+                    status: "rejected",
+                  }
+                : business
+          )
+      );
+
+      alert(
+        `${name} rejected.`
+      );
+    } catch (error) {
+      console.error(
+        "Error rejecting business:",
+        error
+      );
+
+      alert(
+        "Unable to reject business."
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const rejectBusiness = async (id: string) => {
-
-    await updateDoc(
-      doc(db, "businesses", id),
-      {
-        status: "rejected",
-      }
-    );
-
-    loadBusinesses();
-
-  };
+  /*
+   * ==========================================
+   * DELETE BUSINESS
+   * ==========================================
+   */
 
   const deleteBusiness = async (
     id: string,
     name: string
   ) => {
-
     const ok = window.confirm(
-      `Delete "${name}" ?`
+      `Delete "${name}" permanently?`
     );
 
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
-    await deleteDoc(
-      doc(db, "businesses", id)
-    );
+    try {
+      setActionLoading(id);
 
-    loadBusinesses();
+      await deleteDoc(
+        doc(db, "businesses", id)
+      );
 
+      setBusinesses(
+        (currentBusinesses) =>
+          currentBusinesses.filter(
+            (business) =>
+              business.id !== id
+          )
+      );
+    } catch (error) {
+      console.error(
+        "Error deleting business:",
+        error
+      );
+
+      alert(
+        "Unable to delete business."
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
+  /*
+   * ==========================================
+   * HELPERS
+   * ==========================================
+   */
+
+  const isPending = (
+    business: Business
+  ) =>
+    business.status?.toLowerCase() ===
+    "pending";
+
+  const getCreatedTime = (
+    business: Business
+  ) => {
+    try {
+      if (
+        business.createdAt?.toMillis
+      ) {
+        return business.createdAt.toMillis();
+      }
+
+      if (
+        business.createdAt?.seconds
+      ) {
+        return (
+          business.createdAt.seconds *
+          1000
+        );
+      }
+
+      if (
+        business.createdAt instanceof Date
+      ) {
+        return business.createdAt.getTime();
+      }
+
+      if (
+        typeof business.createdAt ===
+        "string"
+      ) {
+        const time = new Date(
+          business.createdAt
+        ).getTime();
+
+        return Number.isNaN(time)
+          ? 0
+          : time;
+      }
+
+      return 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  /*
+   * ==========================================
+   * FILTER + SORT
+   * ==========================================
+   *
+   * ORDER:
+   *
+   * 1. Pending businesses
+   * 2. Latest registrations
+   * 3. Approved businesses
+   * 4. Rejected businesses
+   *
+   */
+
   const filteredBusinesses =
-    businesses.filter((business) =>
-      business.businessName
-        ?.toLowerCase()
-        .includes(search.toLowerCase())
-    );
+    useMemo(() => {
+      const searchText =
+        search.trim().toLowerCase();
+
+      return [...businesses]
+        .filter((business) => {
+          if (!searchText) {
+            return true;
+          }
+
+          return (
+            business.businessName
+              ?.toLowerCase()
+              .includes(searchText) ||
+            business.ownerName
+              ?.toLowerCase()
+              .includes(searchText) ||
+            business.mobile
+              ?.toLowerCase()
+              .includes(searchText) ||
+            business.category
+              ?.toLowerCase()
+              .includes(searchText)
+          );
+        })
+        .sort((a, b) => {
+          const statusA =
+            a.status?.toLowerCase();
+
+          const statusB =
+            b.status?.toLowerCase();
+
+          /*
+           * Pending first
+           */
+
+          const pendingA =
+            statusA === "pending";
+
+          const pendingB =
+            statusB === "pending";
+
+          if (
+            pendingA &&
+            !pendingB
+          ) {
+            return -1;
+          }
+
+          if (
+            !pendingA &&
+            pendingB
+          ) {
+            return 1;
+          }
+
+          /*
+           * Then latest registration first
+           */
+
+          const timeA =
+            getCreatedTime(a);
+
+          const timeB =
+            getCreatedTime(b);
+
+          if (
+            timeA !== timeB
+          ) {
+            return timeB - timeA;
+          }
+
+          /*
+           * Fallback alphabetical
+           */
+
+          return (
+            a.businessName || ""
+          ).localeCompare(
+            b.businessName || ""
+          );
+        });
+    }, [businesses, search]);
+
+  /*
+   * ==========================================
+   * PENDING COUNT
+   * ==========================================
+   */
+
+  const pendingCount =
+    businesses.filter(
+      (business) =>
+        isPending(business)
+    ).length;
+
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
 
   return (
-
     <AdminProtected>
-
       <main className="min-h-screen bg-slate-100 p-8">
-
         <div className="mx-auto max-w-7xl">
 
-          <div className="mb-8 flex items-center justify-between">
+          {/* ==================================
+              HEADER
+          =================================== */}
+
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
             <div>
-
               <h1 className="text-4xl font-bold text-green-700">
                 🏪 Business Management
               </h1>
@@ -120,28 +422,90 @@ export default function AdminBusinesses() {
               <p className="mt-2 text-gray-600">
                 Approve, Reject and Manage Businesses
               </p>
-
             </div>
 
             <Link
               href="/admin/dashboard"
-              className="rounded-xl bg-gray-700 px-6 py-3 font-bold text-white hover:bg-gray-800"
+              className="rounded-xl bg-gray-700 px-6 py-3 text-center font-bold text-white transition hover:bg-gray-800"
             >
               ← Dashboard
             </Link>
 
           </div>
-                    <input
+
+          {/* ==================================
+              PENDING APPROVAL
+          =================================== */}
+
+          {!loading && (
+            <div
+              className={`mb-6 rounded-2xl p-5 shadow ${
+                pendingCount > 0
+                  ? "border-2 border-orange-300 bg-orange-50"
+                  : "bg-white"
+              }`}
+            >
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+                <div>
+                  <p
+                    className={`text-lg font-bold ${
+                      pendingCount > 0
+                        ? "text-orange-700"
+                        : "text-green-700"
+                    }`}
+                  >
+                    {pendingCount > 0
+                      ? "⏳ Pending Business Approvals"
+                      : "✅ No Pending Business Approvals"}
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    {pendingCount > 0
+                      ? "New businesses waiting for admin verification."
+                      : "All currently registered businesses have been reviewed."}
+                  </p>
+                </div>
+
+                <div
+                  className={`rounded-xl px-6 py-3 text-2xl font-extrabold ${
+                    pendingCount > 0
+                      ? "bg-orange-500 text-white"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {pendingCount}
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================================
+              SEARCH
+          =================================== */}
+
+          <input
             type="text"
-            placeholder="Search Business..."
+            placeholder="🔍 Search Business, Owner, Mobile or Category..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mb-8 w-full rounded-xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600"
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+            className="mb-8 w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
+
+          {/* ==================================
+              LOADING
+          =================================== */}
 
           {loading ? (
 
             <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
+
+              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
               <h2 className="text-2xl font-bold">
                 Loading Businesses...
@@ -153,7 +517,12 @@ export default function AdminBusinesses() {
 
             <div className="grid gap-6">
 
-              {filteredBusinesses.length === 0 ? (
+              {/* ==================================
+                  NO BUSINESSES
+              =================================== */}
+
+              {filteredBusinesses.length ===
+              0 ? (
 
                 <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
@@ -161,114 +530,220 @@ export default function AdminBusinesses() {
                     No Businesses Found
                   </h2>
 
+                  <p className="mt-3 text-gray-500">
+                    Try a different search.
+                  </p>
+
                 </div>
 
               ) : (
 
-                filteredBusinesses.map((business) => (
+                filteredBusinesses.map(
+                  (business, index) => {
 
-                  <div
-                    key={business.id}
-                    className="rounded-3xl bg-white p-6 shadow-xl"
-                  >
+                    const pending =
+                      isPending(
+                        business
+                      );
 
-                      <div className="grid gap-6 md:grid-cols-2">
+                    const recent =
+                      index < 5 &&
+                      getCreatedTime(
+                        business
+                      ) > 0;
 
-                        <div>
+                    const actionBusy =
+                      actionLoading ===
+                      business.id;
 
-                          <h2 className="text-3xl font-bold text-green-700">
+                    return (
+                      <div
+                        key={business.id}
+                        className={`rounded-3xl bg-white p-6 shadow-xl transition hover:-translate-y-1 hover:shadow-2xl ${
+                          pending
+                            ? "border-2 border-orange-300"
+                            : "border border-transparent"
+                        }`}
+                      >
 
-                            {business.businessName}
+                        <div className="grid gap-6 md:grid-cols-2">
 
-                          </h2>
+                          {/* ==================================
+                              BUSINESS INFO
+                          =================================== */}
 
-                          <p className="mt-4 text-gray-600">
+                          <div>
 
-                            👤 Owner :
-                            <span className="font-semibold">
-                              {" "}
-                              {business.ownerName}
-                            </span>
+                            {/* NEW BADGE */}
 
-                          </p>
+                            {pending && (
+                              <div className="mb-3 inline-flex rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-700">
+                                ⏳ PENDING APPROVAL
+                              </div>
+                            )}
 
-                          <p className="mt-2 text-gray-600">
+                            {!pending &&
+                              recent && (
+                                <div className="mb-3 inline-flex rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
+                                  🆕 RECENTLY JOINED
+                                </div>
+                              )}
 
-                            📱 Mobile :
-                            <span className="font-semibold">
-                              {" "}
-                              {business.mobile}
-                            </span>
+                            <h2 className="text-3xl font-bold text-green-700">
+                              {
+                                business.businessName
+                              }
+                            </h2>
 
-                          </p>
+                            <p className="mt-4 text-gray-600">
+                              👤 Owner :
+                              <span className="font-semibold">
+                                {" "}
+                                {
+                                  business.ownerName ||
+                                  "-"
+                                }
+                              </span>
+                            </p>
 
-                          <p className="mt-2 text-gray-600">
+                            <p className="mt-2 text-gray-600">
+                              📱 Mobile :
+                              <span className="font-semibold">
+                                {" "}
+                                {
+                                  business.mobile ||
+                                  "-"
+                                }
+                              </span>
+                            </p>
 
-                            🏷 Category :
-                            <span className="font-semibold">
-                              {" "}
-                              {business.category}
-                            </span>
+                            <p className="mt-2 text-gray-600">
+                              🏷 Category :
+                              <span className="font-semibold">
+                                {" "}
+                                {
+                                  business.category ||
+                                  "-"
+                                }
+                              </span>
+                            </p>
 
-                          </p>
+                            {getCreatedTime(
+                              business
+                            ) > 0 && (
+                              <p className="mt-2 text-sm text-gray-500">
+                                🕐 Registered :
+                                <span className="font-semibold">
+                                  {" "}
+                                  {new Date(
+                                    getCreatedTime(
+                                      business
+                                    )
+                                  ).toLocaleString()}
+                                </span>
+                              </p>
+                            )}
 
-                        </div>
+                          </div>
 
-                        <div className="flex flex-col items-start justify-center">
+                          {/* ==================================
+                              STATUS + ACTIONS
+                          =================================== */}
 
-                                                  <span
-                            className={`rounded-full px-5 py-2 font-bold text-white
-                              ${
-                                business.status === "approved"
+                          <div className="flex flex-col items-start justify-center">
+
+                            <span
+                              className={`rounded-full px-5 py-2 font-bold text-white ${
+                                business.status
+                                  ?.toLowerCase() ===
+                                "approved"
                                   ? "bg-green-600"
-                                  : business.status === "pending"
+                                  : business.status
+                                        ?.toLowerCase() ===
+                                    "pending"
                                   ? "bg-orange-500"
                                   : "bg-red-600"
                               }`}
-                          >
-                            {business.status.toUpperCase()}
-                          </span>
-
-                          <div className="mt-6 flex flex-wrap gap-3">
-
-                            <button
-                              onClick={() =>
-                                approveBusiness(business.id)
-                              }
-                              className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white hover:bg-green-700"
                             >
-                              ✅ Approve
-                            </button>
+                              {(
+                                business.status ||
+                                "unknown"
+                              ).toUpperCase()}
+                            </span>
 
-                            <button
-                              onClick={() =>
-                                rejectBusiness(business.id)
-                              }
-                              className="rounded-xl bg-orange-500 px-5 py-3 font-bold text-white hover:bg-orange-600"
-                            >
-                              ❌ Reject
-                            </button>
+                            <div className="mt-6 flex flex-wrap gap-3">
 
-                            <button
-                              onClick={() =>
-                                deleteBusiness(
-                                  business.id,
-                                  business.businessName
-                                )
-                              }
-                              className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700"
-                            >
-                              🗑 Delete
-                            </button>
+                              {/* APPROVE */}
+
+                              {business.status
+                                ?.toLowerCase() !==
+                                "approved" && (
+                                <button
+                                  onClick={() =>
+                                    approveBusiness(
+                                      business.id,
+                                      business.businessName
+                                    )
+                                  }
+                                  disabled={
+                                    actionBusy
+                                  }
+                                  className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {actionBusy
+                                    ? "Processing..."
+                                    : "✅ Approve"}
+                                </button>
+                              )}
+
+                              {/* REJECT */}
+
+                              {business.status
+                                ?.toLowerCase() !==
+                                "rejected" && (
+                                <button
+                                  onClick={() =>
+                                    rejectBusiness(
+                                      business.id,
+                                      business.businessName
+                                    )
+                                  }
+                                  disabled={
+                                    actionBusy
+                                  }
+                                  className="rounded-xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  ❌ Reject
+                                </button>
+                              )}
+
+                              {/* DELETE */}
+
+                              <button
+                                onClick={() =>
+                                  deleteBusiness(
+                                    business.id,
+                                    business.businessName
+                                  )
+                                }
+                                disabled={
+                                  actionBusy
+                                }
+                                className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                🗑 Delete
+                              </button>
+
+                            </div>
 
                           </div>
 
                         </div>
 
                       </div>
-
-                  </div>
-                                  ))
+                    );
+                  }
+                )
 
               )}
 
@@ -277,10 +752,7 @@ export default function AdminBusinesses() {
           )}
 
         </div>
-
       </main>
-
     </AdminProtected>
-
   );
 }
