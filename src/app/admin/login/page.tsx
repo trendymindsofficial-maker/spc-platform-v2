@@ -63,6 +63,16 @@ export default function AdminLoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+        {/* Back to Home - Separate Button */}
+<div className="mb-6">
+  <button
+    type="button"
+    onClick={() => router.push("/")}
+    className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
+  >
+    ← Back to Home
+  </button>
+</div>
 
         <h1 className="text-center text-4xl font-bold text-blue-700">
           SPC Admin
