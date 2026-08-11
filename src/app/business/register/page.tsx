@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
@@ -8,16 +8,25 @@ import { auth, db } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 import {
+  collection,
   doc,
+  getDocs,
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
 
-export default function BusinessRegister() {
+interface Category {
+  id: string;
+  name: string;
+}
 
+export default function BusinessRegister() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [businessName, setBusinessName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -26,25 +35,85 @@ export default function BusinessRegister() {
   const [category, setCategory] = useState("");
   const [address, setAddress] = useState("");
 
-  const registerBusiness = async () => {
+  /*
+   * ==========================================
+   * LOAD CATEGORIES FROM FIRESTORE
+   * ==========================================
+   */
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+
+        const snap = await getDocs(
+          collection(db, "categories")
+        );
+
+        const data: Category[] = snap.docs
+          .map((item) => {
+            const itemData = item.data();
+
+            return {
+              id: item.id,
+              name:
+                itemData.name ||
+                itemData.category ||
+                itemData.title ||
+                "",
+            };
+          })
+          .filter((item) => item.name.trim() !== "")
+          .sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+
+        setCategories(data);
+      } catch (error) {
+        console.error(
+          "Category loading error:",
+          error
+        );
+
+        alert(
+          "Unable to load business categories."
+        );
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  /*
+   * ==========================================
+   * REGISTER BUSINESS
+   * ==========================================
+   */
+
+  const registerBusiness = async () => {
     if (
-      !businessName ||
-      !ownerName ||
-      !mobile ||
+      !businessName.trim() ||
+      !ownerName.trim() ||
+      !mobile.trim() ||
       !password ||
       !category ||
-      !address
+      !address.trim()
     ) {
       alert("Fill all fields");
       return;
     }
 
     try {
-
       setLoading(true);
 
-      const loginEmail = `${mobile}@business.spc`;
+      const loginEmail =
+        `${mobile.trim()}@business.spc`;
+
+      /*
+       * CREATE FIREBASE AUTH USER
+       */
 
       const userCredential =
         await createUserWithEmailAndPassword(
@@ -53,129 +122,244 @@ export default function BusinessRegister() {
           password
         );
 
-      const uid = userCredential.user.uid;
+      const uid =
+        userCredential.user.uid;
 
-      await setDoc(doc(db, "businesses", uid), {
+      /*
+       * SAVE BUSINESS DATA
+       */
 
-        uid,
+      await setDoc(
+        doc(db, "businesses", uid),
+        {
+          uid,
 
-        businessName,
+          businessName:
+            businessName.trim(),
 
-        ownerName,
+          ownerName:
+            ownerName.trim(),
 
-        mobile,
+          mobile:
+            mobile.trim(),
 
-        email: loginEmail,
+          email: loginEmail,
 
-        category,
+          category,
 
-        address,
+          address:
+            address.trim(),
 
-        status: "pending",
+          status: "pending",
 
-        createdAt: serverTimestamp(),
+          createdAt:
+            serverTimestamp(),
+        }
+      );
 
-      });
+      alert(
+        "✅ Business registration successful!\n\nYour account is waiting for admin approval."
+      );
 
-      router.replace("/business/login");
-
+      router.replace(
+        "/business/login"
+      );
     } catch (error: any) {
+      console.error(
+        "Business registration error:",
+        error
+      );
 
-      alert(error.message);
-
+      if (
+        error?.code ===
+        "auth/email-already-in-use"
+      ) {
+        alert(
+          "❌ This mobile number is already registered."
+        );
+      } else if (
+        error?.code ===
+        "auth/weak-password"
+      ) {
+        alert(
+          "❌ Password should be at least 6 characters."
+        );
+      } else {
+        alert(
+          error?.message ||
+            "Business registration failed."
+        );
+      }
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
   return (
-
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+
+        {/* BACK HOME */}
+
         <div className="mb-6">
-    <button
-      type="button"
-      onClick={() => router.push("/")}
-      className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
-    >
-      ← Back to Home
-    </button>
-  </div>
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/")
+            }
+            className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
+          >
+            ← Back to Home
+          </button>
+        </div>
+
+        {/* TITLE */}
 
         <h1 className="mb-6 text-center text-3xl font-bold">
           🏪 Business Registration
         </h1>
 
         <div className="space-y-4">
-                      <input
+
+          {/* BUSINESS NAME */}
+
+          <input
+            type="text"
             placeholder="Business Name"
-            className="w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
+            onChange={(e) =>
+              setBusinessName(
+                e.target.value
+              )
+            }
           />
 
+          {/* OWNER NAME */}
+
           <input
+            type="text"
             placeholder="Owner Name"
-            className="w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
+            onChange={(e) =>
+              setOwnerName(
+                e.target.value
+              )
+            }
           />
 
+          {/* MOBILE */}
+
           <input
+            type="tel"
             placeholder="Mobile Number"
-            className="w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
+            onChange={(e) =>
+              setMobile(
+                e.target.value
+              )
+            }
           />
+
+          {/* PASSWORD */}
 
           <input
             type="password"
             placeholder="Password"
-            className="w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
           />
 
+          {/* DYNAMIC CATEGORY */}
+
           <select
-            className="w-full rounded-xl border p-3"
+            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) =>
+              setCategory(
+                e.target.value
+              )
+            }
+            disabled={
+              categoriesLoading
+            }
           >
-            <option value="">Select Category</option>
-            <option value="Restaurant">Restaurant</option>
-            <option value="Hospital">Hospital</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Clothing">Clothing</option>
-            <option value="Education">Education</option>
-            <option value="Gym">Gym</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Salon">Salon</option>
-            <option value="Other">Other</option>
+            <option value="">
+              {categoriesLoading
+                ? "Loading Categories..."
+                : categories.length === 0
+                ? "No Categories Available"
+                : "Select Category"}
+            </option>
+
+            {categories.map(
+              (item) => (
+                <option
+                  key={item.id}
+                  value={item.name}
+                >
+                  {item.name}
+                </option>
+              )
+            )}
           </select>
+
+          {/* CATEGORY INFO */}
+
+          {!categoriesLoading &&
+            categories.length === 0 && (
+              <p className="text-sm font-medium text-red-600">
+                ❌ No categories available.
+                Please contact SPC Admin.
+              </p>
+            )}
+
+          {/* ADDRESS */}
 
           <textarea
             placeholder="Business Address"
-            className="h-28 w-full rounded-xl border p-3"
+            className="h-28 w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) =>
+              setAddress(
+                e.target.value
+              )
+            }
           />
 
+          {/* REGISTER */}
+
           <button
-            onClick={registerBusiness}
-            disabled={loading}
-            className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700"
+            onClick={
+              registerBusiness
+            }
+            disabled={
+              loading ||
+              categoriesLoading ||
+              categories.length === 0
+            }
+            className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Registering..." : "Register Business"}
+            {loading
+              ? "Registering..."
+              : "Register Business"}
           </button>
-                  </div>
 
+        </div>
       </div>
-
     </main>
-
   );
 }
