@@ -13,14 +13,25 @@ import {
   where,
 } from "firebase/firestore";
 
+interface Offer {
+  id: string;
+  title: string;
+  discount: string;
+  description?: string;
+  image?: string;
+  category?: string;
+  status?: string;
+  businessId?: string;
+  businessName?: string;
+  businessMobile?: string;
+}
+
 export default function StudentOffers() {
   const router = useRouter();
 
-  const [offers, setOffers] =
-    useState<any[]>([]);
-
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [filteredOffers, setFilteredOffers] =
-    useState<any[]>([]);
+    useState<Offer[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -32,20 +43,21 @@ export default function StudentOffers() {
     useState("All");
 
   const [selectedOffer, setSelectedOffer] =
-    useState<any>(null);
+    useState<Offer | null>(null);
 
   /*
-   * Load active offers
+   * ==========================================
+   * LOAD ACTIVE OFFERS
+   * ==========================================
    */
+
   useEffect(() => {
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
           if (!user) {
-            router.replace(
-              "/student/login"
-            );
+            router.replace("/student/login");
             return;
           }
 
@@ -62,18 +74,132 @@ export default function StudentOffers() {
             const snap =
               await getDocs(q);
 
-            const data =
-              snap.docs.map((item) => ({
-                id: item.id,
-                ...item.data(),
-              }));
+            /*
+             * ==================================
+             * LOAD BUSINESSES
+             * ==================================
+             *
+             * We load all businesses once and
+             * match businessId with offer.
+             *
+             * This avoids one Firestore read
+             * for every individual offer.
+             */
+
+            const businessSnap =
+              await getDocs(
+                collection(
+                  db,
+                  "businesses"
+                )
+              );
+
+            const businessMap =
+              new Map<
+                string,
+                string
+              >();
+
+            businessSnap.docs.forEach(
+              (businessDoc) => {
+                const data =
+                  businessDoc.data();
+
+                const mobile =
+                  data.mobile ||
+                  data.businessMobile ||
+                  data.phone ||
+                  data.ownerMobile ||
+                  "";
+
+                businessMap.set(
+                  businessDoc.id,
+                  String(mobile)
+                );
+              }
+            );
+
+            /*
+             * ==================================
+             * COMBINE OFFER + BUSINESS MOBILE
+             * ==================================
+             */
+
+            const data: Offer[] =
+              snap.docs.map(
+                (offerDoc) => {
+                  const offerData =
+                    offerDoc.data();
+
+                  const businessId =
+                    offerData.businessId ||
+                    "";
+
+                  const mobileFromBusiness =
+                    businessMap.get(
+                      businessId
+                    ) || "";
+
+                  return {
+                    id: offerDoc.id,
+
+                    title:
+                      offerData.title ||
+                      "",
+
+                    discount:
+                      offerData.discount ||
+                      "",
+
+                    description:
+                      offerData.description ||
+                      "",
+
+                    image:
+                      offerData.image ||
+                      "",
+
+                    category:
+                      offerData.category ||
+                      "Other",
+
+                    status:
+                      offerData.status ||
+                      "active",
+
+                    businessId,
+
+                    businessName:
+                      offerData.businessName ||
+                      "SPC Partner Business",
+
+                    /*
+                     * First preference:
+                     * mobile saved inside offer.
+                     *
+                     * Fallback:
+                     * mobile from businesses.
+                     */
+
+                    businessMobile:
+                      offerData.businessMobile ||
+                      offerData.businessPhone ||
+                      mobileFromBusiness ||
+                      "",
+                  };
+                }
+              );
 
             setOffers(data);
             setFilteredOffers(data);
           } catch (error) {
             console.error(
-              "Error loading offers:",
+              "Offers loading error:",
               error
+            );
+
+            alert(
+              "Unable to load offers."
             );
           } finally {
             setLoading(false);
@@ -86,8 +212,11 @@ export default function StudentOffers() {
   }, [router]);
 
   /*
-   * Search + category filter
+   * ==========================================
+   * FILTER OFFERS
+   * ==========================================
    */
+
   useEffect(() => {
     let list = [...offers];
 
@@ -100,17 +229,24 @@ export default function StudentOffers() {
     }
 
     if (search.trim()) {
+      const searchText =
+        search
+          .trim()
+          .toLowerCase();
+
       list = list.filter(
         (offer) =>
-          String(
-            offer.title || ""
-          )
-            .toLowerCase()
-            .includes(
-              search
-                .toLowerCase()
-                .trim()
-            )
+          offer.title
+            ?.toLowerCase()
+            .includes(searchText) ||
+
+          offer.businessName
+            ?.toLowerCase()
+            .includes(searchText) ||
+
+          offer.category
+            ?.toLowerCase()
+            .includes(searchText)
       );
     }
 
@@ -122,44 +258,86 @@ export default function StudentOffers() {
   ]);
 
   /*
-   * Loading
+   * ==========================================
+   * CALL BUSINESS
+   * ==========================================
    */
+
+  const callBusiness = (
+    mobile?: string
+  ) => {
+    if (!mobile) {
+      alert(
+        "❌ Business phone number is not available."
+      );
+
+      return;
+    }
+
+    /*
+     * Keep only numbers and +
+     */
+
+    const cleanNumber =
+      mobile.replace(
+        /[^\d+]/g,
+        ""
+      );
+
+    if (!cleanNumber) {
+      alert(
+        "❌ Invalid business phone number."
+      );
+
+      return;
+    }
+
+    window.location.href =
+      `tel:${cleanNumber}`;
+  };
+
+  /*
+   * ==========================================
+   * LOADING
+   * ==========================================
+   */
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+      <div className="flex min-h-screen items-center justify-center bg-white">
 
-        <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
-
-          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
-
-          <h1 className="text-2xl font-bold text-green-600">
-            Loading Offers...
-          </h1>
-
-        </div>
+        <h1 className="text-3xl font-bold text-green-600">
+          Loading Offers...
+        </h1>
 
       </div>
     );
   }
 
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
   return (
-    <main className="min-h-screen bg-slate-100 py-8 md:py-10">
+    <main className="min-h-screen bg-white py-10">
 
-      <div className="mx-auto max-w-7xl px-5 md:px-6">
+      <div className="mx-auto max-w-7xl px-6">
 
-        {/* =====================================
+        {/* ==================================
             HEADER
-        ====================================== */}
+        =================================== */}
 
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <div className="mb-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
           <div>
 
-            <h1 className="text-4xl font-extrabold text-green-600 md:text-5xl">
+            <h1 className="text-5xl font-extrabold text-green-600">
               🎁 Student Offers
             </h1>
 
-            <p className="mt-2 text-base text-gray-500 md:text-lg">
+            <p className="mt-2 text-lg text-gray-500">
               Exclusive Discounts for SPC Students
             </p>
 
@@ -171,19 +349,18 @@ export default function StudentOffers() {
                 "/student/dashboard"
               )
             }
-            className="rounded-2xl bg-green-600 px-7 py-4 font-bold text-white shadow-md transition hover:bg-green-700"
+            className="rounded-2xl bg-green-600 px-8 py-4 font-bold text-white transition-all hover:bg-green-700"
           >
             🏠 Dashboard
           </button>
 
         </div>
 
-
-        {/* =====================================
+        {/* ==================================
             SEARCH + CATEGORY
-        ====================================== */}
+        =================================== */}
 
-        <div className="mb-10 grid gap-5 md:grid-cols-2">
+        <div className="mb-10 grid gap-6 md:grid-cols-2">
 
           <input
             type="text"
@@ -194,7 +371,7 @@ export default function StudentOffers() {
                 e.target.value
               )
             }
-            className="rounded-2xl border border-gray-300 bg-white p-4 shadow-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600"
           />
 
           <select
@@ -204,8 +381,9 @@ export default function StudentOffers() {
                 e.target.value
               )
             }
-            className="rounded-2xl border border-gray-300 bg-white p-4 shadow-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600"
           >
+
             <option value="All">
               All
             </option>
@@ -245,24 +423,20 @@ export default function StudentOffers() {
             <option value="Other">
               Other
             </option>
+
           </select>
 
         </div>
 
-
-        {/* =====================================
+        {/* ==================================
             NO OFFERS
-        ====================================== */}
+        =================================== */}
 
         {filteredOffers.length === 0 ? (
 
           <div className="rounded-3xl bg-white p-16 text-center shadow-xl">
 
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">
-              🎁
-            </div>
-
-            <h2 className="mt-6 text-3xl font-bold text-green-600">
+            <h2 className="text-4xl font-bold text-green-600">
               No Offers Found
             </h2>
 
@@ -274,132 +448,119 @@ export default function StudentOffers() {
 
         ) : (
 
-          /* =====================================
-             OFFERS GRID
-          ====================================== */
+          /* ==================================
+             OFFER GRID
+          =================================== */
 
-          <div className="grid items-stretch gap-7 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
 
             {filteredOffers.map(
               (offer) => (
 
                 <div
                   key={offer.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.35)]"
+                  className="group overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.45)]"
                 >
 
-                  {/* ============================
-                      IMAGE
-                  ============================= */}
+                  {/* ==================================
+                      OFFER IMAGE
+                  =================================== */}
 
-                  <div className="h-64 w-full shrink-0 overflow-hidden bg-gray-200">
+                  <div className="overflow-hidden">
 
                     {offer.image ? (
 
                       <img
-                        src={offer.image}
-                        alt={
-                          offer.title ||
-                          "Offer"
+                        src={
+                          offer.image
                         }
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        alt={
+                          offer.title
+                        }
+                        className="h-64 w-full object-cover transition duration-700 group-hover:scale-110"
                       />
 
                     ) : (
 
-                      <div className="flex h-full w-full items-center justify-center text-6xl">
-                        🎁
+                      <div className="flex h-64 w-full items-center justify-center bg-slate-200">
+
+                        <span className="text-5xl">
+                          🎁
+                        </span>
+
                       </div>
 
                     )}
 
                   </div>
 
-
-                  {/* ============================
+                  {/* ==================================
                       CONTENT
-                  ============================= */}
+                  =================================== */}
 
-                  <div className="flex flex-1 flex-col bg-slate-100 p-6">
+                  <div className="rounded-b-3xl bg-slate-100 p-6">
 
-                    {/* Category */}
+                    {/* Category + Exclusive */}
 
-                    <div className="flex min-h-[42px] flex-wrap content-start gap-2">
+                    <div className="mb-4 flex flex-wrap gap-3">
 
-                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-xs font-bold text-white shadow">
+                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white shadow">
+
                         {offer.category ||
                           "Other"}
+
                       </span>
 
-                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-xs font-bold text-black shadow">
+                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black shadow">
+
                         🔥 SPC Exclusive
+
                       </span>
 
                     </div>
-
 
                     {/* Business */}
 
-                    <div className="mt-3 h-6 overflow-hidden">
+                    <p className="text-sm font-semibold text-slate-500">
 
-                      <p className="truncate text-sm font-semibold text-slate-500">
-                        🏢{" "}
-                        {offer.businessName ||
-                          "SPC Partner Business"}
-                      </p>
+                      🏢{" "}
+                      {offer.businessName ||
+                        "SPC Partner Business"}
 
-                    </div>
-
+                    </p>
 
                     {/* Title */}
 
-                    <div className="mt-2 min-h-[76px]">
+                    <h2 className="mt-2 text-3xl font-bold text-green-600">
 
-                      <h2 className="line-clamp-2 text-2xl font-bold leading-tight text-green-600 md:text-[27px]">
-                        {offer.title ||
-                          "Special Offer"}
-                      </h2>
+                      {offer.title}
 
-                    </div>
-
+                    </h2>
 
                     {/* Discount */}
 
-                    <div className="mt-2 flex h-[52px] items-start">
+                    <h3 className="mt-3 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent">
 
-                      <h3 className="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent">
-                        {offer.discount ||
-                          ""}
-                      </h3>
+                      {offer.discount}
 
-                    </div>
+                    </h3>
 
+                    {/* Description */}
 
-                    {/* Description
-                        FIXED HEIGHT
-                    */}
+                    <p className="mt-4 line-clamp-2 text-gray-600">
 
-                    <div className="mt-3 h-[72px] overflow-hidden">
+                      {offer.description ||
+                        "Exclusive SPC student offer."}
 
-                      <p className="line-clamp-3 text-sm leading-6 text-gray-600">
-                        {offer.description ||
-                          "Exclusive offer for SPC students."}
-                      </p>
+                    </p>
 
-                    </div>
+                    {/* ==================================
+                        BUTTONS
+                    =================================== */}
 
+                    <div className="mt-8 flex gap-3">
 
-                    {/* Spacer
-                        Pushes buttons
-                        to bottom
-                    */}
-
-                    <div className="flex-1" />
-
-
-                    {/* Buttons */}
-
-                    <div className="mt-6 grid grid-cols-2 gap-3">
+                      {/* VIEW DETAILS */}
 
                       <button
                         onClick={() =>
@@ -407,20 +568,29 @@ export default function StudentOffers() {
                             offer
                           )
                         }
-                        className="rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 md:text-base"
+                        className="flex-1 rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-700"
                       >
                         👁 View Details
                       </button>
 
+                      {/* CALL US */}
+
                       <button
                         onClick={() =>
-                          router.push(
-                            "/student/dashboard"
+                          callBusiness(
+                            offer.businessMobile
                           )
                         }
-                        className="rounded-xl bg-green-600 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 md:text-base"
+                        disabled={
+                          !offer.businessMobile
+                        }
+                        className={`flex-1 rounded-xl py-4 font-bold text-white transition ${
+                          offer.businessMobile
+                            ? "bg-green-600 hover:bg-green-700"
+                            : "cursor-not-allowed bg-gray-400"
+                        }`}
                       >
-                        📱 My QR
+                        📞 Call Us
                       </button>
 
                     </div>
@@ -436,17 +606,18 @@ export default function StudentOffers() {
 
         )}
 
-
-        {/* =====================================
+        {/* ==================================
             PREMIUM OFFER POPUP
-        ====================================== */}
+        =================================== */}
 
         {selectedOffer && (
 
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             onClick={() =>
-              setSelectedOffer(null)
+              setSelectedOffer(
+                null
+              )
             }
           >
 
@@ -457,9 +628,10 @@ export default function StudentOffers() {
               className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
             >
 
-              {/* Popup Image */}
+              {/* Image */}
 
-              {selectedOffer.image && (
+              {selectedOffer.image ? (
+
                 <img
                   src={
                     selectedOffer.image
@@ -467,90 +639,133 @@ export default function StudentOffers() {
                   alt={
                     selectedOffer.title
                   }
-                  className="h-64 w-full object-cover md:h-80"
+                  className="h-80 w-full object-cover"
                 />
+
+              ) : (
+
+                <div className="flex h-80 w-full items-center justify-center bg-slate-200">
+
+                  <span className="text-6xl">
+                    🎁
+                  </span>
+
+                </div>
+
               )}
 
+              {/* Details */}
 
-              {/* Popup Content */}
-
-              <div className="bg-slate-100 p-6 md:p-8">
+              <div className="bg-slate-100 p-8">
 
                 {/* Category */}
 
                 <div className="mb-5 flex flex-wrap gap-3">
 
                   <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
-                    {
-                      selectedOffer.category
-                    }
+
+                    {selectedOffer.category ||
+                      "Other"}
+
                   </span>
 
                   <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
+
                     🔥 SPC Exclusive
+
                   </span>
 
                 </div>
 
-
                 {/* Business */}
 
-                <p className="text-base font-semibold text-slate-500 md:text-lg">
+                <p className="text-lg font-semibold text-slate-500">
+
                   🏢{" "}
                   {selectedOffer.businessName ||
                     "SPC Partner Business"}
-                </p>
 
+                </p>
 
                 {/* Title */}
 
-                <h1 className="mt-2 text-3xl font-extrabold text-green-600 md:text-4xl">
-                  {
-                    selectedOffer.title
-                  }
-                </h1>
+                <h1 className="mt-2 text-4xl font-extrabold text-green-600">
 
+                  {selectedOffer.title}
+
+                </h1>
 
                 {/* Discount */}
 
-                <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent md:text-5xl">
-                  {
-                    selectedOffer.discount
-                  }
-                </h2>
+                <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-5xl font-extrabold text-transparent">
 
+                  {selectedOffer.discount}
+
+                </h2>
 
                 {/* Description */}
 
-                <div className="mt-7 rounded-2xl bg-white p-6 shadow">
+                <div className="mt-8 rounded-2xl bg-white p-6 shadow">
 
-                  <h3 className="mb-3 text-xl font-bold text-green-600 md:text-2xl">
+                  <h3 className="mb-3 text-2xl font-bold text-green-600">
+
                     Offer Description
+
                   </h3>
 
-                  <p className="leading-7 text-gray-700">
-                    {
-                      selectedOffer.description
-                    }
+                  <p className="leading-8 text-gray-700">
+
+                    {selectedOffer.description ||
+                      "Exclusive SPC student offer."}
+
                   </p>
 
                 </div>
 
+                {/* Business Phone */}
 
-                {/* Popup Buttons */}
+                <div className="mt-6 rounded-2xl bg-white p-6 shadow">
 
-                <div className="mt-7 grid gap-3 md:grid-cols-2">
+                  <p className="text-sm font-semibold text-gray-500">
+                    📞 Business Contact
+                  </p>
+
+                  <p className="mt-2 text-xl font-bold text-gray-800">
+
+                    {selectedOffer.businessMobile ||
+                      "Phone number not available"}
+
+                  </p>
+
+                </div>
+
+                {/* ==================================
+                    MODAL BUTTONS
+                =================================== */}
+
+                <div className="mt-8 flex gap-4">
+
+                  {/* CALL */}
 
                   <button
                     onClick={() =>
-                      router.push(
-                        "/student/dashboard"
+                      callBusiness(
+                        selectedOffer.businessMobile
                       )
                     }
-                    className="rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700"
+                    disabled={
+                      !selectedOffer.businessMobile
+                    }
+                    className={`flex-1 rounded-xl py-4 text-lg font-bold text-white transition ${
+                      selectedOffer.businessMobile
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "cursor-not-allowed bg-gray-400"
+                    }`}
                   >
-                    📱 Show My QR
+                    📞 Call Business
                   </button>
+
+                  {/* CLOSE */}
 
                   <button
                     onClick={() =>
@@ -558,7 +773,7 @@ export default function StudentOffers() {
                         null
                       )
                     }
-                    className="rounded-xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
+                    className="flex-1 rounded-xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
                   >
                     ✖ Close
                   </button>
@@ -573,38 +788,42 @@ export default function StudentOffers() {
 
         )}
 
+        {/* ==================================
+            TOTAL ACTIVE OFFERS
+        =================================== */}
 
-        {/* =====================================
-            TOTAL OFFERS
-        ====================================== */}
-
-        <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-6 shadow-xl md:p-8">
+        <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-8 shadow-xl">
 
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 
             <div>
 
-              <h2 className="text-2xl font-bold text-green-600 md:text-3xl">
+              <h2 className="text-3xl font-bold text-green-600">
+
                 🎉 Total Active Offers
+
               </h2>
 
               <p className="mt-2 text-gray-600">
-                Discover amazing discounts
-                from SPC Partner Businesses.
+
+                Discover amazing discounts from SPC Partner Businesses.
+
               </p>
 
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 px-8 py-5 shadow-lg md:px-10 md:py-6">
+            <div className="rounded-3xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 px-10 py-6 shadow-lg">
 
-              <span className="block text-center text-4xl font-extrabold text-white md:text-5xl">
-                {
-                  filteredOffers.length
-                }
+              <span className="block text-center text-5xl font-extrabold text-white">
+
+                {filteredOffers.length}
+
               </span>
 
-              <p className="mt-1 text-center text-xs font-bold uppercase tracking-wide text-white">
+              <p className="mt-1 text-center text-sm font-bold uppercase tracking-wide text-white">
+
                 Active Offers
+
               </p>
 
             </div>
