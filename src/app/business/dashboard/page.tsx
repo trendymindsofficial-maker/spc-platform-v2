@@ -232,7 +232,7 @@ export default function BusinessDashboard() {
               </h2>
 
               <p className="mt-3 text-gray-600">
-                Scan student QR code and redeem offers.
+                Redeem Student Offer
               </p>
 
             </Link>
