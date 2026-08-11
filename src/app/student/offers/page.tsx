@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 import {
   collection,
@@ -60,7 +60,7 @@ export default function StudentOffers() {
           setLoading(true);
 
           /*
-           * ACTIVE OFFERS
+           * LOAD ACTIVE OFFERS
            */
 
           const offerQuery = query(
@@ -72,7 +72,12 @@ export default function StudentOffers() {
             await getDocs(offerQuery);
 
           /*
-           * BUSINESSES
+           * LOAD BUSINESSES
+           *
+           * This is used to get:
+           * - Business Name
+           * - Mobile
+           * - Address
            */
 
           const businessSnap =
@@ -80,24 +85,20 @@ export default function StudentOffers() {
               collection(db, "businesses")
             );
 
-          const businessMap = new Map<
-            string,
-            {
-              name: string;
-              mobile: string;
-              address: string;
-            }
-          >();
+          const businessMap =
+            new Map<
+              string,
+              {
+                name: string;
+                mobile: string;
+                address: string;
+              }
+            >();
 
           businessSnap.docs.forEach(
             (businessDoc) => {
               const data =
                 businessDoc.data();
-
-              const name =
-                data.businessName ||
-                data.name ||
-                "";
 
               const mobile =
                 data.mobile ||
@@ -115,6 +116,11 @@ export default function StudentOffers() {
                 data.fullAddress ||
                 "";
 
+              const name =
+                data.businessName ||
+                data.name ||
+                "";
+
               businessMap.set(
                 businessDoc.id,
                 {
@@ -127,7 +133,7 @@ export default function StudentOffers() {
           );
 
           /*
-           * MERGE OFFER + BUSINESS
+           * MERGE OFFER + BUSINESS DATA
            */
 
           const data: Offer[] =
@@ -143,6 +149,14 @@ export default function StudentOffers() {
                   businessMap.get(
                     businessId
                   );
+
+                /*
+                 * Some existing offers may already
+                 * have businessName / businessMobile /
+                 * address saved directly.
+                 *
+                 * So we support both.
+                 */
 
                 const businessName =
                   offerData.businessName ||
@@ -220,12 +234,16 @@ export default function StudentOffers() {
 
   /*
    * ==========================================
-   * SEARCH + CATEGORY FILTER
+   * FILTER OFFERS
    * ==========================================
    */
 
   useEffect(() => {
     let list = [...offers];
+
+    /*
+     * CATEGORY
+     */
 
     if (category !== "All") {
       list = list.filter(
@@ -233,6 +251,10 @@ export default function StudentOffers() {
           offer.category === category
       );
     }
+
+    /*
+     * SEARCH
+     */
 
     const searchText =
       search.trim().toLowerCase();
@@ -299,19 +321,15 @@ export default function StudentOffers() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white">
-
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center">
-
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600" />
 
           <h1 className="text-2xl font-bold text-green-600">
             Loading Offers...
           </h1>
-
         </div>
-
-      </main>
+      </div>
     );
   }
 
@@ -322,24 +340,24 @@ export default function StudentOffers() {
    */
 
   return (
-    <main className="min-h-screen bg-white py-8 sm:py-10">
+    <main className="min-h-screen bg-white py-10">
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-        {/* HEADER */}
+        {/* ==================================
+            HEADER
+        =================================== */}
 
-        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
-
             <h1 className="text-4xl font-extrabold text-green-600 sm:text-5xl">
               🎁 Student Offers
             </h1>
 
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-base text-gray-500 sm:text-lg">
               Exclusive Discounts for SPC Students
             </p>
-
           </div>
 
           <button
@@ -355,7 +373,9 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* SEARCH */}
+        {/* ==================================
+            SEARCH + FILTER
+        =================================== */}
 
         <div className="mb-10 grid gap-5 md:grid-cols-2">
 
@@ -366,7 +386,7 @@ export default function StudentOffers() {
             onChange={(e) =>
               setSearch(e.target.value)
             }
-            className="w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="w-full rounded-2xl border border-gray-300 bg-white p-4 text-base outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           <select
@@ -374,7 +394,7 @@ export default function StudentOffers() {
             onChange={(e) =>
               setCategory(e.target.value)
             }
-            className="w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            className="w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           >
             <option value="All">
               All
@@ -419,7 +439,9 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* NO OFFERS */}
+        {/* ==================================
+            NO OFFERS
+        =================================== */}
 
         {filteredOffers.length === 0 ? (
 
@@ -441,7 +463,9 @@ export default function StudentOffers() {
 
         ) : (
 
-          /* OFFER GRID */
+          /* ==================================
+             OFFER GRID
+          =================================== */
 
           <div className="grid items-stretch gap-8 md:grid-cols-2 lg:grid-cols-3">
 
@@ -450,7 +474,7 @@ export default function StudentOffers() {
 
                 <div
                   key={offer.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition duration-500 hover:-translate-y-2 hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.4)]"
+                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition-all duration-500 hover:-translate-y-2 hover:scale-[1.01] hover:border-yellow-400 hover:shadow-[0_20px_50px_rgba(234,179,8,0.45)]"
                 >
 
                   {/* IMAGE */}
@@ -482,26 +506,26 @@ export default function StudentOffers() {
 
                   </div>
 
-                  {/* CARD CONTENT */}
+                  {/* CONTENT */}
 
-                  <div className="flex flex-1 flex-col bg-slate-100 p-6">
+                  <div className="flex flex-1 flex-col rounded-b-3xl bg-slate-100 p-6">
 
                     {/* CATEGORY */}
 
                     <div className="mb-4 flex flex-wrap gap-3">
 
-                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
+                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white shadow">
                         {offer.category ||
                           "Other"}
                       </span>
 
-                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
+                      <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black shadow">
                         🔥 SPC Exclusive
                       </span>
 
                     </div>
 
-                    {/* BUSINESS */}
+                    {/* BUSINESS NAME */}
 
                     <p className="text-sm font-bold text-slate-500">
                       🏢{" "}
@@ -516,7 +540,6 @@ export default function StudentOffers() {
                       {offer.businessAddress ? (
 
                         <p className="flex items-start gap-1 text-sm font-medium leading-5 text-slate-500">
-
                           <span className="shrink-0">
                             📍
                           </span>
@@ -526,7 +549,6 @@ export default function StudentOffers() {
                               offer.businessAddress
                             }
                           </span>
-
                         </p>
 
                       ) : (
@@ -538,6 +560,8 @@ export default function StudentOffers() {
                       )}
 
                     </div>
+
+                    {/* DIVIDER */}
 
                     <div className="my-3 border-t border-gray-300" />
 
@@ -599,7 +623,9 @@ export default function StudentOffers() {
 
         )}
 
-        {/* TOTAL */}
+        {/* ==================================
+            TOTAL OFFERS
+        =================================== */}
 
         <div className="mt-12 rounded-3xl border border-gray-200 bg-slate-100 p-6 shadow-xl sm:p-8">
 
@@ -635,14 +661,14 @@ export default function StudentOffers() {
 
       </div>
 
-      {/* ==========================================
-          OFFER DETAILS MODAL
-      ========================================== */}
+      {/* ==================================
+          PREMIUM OFFER POPUP
+      =================================== */}
 
       {selectedOffer && (
 
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-5"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={() =>
             setSelectedOffer(null)
           }
@@ -652,223 +678,131 @@ export default function StudentOffers() {
             onClick={(e) =>
               e.stopPropagation()
             }
-            className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
           >
 
-            {/* CLOSE BUTTON */}
+            {/* POPUP IMAGE */}
 
-            <button
-              onClick={() =>
-                setSelectedOffer(null)
-              }
-              className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-bold text-gray-700 shadow-lg hover:bg-gray-100"
-              aria-label="Close"
-            >
-              ×
-            </button>
+            {selectedOffer.image ? (
 
-            {/* ==================================
-                TOP SECTION
-            =================================== */}
+              <img
+                src={
+                  selectedOffer.image
+                }
+                alt={
+                  selectedOffer.title
+                }
+                className="h-72 w-full object-cover sm:h-80"
+              />
 
-            <div className="grid max-h-[calc(100vh-110px)] overflow-y-auto lg:grid-cols-2 lg:overflow-hidden">
+            ) : (
 
-              {/* IMAGE */}
+              <div className="flex h-72 items-center justify-center bg-slate-100">
+                <span className="text-7xl">
+                  🎁
+                </span>
+              </div>
 
-              <div className="h-64 bg-gray-100 sm:h-72 lg:h-full lg:min-h-[520px]">
+            )}
 
-                {selectedOffer.image ? (
+            {/* POPUP CONTENT */}
 
-                  <img
-                    src={
-                      selectedOffer.image
-                    }
-                    alt={
-                      selectedOffer.title
-                    }
-                    className="h-full w-full object-cover"
-                  />
+            <div className="bg-slate-100 p-6 sm:p-8">
 
-                ) : (
+              {/* CATEGORY */}
 
-                  <div className="flex h-full items-center justify-center bg-slate-100">
+              <div className="mb-5 flex flex-wrap gap-3">
 
-                    <span className="text-7xl">
-                      🎁
-                    </span>
+                <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
+                  {selectedOffer.category ||
+                    "Other"}
+                </span>
 
-                  </div>
-
-                )}
+                <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
+                  🔥 SPC Exclusive
+                </span>
 
               </div>
 
-              {/* RIGHT INFO */}
+              {/* BUSINESS */}
 
-              <div className="flex flex-col bg-slate-50 p-6 sm:p-8 lg:justify-center">
+              <p className="text-lg font-bold text-slate-500">
+                🏢{" "}
+                {selectedOffer.businessName ||
+                  "SPC Partner Business"}
+              </p>
 
-                {/* BADGES */}
+              {/* ADDRESS */}
 
-                <div className="flex flex-wrap gap-3">
+              {selectedOffer.businessAddress && (
 
-                  <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-2 text-sm font-bold text-white">
-                    {selectedOffer.category ||
-                      "Other"}
+                <p className="mt-2 flex items-start gap-2 text-base font-medium leading-6 text-slate-500">
+
+                  <span className="shrink-0">
+                    📍
                   </span>
 
-                  <span className="rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-sm font-bold text-black">
-                    🔥 SPC Exclusive
+                  <span>
+                    {
+                      selectedOffer.businessAddress
+                    }
                   </span>
 
-                </div>
+                </p>
 
-                {/* BUSINESS NAME */}
+              )}
 
-                <h2 className="mt-5 text-2xl font-extrabold text-slate-700 sm:text-3xl">
-                  🏢{" "}
-                  {selectedOffer.businessName ||
-                    "SPC Partner Business"}
-                </h2>
+              {/* TITLE */}
 
-                {/* ADDRESS */}
+              <h1 className="mt-4 text-3xl font-extrabold text-green-600 sm:text-4xl">
+                {selectedOffer.title}
+              </h1>
 
-                {selectedOffer.businessAddress && (
+              {/* DISCOUNT */}
 
-                  <p className="mt-3 flex items-start gap-2 text-sm font-medium leading-6 text-slate-500 sm:text-base">
+              <h2 className="mt-4 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-5xl font-extrabold text-transparent">
+                {selectedOffer.discount}
+              </h2>
 
-                    <span className="shrink-0">
-                      📍
-                    </span>
+              {/* DESCRIPTION */}
 
-                    <span>
-                      {
-                        selectedOffer.businessAddress
-                      }
-                    </span>
+              <div className="mt-8 rounded-2xl bg-white p-6 shadow">
 
-                  </p>
-
-                )}
-
-                <div className="my-5 border-t border-gray-300" />
-
-                {/* OFFER TITLE */}
-
-                <h1 className="text-3xl font-extrabold leading-tight text-green-600 sm:text-4xl">
-                  {selectedOffer.title}
-                </h1>
-
-                {/* DISCOUNT */}
-
-                <h2 className="mt-3 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 bg-clip-text text-4xl font-extrabold text-transparent sm:text-5xl">
-                  {selectedOffer.discount}
-                </h2>
-
-                {/* DESCRIPTION */}
-
-                <div className="mt-5 rounded-2xl bg-white p-5 shadow-sm">
-
-                  <h3 className="text-xl font-bold text-green-600">
-                    Offer Description
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-6 text-gray-700 sm:text-base">
-                    {selectedOffer.description ||
-                      "Exclusive offer for SPC students."}
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* ==================================
-                BOTTOM SECTION
-            =================================== */}
-
-            <div className="grid gap-5 bg-white p-5 sm:p-6 lg:grid-cols-2">
-
-              {/* TERMS */}
-
-              <div className="rounded-2xl bg-slate-50 p-5">
-
-                <h3 className="text-xl font-bold text-green-600">
-                  Terms & Conditions
+                <h3 className="mb-3 text-2xl font-bold text-green-600">
+                  Offer Description
                 </h3>
 
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-700">
-
-                  <li>
-                    • Offer valid for all SPC students
-                  </li>
-
-                  <li>
-                    • Valid Student ID must be shown
-                  </li>
-
-                  <li>
-                    • Offer cannot be combined with other offers
-                  </li>
-
-                </ul>
+                <p className="leading-8 text-gray-700">
+                  {selectedOffer.description ||
+                    "Exclusive offer for SPC students."}
+                </p>
 
               </div>
 
-              {/* CONTACT */}
+              {/* CALL BUSINESS */}
 
-              <div className="rounded-2xl bg-green-50 p-5">
+              <button
+                onClick={() =>
+                  callBusiness(
+                    selectedOffer.businessMobile
+                  )
+                }
+                className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700"
+              >
+                📞 Call{" "}
+                {selectedOffer.businessName ||
+                  "Business"}
+              </button>
 
-                <h3 className="text-xl font-bold text-green-700">
-                  Contact Business
-                </h3>
-
-                {selectedOffer.businessMobile ? (
-
-                  <p className="mt-3 text-lg font-bold text-green-700">
-                    📞{" "}
-                    {selectedOffer.businessMobile}
-                  </p>
-
-                ) : (
-
-                  <p className="mt-3 text-sm text-gray-500">
-                    Business phone number unavailable
-                  </p>
-
-                )}
-
-                <button
-                  onClick={() =>
-                    callBusiness(
-                      selectedOffer.businessMobile
-                    )
-                  }
-                  disabled={
-                    !selectedOffer.businessMobile
-                  }
-                  className="mt-4 w-full rounded-xl bg-green-600 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                >
-                  📞 Call Business
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* ==================================
-                CLOSE
-            =================================== */}
-
-            <div className="border-t bg-white p-4 sm:p-5">
+              {/* CLOSE */}
 
               <button
                 onClick={() =>
                   setSelectedOffer(null)
                 }
-                className="w-full rounded-xl bg-gray-700 py-3 font-bold text-white transition hover:bg-gray-800"
+                className="mt-4 w-full rounded-2xl bg-gray-700 py-4 text-lg font-bold text-white transition hover:bg-gray-800"
               >
-                ✕ Close
+                ✖ Close
               </button>
 
             </div>
