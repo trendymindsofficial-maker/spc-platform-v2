@@ -10,7 +10,6 @@ import { auth, db } from "@/lib/firebase";
 import {
   onAuthStateChanged,
   signOut,
-  User,
 } from "firebase/auth";
 
 import {
@@ -20,14 +19,14 @@ import {
 
 interface Student {
   uid: string;
-  fullName: string;
-  cardNumber: string;
-  college: string;
-  course: string;
-  year: string;
-  mobile: string;
-  email: string;
-  status: string;
+  fullName?: string;
+  cardNumber?: string;
+  college?: string;
+  course?: string;
+  year?: string;
+  mobile?: string;
+  email?: string;
+  status?: string;
 }
 
 export default function StudentDashboard() {
@@ -39,94 +38,6 @@ export default function StudentDashboard() {
   const [student, setStudent] =
     useState<Student | null>(null);
 
-  const [error, setError] =
-    useState("");
-
-  /*
-   * Load student details
-   */
-  const loadStudent = async (
-    user: User
-  ) => {
-    try {
-      setError("");
-
-      const studentRef = doc(
-        db,
-        "students",
-        user.uid
-      );
-
-      const snap =
-        await getDoc(studentRef);
-
-      if (!snap.exists()) {
-        setStudent(null);
-
-        setError(
-          "Student profile not found."
-        );
-
-        return;
-      }
-
-      const data = snap.data();
-
-      /*
-       * Firebase Auth UID is the
-       * real student ID.
-       *
-       * Do not depend on a uid
-       * field inside Firestore.
-       */
-      const studentData: Student = {
-        uid: user.uid,
-
-        fullName:
-          data.fullName || "",
-
-        cardNumber:
-          data.cardNumber || "",
-
-        college:
-          data.college || "",
-
-        course:
-          data.course || "",
-
-        year:
-          data.year || "",
-
-        mobile:
-          data.mobile || "",
-
-        email:
-          data.email ||
-          user.email ||
-          "",
-
-        status:
-          data.status || "active",
-      };
-
-      setStudent(studentData);
-    } catch (err) {
-      console.error(
-        "Student loading error:",
-        err
-      );
-
-      setStudent(null);
-
-      setError(
-        "Unable to load student details. Please refresh and try again."
-      );
-    }
-  };
-
-  /*
-   * Authentication listener
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -134,28 +45,83 @@ export default function StudentDashboard() {
       onAuthStateChanged(
         auth,
         async (user) => {
-          if (!mounted) {
-            return;
-          }
+          if (!mounted) return;
 
           if (!user) {
             router.replace(
               "/student/login"
             );
-
             return;
           }
 
-          /*
-           * Keep loading state until
-           * Firestore student data loads.
-           */
-          setLoading(true);
+          try {
+            const studentRef = doc(
+              db,
+              "students",
+              user.uid
+            );
 
-          await loadStudent(user);
+            const snap =
+              await getDoc(studentRef);
 
-          if (mounted) {
-            setLoading(false);
+            if (!mounted) return;
+
+            if (snap.exists()) {
+              const data = snap.data();
+
+              /*
+               * Always use Firebase Auth UID
+               * as the student UID.
+               */
+              setStudent({
+                uid: user.uid,
+                fullName:
+                  data.fullName || "",
+                cardNumber:
+                  data.cardNumber || "",
+                college:
+                  data.college || "",
+                course:
+                  data.course || "",
+                year:
+                  data.year || "",
+                mobile:
+                  data.mobile || "",
+                email:
+                  data.email ||
+                  user.email ||
+                  "",
+                status:
+                  data.status || "pending",
+              });
+            } else {
+              /*
+               * IMPORTANT:
+               * Do NOT clear student state here.
+               *
+               * If Firestore temporarily doesn't
+               * return the document, don't make
+               * the dashboard suddenly empty.
+               */
+              console.warn(
+                "Student document not found:",
+                user.uid
+              );
+            }
+          } catch (error) {
+            /*
+             * Keep existing student details
+             * if a temporary Firestore error
+             * happens.
+             */
+            console.error(
+              "Student loading error:",
+              error
+            );
+          } finally {
+            if (mounted) {
+              setLoading(false);
+            }
           }
         }
       );
@@ -166,9 +132,6 @@ export default function StudentDashboard() {
     };
   }, [router]);
 
-  /*
-   * Logout
-   */
   const logout = async () => {
     try {
       await signOut(auth);
@@ -187,48 +150,38 @@ export default function StudentDashboard() {
   /*
    * Loading screen
    */
-  if (loading) {
+  if (loading && !student) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
 
           <h2 className="text-2xl font-bold text-blue-700">
-            Loading Student Profile...
+            Loading...
           </h2>
 
-          <p className="mt-2 text-gray-500">
-            Please wait...
-          </p>
-
         </div>
-
       </main>
     );
   }
 
   /*
-   * Error screen
+   * If there is genuinely no student data
+   * after loading, show a simple message.
    */
-  if (error || !student) {
+  if (!student) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
 
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
 
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">
-            ❌
-          </div>
-
-          <h2 className="mt-5 text-2xl font-bold text-red-700">
-            Student Details Not Found
+          <h2 className="text-2xl font-bold text-red-600">
+            Student Details Not Available
           </h2>
 
           <p className="mt-3 text-gray-600">
-            {error ||
-              "Unable to load your student profile."}
+            Please reload the page.
           </p>
 
           <button
@@ -242,7 +195,7 @@ export default function StudentDashboard() {
 
           <button
             onClick={logout}
-            className="mt-3 w-full rounded-xl bg-red-600 py-4 font-bold text-white hover:bg-red-700"
+            className="mt-3 w-full rounded-xl bg-red-600 py-4 font-bold text-white"
           >
             Logout
           </button>
@@ -254,14 +207,14 @@ export default function StudentDashboard() {
   }
 
   /*
-   * QR data
+   * QR DATA
    *
-   * IMPORTANT:
-   * studentId = Firebase Auth UID
+   * This is the important fix.
    */
-  const qrData = JSON.stringify({
+  const qrValue = JSON.stringify({
     studentId: student.uid,
-    cardNumber: student.cardNumber,
+    cardNumber:
+      student.cardNumber || "",
     type: "student",
   });
 
@@ -270,9 +223,7 @@ export default function StudentDashboard() {
 
       <div className="mx-auto max-w-6xl">
 
-        {/* =====================================
-            HEADER
-        ===================================== */}
+        {/* Header */}
 
         <div className="mb-8 flex items-center justify-between">
 
@@ -281,7 +232,7 @@ export default function StudentDashboard() {
               Welcome 👋
             </h1>
 
-            <p className="mt-1 text-gray-600">
+            <p className="text-gray-600">
               {student.fullName}
             </p>
           </div>
@@ -296,9 +247,7 @@ export default function StudentDashboard() {
         </div>
 
 
-        {/* =====================================
-            CARD + QR
-        ===================================== */}
+        {/* Card + QR */}
 
         <div className="grid gap-6 lg:grid-cols-2">
 
@@ -310,7 +259,7 @@ export default function StudentDashboard() {
               💳 Student Privilege Card
             </h2>
 
-            <div className="space-y-4 text-lg">
+            <div className="space-y-3 text-lg">
 
               <p>
                 <strong>Name :</strong>{" "}
@@ -347,7 +296,7 @@ export default function StudentDashboard() {
           </div>
 
 
-          {/* QR Card */}
+          {/* QR */}
 
           <div className="rounded-3xl bg-white p-8 shadow-xl">
 
@@ -357,20 +306,16 @@ export default function StudentDashboard() {
 
             <div className="flex flex-col items-center">
 
-              <div className="rounded-2xl bg-white p-3 shadow-sm">
+              <QRCode
+                value={qrValue}
+                size={220}
+              />
 
-                <QRCode
-                  value={qrData}
-                  size={220}
-                />
-
-              </div>
-
-              <p className="mt-5 text-lg font-bold text-purple-700">
+              <p className="mt-5 text-lg font-bold">
                 {student.cardNumber || "-"}
               </p>
 
-              <p className="mt-2 text-center text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-500">
                 Show this QR to Business Partner
               </p>
 
@@ -381,13 +326,11 @@ export default function StudentDashboard() {
         </div>
 
 
-        {/* =====================================
-            QUICK ACTIONS
-        ===================================== */}
+        {/* Quick Actions */}
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
 
-          {/* Available Offers */}
+          {/* Offers */}
 
           <div className="rounded-3xl bg-white p-8 shadow-xl">
 
@@ -431,7 +374,7 @@ export default function StudentDashboard() {
               <h3 className="mt-2 text-3xl font-bold text-green-700">
                 {student.status
                   ? student.status.toUpperCase()
-                  : "ACTIVE"}
+                  : "PENDING"}
               </h3>
 
             </div>
@@ -441,9 +384,7 @@ export default function StudentDashboard() {
         </div>
 
 
-        {/* =====================================
-            FOOTER CARD
-        ===================================== */}
+        {/* Bottom */}
 
         <div className="mt-10 rounded-3xl bg-white p-6 shadow-xl">
 
