@@ -23,7 +23,7 @@ export default function HomePage() {
       {/* =====================================================
           CONTENT
       ====================================================== */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:justify-end lg:px-16 xl:px-24">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
         {/* =================================================
             NAVIGATION PANEL
         ================================================== */}
