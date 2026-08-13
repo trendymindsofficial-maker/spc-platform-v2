@@ -273,7 +273,7 @@ export default function MyOffers() {
               <p className="mx-auto mt-3 max-w-lg text-gray-500">
                 Create your first offer and
                 start giving exclusive
-                privileges to SPC students.
+                privileges to SBC students.
               </p>
 
               <button

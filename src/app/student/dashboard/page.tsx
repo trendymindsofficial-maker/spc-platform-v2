@@ -391,7 +391,7 @@ export default function StudentDashboard() {
           <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-8 text-white shadow-xl">
 
             <h2 className="mb-6 text-2xl font-bold">
-              💳 Student Privilege Card
+              💳 Student Benefit Card
             </h2>
 
             <div className="space-y-3 text-lg">
@@ -475,7 +475,7 @@ export default function StudentDashboard() {
 
             <p className="mb-6 text-gray-600">
               View all active offers from
-              SPC Business Partners.
+              SBC Business Partners.
             </p>
 
             <button
@@ -526,7 +526,7 @@ export default function StudentDashboard() {
             <div>
 
               <h3 className="text-xl font-bold">
-                Student Privilege Card
+                Student Benefit Card
               </h3>
 
               <p className="text-gray-500">

@@ -282,7 +282,7 @@ export default function RedeemStudentOffer() {
 
       if (!number) {
         alert(
-          "Please enter SPC Card Number"
+          "Please enter SBC Card Number"
         );
         return;
       }
@@ -309,7 +309,7 @@ export default function RedeemStudentOffer() {
 
         if (studentSnap.empty) {
           alert(
-            "❌ SPC Card Number Not Found"
+            "❌ SBC Card Number Not Found"
           );
           return;
         }
@@ -360,7 +360,7 @@ export default function RedeemStudentOffer() {
             );
         } catch {
           alert(
-            "❌ Invalid SPC QR Code"
+            "❌ Invalid SBC QR Code"
           );
           return;
         }
@@ -371,7 +371,7 @@ export default function RedeemStudentOffer() {
           !qrData.studentId
         ) {
           alert(
-            "❌ Invalid SPC Student QR"
+            "❌ Invalid SBC Student QR"
           );
           return;
         }
@@ -552,7 +552,7 @@ export default function RedeemStudentOffer() {
 
         if (!cameras.length) {
           throw new Error(
-            "No camera found on this device. Please use SPC Card Number search or open this page on a phone/tablet with a camera."
+            "No camera found on this device. Please use SBC Card Number search or open this page on a phone/tablet with a camera."
           );
         }
 
@@ -935,7 +935,7 @@ export default function RedeemStudentOffer() {
               </h1>
 
               <p className="mt-2 text-gray-600">
-                Scan QR or enter SPC Card Number
+                Scan QR or enter SBC Card Number
                 to verify the student.
               </p>
 
@@ -1000,7 +1000,7 @@ export default function RedeemStudentOffer() {
                   </h2>
 
                   <p className="mt-2 text-sm text-gray-500">
-                    Scan the student's SPC QR code.
+                    Scan the student's SBC QR code.
                   </p>
 
                 </div>
@@ -1094,11 +1094,11 @@ export default function RedeemStudentOffer() {
                   </div>
 
                   <h2 className="mt-4 text-2xl font-bold text-green-700">
-                    Enter SPC Card Number
+                    Enter SBC Card Number
                   </h2>
 
                   <p className="mt-2 text-sm text-gray-500">
-                    Enter the student's SPC card
+                    Enter the student's SBC card
                     number manually.
                   </p>
 
@@ -1108,7 +1108,7 @@ export default function RedeemStudentOffer() {
                 <div className="mt-8">
 
                   <label className="mb-2 block font-semibold text-gray-700">
-                    SPC Card Number
+                    SBC Card Number
                   </label>
 
                   <input
@@ -1128,7 +1128,7 @@ export default function RedeemStudentOffer() {
                         searchByCardNumber();
                       }
                     }}
-                    placeholder="EXAMPLE: SPC123456"
+                    placeholder="EXAMPLE: SBC123456"
                     className="w-full rounded-2xl border-2 border-gray-300 p-5 text-center text-2xl font-bold uppercase tracking-wider outline-none transition focus:border-green-600"
                   />
 
@@ -1157,7 +1157,7 @@ export default function RedeemStudentOffer() {
 
                   <p className="mt-1 text-sm text-yellow-700">
                     Student card number is printed
-                    on their SPC card.
+                    on their SBC card.
                   </p>
 
                 </div>
@@ -1222,7 +1222,7 @@ export default function RedeemStudentOffer() {
                 <div className="rounded-2xl bg-slate-100 p-5">
 
                   <p className="text-sm text-gray-500">
-                    🎫 SPC Card Number
+                    🎫 SBC Card Number
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold text-purple-700">

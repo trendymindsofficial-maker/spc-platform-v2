@@ -153,7 +153,7 @@ const id = params.id;
 
             <p className="mt-2 text-xl font-semibold text-gray-600">
 
-              🎁 Exclusive SPC Student Offer
+              🎁 Exclusive SBC Student Offer
 
             </p>
 

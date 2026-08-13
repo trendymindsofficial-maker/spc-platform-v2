@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
 
-import {
-  onAuthStateChanged,
-} from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 
 import {
   collection,
   getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 
 interface Offer {
@@ -28,6 +28,8 @@ interface Offer {
   businessName?: string;
   businessMobile?: string;
   businessAddress?: string;
+
+  status?: string;
 }
 
 interface Category {
@@ -57,12 +59,17 @@ export default function StudentOffers() {
   const [selectedOffer, setSelectedOffer] =
     useState<Offer | null>(null);
 
+  /*
+   * ==========================================
+   * AUTH + LOAD DATA
+   * ==========================================
+   */
+
   useEffect(() => {
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
-
           if (!user) {
             router.replace(
               "/student/login"
@@ -70,29 +77,55 @@ export default function StudentOffers() {
             return;
           }
 
-          await Promise.all([
-            loadOffers(),
-            loadCategories(),
-          ]);
-
-          setLoading(false);
+          try {
+            await Promise.all([
+              loadOffers(),
+              loadCategories(),
+            ]);
+          } finally {
+            setLoading(false);
+          }
         }
       );
 
-    return () =>
-      unsubscribe();
+    return () => unsubscribe();
   }, [router]);
+
+  /*
+   * ==========================================
+   * LOAD ACTIVE OFFERS
+   * ==========================================
+   */
 
   const loadOffers = async () => {
     try {
+      /*
+       * Only ACTIVE offers should be visible
+       * to students.
+       */
+
+      const offerQuery = query(
+        collection(db, "offers"),
+        where(
+          "status",
+          "==",
+          "active"
+        )
+      );
+
       const offerSnap =
-        await getDocs(
-          collection(db, "offers")
-        );
+        await getDocs(offerQuery);
+
+      /*
+       * Load businesses
+       */
 
       const businessSnap =
         await getDocs(
-          collection(db, "businesses")
+          collection(
+            db,
+            "businesses"
+          )
         );
 
       const businessMap =
@@ -107,7 +140,6 @@ export default function StudentOffers() {
 
       businessSnap.docs.forEach(
         (businessDoc) => {
-
           const data =
             businessDoc.data();
 
@@ -137,9 +169,8 @@ export default function StudentOffers() {
       );
 
       const data: Offer[] =
-        offerSnap.docs
-          .map((item) => {
-
+        offerSnap.docs.map(
+          (item) => {
             const offerData =
               item.data();
 
@@ -193,11 +224,13 @@ export default function StudentOffers() {
                 offerData.address ||
                 business?.address ||
                 "",
+
+              status:
+                offerData.status ||
+                "active",
             };
-          })
-          .filter((offer) => {
-            return true;
-          });
+          }
+        );
 
       setOffers(data);
     } catch (error) {
@@ -208,11 +241,20 @@ export default function StudentOffers() {
     }
   };
 
+  /*
+   * ==========================================
+   * LOAD CATEGORIES
+   * ==========================================
+   */
+
   const loadCategories = async () => {
     try {
       const snap =
         await getDocs(
-          collection(db, "categories")
+          collection(
+            db,
+            "categories"
+          )
         );
 
       const data =
@@ -245,11 +287,20 @@ export default function StudentOffers() {
     }
   };
 
+  /*
+   * ==========================================
+   * FILTER OFFERS
+   * ==========================================
+   */
+
   const filteredOffers =
     useMemo(() => {
-
       let list =
         [...offers];
+
+      /*
+       * CATEGORY
+       */
 
       if (
         category !==
@@ -262,6 +313,10 @@ export default function StudentOffers() {
               category
           );
       }
+
+      /*
+       * SEARCH
+       */
 
       const searchText =
         search
@@ -299,9 +354,14 @@ export default function StudentOffers() {
       category,
     ]);
 
+  /*
+   * ==========================================
+   * CALL BUSINESS
+   * ==========================================
+   */
+
   const callBusiness =
     (offer: Offer) => {
-
       const phone =
         offer.businessMobile ||
         "";
@@ -317,12 +377,20 @@ export default function StudentOffers() {
         `tel:${phone}`;
     };
 
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
   return (
     <main className="min-h-screen bg-white py-8">
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-        {/* HEADER */}
+        {/* =====================================
+            HEADER
+        ====================================== */}
 
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -351,7 +419,9 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* FILTERS */}
+        {/* =====================================
+            FILTERS
+        ====================================== */}
 
         <div className="mb-10 grid gap-5 md:grid-cols-2">
 
@@ -396,7 +466,9 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* LOADING */}
+        {/* =====================================
+            LOADING
+        ====================================== */}
 
         {loading ? (
 
@@ -430,7 +502,9 @@ export default function StudentOffers() {
 
         ) : (
 
-          /* OFFER GRID */
+          /* =================================
+             OFFER GRID
+          ================================== */
 
           <div className="grid items-stretch gap-8 md:grid-cols-2 lg:grid-cols-3">
 
@@ -485,17 +559,22 @@ export default function StudentOffers() {
 
                     </div>
 
+                    {/* BUSINESS */}
+
                     <p className="mt-4 text-sm font-bold text-slate-500">
                       🏢{" "}
                       {offer.businessName ||
                         "SPC Partner Business"}
                     </p>
 
+                    {/* ADDRESS */}
+
                     <div className="mt-2 min-h-[40px]">
 
                       {offer.businessAddress ? (
 
                         <p className="flex items-start gap-1 text-sm text-slate-500">
+
                           <span>
                             📍
                           </span>
@@ -505,6 +584,7 @@ export default function StudentOffers() {
                               offer.businessAddress
                             }
                           </span>
+
                         </p>
 
                       ) : (
@@ -517,17 +597,25 @@ export default function StudentOffers() {
 
                     </div>
 
+                    {/* TITLE */}
+
                     <h2 className="mt-3 min-h-[56px] text-2xl font-bold text-green-600">
                       {offer.title}
                     </h2>
+
+                    {/* DISCOUNT */}
 
                     <h3 className="mt-3 min-h-[45px] text-4xl font-extrabold text-yellow-500">
                       {offer.discount}
                     </h3>
 
+                    {/* DESCRIPTION */}
+
                     <p className="mt-3 line-clamp-2 min-h-[48px] text-gray-600">
                       {offer.description}
                     </p>
+
+                    {/* BUTTONS */}
 
                     <div className="mt-auto grid grid-cols-2 gap-3 pt-8">
 
@@ -566,7 +654,9 @@ export default function StudentOffers() {
 
         )}
 
-        {/* TOTAL */}
+        {/* =====================================
+            TOTAL
+        ====================================== */}
 
         {!loading && (
           <div className="mt-12 rounded-3xl bg-slate-100 p-8 shadow-xl">
@@ -604,9 +694,9 @@ export default function StudentOffers() {
 
       </div>
 
-      {/* ==================================================
-          MODAL
-      ================================================== */}
+      {/* =====================================
+          OFFER MODAL
+      ====================================== */}
 
       {selectedOffer && (
 
@@ -637,7 +727,7 @@ export default function StudentOffers() {
 
             <div className="min-h-0 flex-1 overflow-y-auto">
 
-              {/* IMAGE */}
+              {/* MOBILE IMAGE */}
 
               <div className="bg-gray-100 md:hidden">
 
@@ -719,6 +809,8 @@ export default function StudentOffers() {
 
             </div>
 
+            {/* CLOSE BUTTON */}
+
             <div className="border-t bg-white p-4">
 
               <button
@@ -753,12 +845,15 @@ function OfferDetails({
   callBusiness,
 }: {
   offer: Offer;
+
   callBusiness: (
     offer: Offer
   ) => void;
 }) {
   return (
     <div className="p-5 sm:p-7">
+
+      {/* BADGES */}
 
       <div className="flex flex-wrap gap-2">
 
@@ -773,33 +868,47 @@ function OfferDetails({
 
       </div>
 
+      {/* BUSINESS */}
+
       <h2 className="mt-4 text-2xl font-bold text-slate-700 sm:text-3xl">
         🏢{" "}
         {offer.businessName ||
           "SPC Partner Business"}
       </h2>
 
+      {/* ADDRESS */}
+
       {offer.businessAddress && (
 
         <p className="mt-2 flex items-start gap-2 text-sm text-gray-500">
-          <span>📍</span>
+
+          <span>
+            📍
+          </span>
 
           <span>
             {offer.businessAddress}
           </span>
+
         </p>
 
       )}
 
       <div className="my-5 border-t" />
 
+      {/* TITLE */}
+
       <h1 className="text-3xl font-extrabold text-green-600">
         {offer.title}
       </h1>
 
+      {/* DISCOUNT */}
+
       <h2 className="mt-3 text-4xl font-extrabold text-yellow-500">
         {offer.discount}
       </h2>
+
+      {/* DESCRIPTION */}
 
       <div className="mt-5 rounded-2xl bg-slate-50 p-5">
 
@@ -840,7 +949,7 @@ function OfferDetails({
 
       </div>
 
-      {/* CALL */}
+      {/* CONTACT */}
 
       <div className="mt-5 rounded-2xl bg-green-50 p-5">
 
@@ -859,7 +968,9 @@ function OfferDetails({
 
         <button
           onClick={() =>
-            callBusiness(offer)
+            callBusiness(
+              offer
+            )
           }
           className="mt-4 w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700"
         >

@@ -256,7 +256,7 @@ export default function BusinessDashboard() {
           <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
 
             <h2 className="text-3xl font-bold text-green-700">
-              🚀 SPC Business Portal
+              🚀 SBC Business Portal
             </h2>
 
             <p className="mt-4 text-lg text-gray-600">

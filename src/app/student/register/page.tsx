@@ -103,7 +103,7 @@ export default function StudentRegister() {
        */
 
       const cardNumber =
-        "SPC" +
+        "SBC" +
         Math.floor(
           100000 +
             Math.random() * 900000
