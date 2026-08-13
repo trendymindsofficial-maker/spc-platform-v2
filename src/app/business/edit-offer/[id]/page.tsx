@@ -1,30 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  use,
+  useEffect,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
 
 import { v4 as uuid } from "uuid";
 
 import BusinessProtected from "@/components/BusinessProtected";
 
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
+
+interface EditOfferProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
 export default function EditOffer({
   params,
-}: {
-  params: { id: string };
-}) {
-  const offerId = params.id;
-
+}: EditOfferProps) {
   const router = useRouter();
+
+  /*
+   * Next.js 15/16:
+   * params is a Promise.
+   */
+  const { id: offerId } = use(params);
 
   const [loading, setLoading] =
     useState(true);
@@ -59,11 +74,18 @@ export default function EditOffer({
   const [loadingCategories, setLoadingCategories] =
     useState(true);
 
+  /*
+   * ==========================================
+   * LOAD DATA
+   * ==========================================
+   */
+
   useEffect(() => {
     if (!offerId) {
       router.replace(
         "/business/my-offers"
       );
+
       return;
     }
 
@@ -71,53 +93,42 @@ export default function EditOffer({
     loadCategories();
   }, [offerId]);
 
-  const loadCategories =
-    async () => {
-      try {
-        setLoadingCategories(true);
-
-        const snap =
-          await getDocs(
-            collection(
-              db,
-              "categories"
-            )
-          );
-
-        const data = snap.docs
-          .map(
-            (item) =>
-              item.data().name
-          )
-          .filter(Boolean) as string[];
-
-        setCategories(data);
-      } catch (error) {
-        console.error(
-          "Category loading error:",
-          error
-        );
-      } finally {
-        setLoadingCategories(
-          false
-        );
-      }
-    };
+  /*
+   * ==========================================
+   * LOAD OFFER
+   * ==========================================
+   */
 
   const loadOffer = async () => {
     try {
-      const snap =
-        await getDoc(
-          doc(
-            db,
-            "offers",
-            offerId
-          )
+      setLoading(true);
+
+      const user =
+        auth.currentUser;
+
+      if (!user) {
+        router.replace(
+          "/business/login"
         );
 
-      if (!snap.exists()) {
+        return;
+      }
+
+      const offerRef =
+        doc(
+          db,
+          "offers",
+          offerId
+        );
+
+      const offerSnap =
+        await getDoc(
+          offerRef
+        );
+
+      if (!offerSnap.exists()) {
         alert(
-          "Offer Not Found"
+          "❌ Offer Not Found"
         );
 
         router.replace(
@@ -128,7 +139,27 @@ export default function EditOffer({
       }
 
       const data =
-        snap.data();
+        offerSnap.data();
+
+      /*
+       * SECURITY:
+       * Business can edit only its own offer.
+       */
+
+      if (
+        data.businessId !==
+        user.uid
+      ) {
+        alert(
+          "❌ You are not authorized to edit this offer."
+        );
+
+        router.replace(
+          "/business/my-offers"
+        );
+
+        return;
+      }
 
       setTitle(
         data.title || ""
@@ -154,19 +185,110 @@ export default function EditOffer({
         data.image || ""
       );
 
-      setLoading(false);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Offer loading error:",
+        error
+      );
 
       alert(
-        "Failed to load offer"
+        "❌ Failed to load offer."
       );
 
       router.replace(
         "/business/my-offers"
       );
+    } finally {
+      setLoading(false);
     }
   };
+
+  /*
+   * ==========================================
+   * LOAD CATEGORIES
+   * ==========================================
+   */
+
+  const loadCategories =
+    async () => {
+      try {
+        setLoadingCategories(
+          true
+        );
+
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
+          );
+
+        const data =
+          snap.docs
+            .map((item) => {
+              const itemData =
+                item.data();
+
+              return (
+                itemData.name ||
+                itemData.category ||
+                itemData.title ||
+                ""
+              );
+            })
+            .filter(
+              Boolean
+            ) as string[];
+
+        const uniqueCategories =
+          Array.from(
+            new Set(data)
+          ).sort((a, b) =>
+            a.localeCompare(b)
+          );
+
+        setCategories(
+          uniqueCategories
+        );
+      } catch (error) {
+        console.error(
+          "Category loading error:",
+          error
+        );
+      } finally {
+        setLoadingCategories(
+          false
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * IMAGE CHANGE
+   * ==========================================
+   */
+
+  const handleImageChange = (
+    file: File | null
+  ) => {
+    if (!file) {
+      return;
+    }
+
+    setImageFile(file);
+
+    const url =
+      URL.createObjectURL(file);
+
+    setPreview(url);
+  };
+
+  /*
+   * ==========================================
+   * UPDATE OFFER
+   * ==========================================
+   */
 
   const updateOffer =
     async () => {
@@ -179,33 +301,93 @@ export default function EditOffer({
         alert(
           "Please fill all fields."
         );
+
+        return;
+      }
+
+      const user =
+        auth.currentUser;
+
+      if (!user) {
+        alert(
+          "❌ Business login required."
+        );
+
         return;
       }
 
       try {
         setSaving(true);
 
-        let image = oldImage;
-
         /*
-         * NEW IMAGE
+         * =====================================
+         * FINAL OWNERSHIP CHECK
+         * =====================================
          */
 
+        const offerRef =
+          doc(
+            db,
+            "offers",
+            offerId
+          );
+
+        const offerSnap =
+          await getDoc(
+            offerRef
+          );
+
+        if (!offerSnap.exists()) {
+          alert(
+            "❌ Offer not found."
+          );
+
+          return;
+        }
+
+        const currentData =
+          offerSnap.data();
+
+        if (
+          currentData.businessId !==
+          user.uid
+        ) {
+          alert(
+            "❌ You are not authorized to edit this offer."
+          );
+
+          return;
+        }
+
+        /*
+         * =====================================
+         * IMAGE
+         * =====================================
+         */
+
+        let image =
+          oldImage;
+
         if (imageFile) {
-          const data =
+          const formData =
             new FormData();
 
-          data.append(
+          formData.append(
             "file",
             imageFile
           );
 
-          data.append(
+          /*
+           * Keep existing Cloudinary
+           * preset.
+           */
+
+          formData.append(
             "upload_preset",
             "spc_offers"
           );
 
-          data.append(
+          formData.append(
             "public_id",
             uuid()
           );
@@ -215,9 +397,15 @@ export default function EditOffer({
               "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
               {
                 method: "POST",
-                body: data,
+                body: formData,
               }
             );
+
+          if (!upload.ok) {
+            throw new Error(
+              "Cloudinary upload failed."
+            );
+          }
 
           const uploaded =
             await upload.json();
@@ -226,7 +414,7 @@ export default function EditOffer({
             !uploaded.secure_url
           ) {
             throw new Error(
-              "Image upload failed"
+              "Image upload failed."
             );
           }
 
@@ -235,15 +423,13 @@ export default function EditOffer({
         }
 
         /*
-         * UPDATE
+         * =====================================
+         * UPDATE FIRESTORE
+         * =====================================
          */
 
         await updateDoc(
-          doc(
-            db,
-            "offers",
-            offerId
-          ),
+          offerRef,
           {
             title:
               title.trim(),
@@ -267,216 +453,75 @@ export default function EditOffer({
         router.replace(
           "/business/my-offers"
         );
+
       } catch (error) {
         console.error(
+          "Offer update error:",
           error
         );
 
         alert(
-          "❌ Failed to update offer"
+          error instanceof Error
+            ? `❌ ${error.message}`
+            : "❌ Failed to update offer."
         );
       } finally {
         setSaving(false);
       }
     };
 
-  if (loading) {
+  /*
+   * ==========================================
+   * LOADING
+   * ==========================================
+   */
+
+  if (
+    loading ||
+    loadingCategories
+  ) {
     return (
       <BusinessProtected>
+        <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+          <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
-        <div className="flex min-h-screen items-center justify-center bg-slate-100">
-
-          <div className="rounded-3xl bg-white p-10 shadow-xl">
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
             <h2 className="text-2xl font-bold text-green-700">
               Loading Offer...
             </h2>
 
+            <p className="mt-2 text-gray-500">
+              Please wait...
+            </p>
+
           </div>
-
-        </div>
-
+        </main>
       </BusinessProtected>
     );
   }
 
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
   return (
     <BusinessProtected>
-
       <main className="min-h-screen bg-slate-100 p-6">
 
-        <div className="mx-auto max-w-2xl rounded-3xl bg-white p-8 shadow-xl">
+        <div className="mx-auto max-w-2xl">
 
-          {/* HEADER */}
+          <div className="rounded-3xl bg-white p-8 shadow-xl">
 
-          <div className="mb-8 flex items-center justify-between gap-4">
+            {/* HEADER */}
 
-            <button
-              onClick={() =>
-                router.push(
-                  "/business/dashboard"
-                )
-              }
-              className="rounded-xl bg-gray-200 px-4 py-2 font-semibold hover:bg-gray-300"
-            >
-              ← Dashboard
-            </button>
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-            <h1 className="text-3xl font-bold text-green-700">
-              ✏️ Edit Offer
-            </h1>
-
-            <button
-              onClick={() =>
-                router.push(
-                  "/business/my-offers"
-                )
-              }
-              className="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-            >
-              ← My Offers
-            </button>
-
-          </div>
-
-          <div className="space-y-5">
-
-            {/* TITLE */}
-
-            <input
-              type="text"
-              placeholder="Offer Title"
-              value={title}
-              onChange={(e) =>
-                setTitle(
-                  e.target.value
-                )
-              }
-              className="w-full rounded-xl border border-gray-300 p-4 outline-none focus:border-green-600"
-            />
-
-            {/* DISCOUNT */}
-
-            <input
-              type="text"
-              placeholder="Discount (Example: 20% OFF)"
-              value={discount}
-              onChange={(e) =>
-                setDiscount(
-                  e.target.value
-                )
-              }
-              className="w-full rounded-xl border border-gray-300 p-4 outline-none focus:border-green-600"
-            />
-
-            {/* CATEGORY */}
-
-            <select
-              value={category}
-              onChange={(e) =>
-                setCategory(
-                  e.target.value
-                )
-              }
-              disabled={
-                loadingCategories
-              }
-              className="w-full rounded-xl border border-gray-300 p-4 outline-none focus:border-green-600 disabled:bg-gray-100"
-            >
-
-              <option value="">
-                {loadingCategories
-                  ? "Loading Categories..."
-                  : "Select Category"}
-              </option>
-
-              {/* CURRENT OLD CATEGORY */}
-
-              {category &&
-                !categories.includes(
-                  category
-                ) && (
-                  <option
-                    value={category}
-                  >
-                    {category}
-                  </option>
-                )}
-
-              {categories.map(
-                (item) => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item}
-                  </option>
-                )
-              )}
-
-            </select>
-
-            {/* DESCRIPTION */}
-
-            <textarea
-              placeholder="Offer Description"
-              value={description}
-              onChange={(e) =>
-                setDescription(
-                  e.target.value
-                )
-              }
-              className="h-36 w-full rounded-xl border border-gray-300 p-4 outline-none focus:border-green-600"
-            />
-
-            {/* IMAGE */}
-
-            <div>
-
-              <label className="mb-2 block font-semibold">
-                Change Offer Image (Optional)
-              </label>
-
-              <input
-                type="file"
-                accept="image/*"
-                className="w-full rounded-xl border border-gray-300 p-4"
-                onChange={(e) => {
-
-                  if (
-                    !e.target.files?.length
-                  ) {
-                    return;
-                  }
-
-                  const file =
-                    e.target.files[0];
-
-                  setImageFile(
-                    file
-                  );
-
-                  setPreview(
-                    URL.createObjectURL(
-                      file
-                    )
-                  );
-                }}
-              />
-
-            </div>
-
-            {preview && (
-              <img
-                src={preview}
-                alt="Offer Preview"
-                className="h-64 w-full rounded-xl object-cover"
-              />
-            )}
-
-            {/* BUTTONS */}
-
-            <div className="flex gap-4">
+              <h1 className="text-3xl font-bold text-green-700">
+                ✏️ Edit Offer
+              </h1>
 
               <button
                 type="button"
@@ -485,20 +530,200 @@ export default function EditOffer({
                     "/business/my-offers"
                   )
                 }
-                className="flex-1 rounded-xl border border-gray-300 bg-white py-4 text-lg font-bold hover:bg-gray-100"
+                className="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300"
               >
-                Cancel
+                ← My Offers
               </button>
 
-              <button
-                onClick={updateOffer}
-                disabled={saving}
-                className="flex-1 rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving
-                  ? "Updating..."
-                  : "💾 Save Changes"}
-              </button>
+            </div>
+
+            {/* FORM */}
+
+            <div className="space-y-5">
+
+              {/* TITLE */}
+
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Offer Title
+                </label>
+
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) =>
+                    setTitle(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Offer Title"
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+
+              {/* DISCOUNT */}
+
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Discount
+                </label>
+
+                <input
+                  type="text"
+                  value={discount}
+                  onChange={(e) =>
+                    setDiscount(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Example: 20% OFF"
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+
+              {/* CATEGORY */}
+
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Category
+                </label>
+
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                >
+
+                  <option value="">
+                    Select Category
+                  </option>
+
+                  {category &&
+                    !categories.includes(
+                      category
+                    ) && (
+                      <option
+                        value={
+                          category
+                        }
+                      >
+                        {category}
+                      </option>
+                    )}
+
+                  {categories.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+
+                </select>
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Offer Description
+                </label>
+
+                <textarea
+                  value={
+                    description
+                  }
+                  onChange={(e) =>
+                    setDescription(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Offer Description"
+                  className="h-36 w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+
+              {/* IMAGE */}
+
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Change Offer Image
+                  <span className="ml-2 text-sm font-normal text-gray-400">
+                    (Optional)
+                  </span>
+                </label>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    handleImageChange(
+                      e.target.files?.[0] ||
+                        null
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-sm"
+                />
+
+              </div>
+
+              {/* PREVIEW */}
+
+              {preview && (
+                <div>
+
+                  <p className="mb-2 text-sm font-semibold text-gray-600">
+                    Image Preview
+                  </p>
+
+                  <img
+                    src={preview}
+                    alt="Offer Preview"
+                    className="h-64 w-full rounded-2xl object-cover"
+                  />
+
+                </div>
+              )}
+
+              {/* BUTTONS */}
+
+              <div className="flex flex-col gap-3 pt-3 sm:flex-row">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/business/my-offers"
+                    )
+                  }
+                  disabled={saving}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white py-4 text-lg font-bold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    updateOffer
+                  }
+                  disabled={saving}
+                  className="flex-1 rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving
+                    ? "⏳ Updating..."
+                    : "💾 Save Changes"}
+                </button>
+
+              </div>
 
             </div>
 
@@ -507,7 +732,6 @@ export default function EditOffer({
         </div>
 
       </main>
-
     </BusinessProtected>
   );
 }
