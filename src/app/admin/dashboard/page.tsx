@@ -31,16 +31,30 @@ export default function AdminDashboard() {
 
   const [students, setStudents] = useState(0);
   const [businesses, setBusinesses] = useState(0);
-  const [pendingBusinesses, setPendingBusinesses] = useState(0);
+
+  const [pendingBusinesses, setPendingBusinesses] =
+    useState(0);
+
+  const [pendingStudents, setPendingStudents] =
+    useState(0);
+
   const [offers, setOffers] = useState(0);
   const [redemptions, setRedemptions] = useState(0);
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [newCategory, setNewCategory] = useState("");
+  const [categories, setCategories] =
+    useState<Category[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [categoryLoading, setCategoryLoading] = useState(true);
-  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [categoryLoading, setCategoryLoading] =
+    useState(true);
+
+  const [addingCategory, setAddingCategory] =
+    useState(false);
 
   const [deletingCategory, setDeletingCategory] =
     useState<string | null>(null);
@@ -60,13 +74,25 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
+      /*
+       * TOTAL STUDENTS
+       */
+
       const studentSnap = await getDocs(
         collection(db, "students")
       );
 
+      /*
+       * TOTAL BUSINESSES
+       */
+
       const businessSnap = await getDocs(
         collection(db, "businesses")
       );
+
+      /*
+       * PENDING BUSINESSES
+       */
 
       const pendingBusinessQuery = query(
         collection(db, "businesses"),
@@ -78,23 +104,68 @@ export default function AdminDashboard() {
           pendingBusinessQuery
         );
 
+      /*
+       * PENDING STUDENTS
+       */
+
+      const pendingStudentQuery = query(
+        collection(db, "students"),
+        where("status", "==", "pending")
+      );
+
+      const pendingStudentSnap =
+        await getDocs(
+          pendingStudentQuery
+        );
+
+      /*
+       * TOTAL OFFERS
+       */
+
       const offerSnap = await getDocs(
         collection(db, "offers")
       );
 
-      const redemptionSnap = await getDocs(
-        collection(db, "redemptions")
+      /*
+       * TOTAL REDEMPTIONS
+       */
+
+      const redemptionSnap =
+        await getDocs(
+          collection(
+            db,
+            "redemptions"
+          )
+        );
+
+      /*
+       * UPDATE COUNTS
+       */
+
+      setStudents(
+        studentSnap.size
       );
 
-      setStudents(studentSnap.size);
-      setBusinesses(businessSnap.size);
+      setBusinesses(
+        businessSnap.size
+      );
+
       setPendingBusinesses(
         pendingBusinessSnap.size
       );
-      setOffers(offerSnap.size);
+
+      setPendingStudents(
+        pendingStudentSnap.size
+      );
+
+      setOffers(
+        offerSnap.size
+      );
+
       setRedemptions(
         redemptionSnap.size
       );
+
     } catch (error) {
       console.error(
         "Dashboard loading error:",
@@ -122,8 +193,10 @@ export default function AdminDashboard() {
       const data = snap.docs
         .map((item) => ({
           id: item.id,
+
           name:
             item.data().name || "",
+
           createdAt:
             item.data().createdAt,
         }))
@@ -136,6 +209,7 @@ export default function AdminDashboard() {
         );
 
       setCategories(data);
+
     } catch (error) {
       console.error(
         "Category loading error:",
@@ -160,11 +234,16 @@ export default function AdminDashboard() {
       alert(
         "Please enter a category name."
       );
+
       return;
     }
 
     try {
       setAddingCategory(true);
+
+      /*
+       * CHECK DUPLICATE
+       */
 
       const existingCategory =
         categories.find(
@@ -179,8 +258,13 @@ export default function AdminDashboard() {
         alert(
           `"${categoryName}" already exists.`
         );
+
         return;
       }
+
+      /*
+       * SAVE CATEGORY
+       */
 
       const categoryRef =
         await addDoc(
@@ -190,14 +274,20 @@ export default function AdminDashboard() {
           ),
           {
             name: categoryName,
+
             createdAt:
               serverTimestamp(),
           }
         );
 
+      /*
+       * UPDATE UI
+       */
+
       setCategories((current) =>
         [
           ...current,
+
           {
             id: categoryRef.id,
             name: categoryName,
@@ -212,6 +302,7 @@ export default function AdminDashboard() {
       alert(
         `"${categoryName}" category added successfully.`
       );
+
     } catch (error) {
       console.error(
         "Add category error:",
@@ -221,6 +312,7 @@ export default function AdminDashboard() {
       alert(
         "Unable to add category. Please try again."
       );
+
     } finally {
       setAddingCategory(false);
     }
@@ -260,13 +352,15 @@ export default function AdminDashboard() {
       setCategories((current) =>
         current.filter(
           (item) =>
-            item.id !== category.id
+            item.id !==
+            category.id
         )
       );
 
       alert(
         `"${category.name}" category deleted successfully.`
       );
+
     } catch (error) {
       console.error(
         "Delete category error:",
@@ -276,6 +370,7 @@ export default function AdminDashboard() {
       alert(
         "Unable to delete category. Please try again."
       );
+
     } finally {
       setDeletingCategory(null);
     }
@@ -292,6 +387,7 @@ export default function AdminDashboard() {
   ) => {
     if (event.key === "Enter") {
       event.preventDefault();
+
       handleAddCategory();
     }
   };
@@ -305,9 +401,11 @@ export default function AdminDashboard() {
   const logout = async () => {
     try {
       await signOut(auth);
+
       router.replace(
         "/admin/login"
       );
+
     } catch (error) {
       console.error(
         "Logout error:",
@@ -315,6 +413,16 @@ export default function AdminDashboard() {
       );
     }
   };
+
+  /*
+   * ==========================================
+   * TOTAL PENDING APPROVALS
+   * ==========================================
+   */
+
+  const totalPendingApprovals =
+    pendingBusinesses +
+    pendingStudents;
 
   /*
    * ==========================================
@@ -372,9 +480,11 @@ export default function AdminDashboard() {
               </p>
 
               <h2 className="mt-4 text-5xl font-bold text-blue-700">
+
                 {loading
                   ? "..."
                   : students}
+
               </h2>
 
             </div>
@@ -389,9 +499,11 @@ export default function AdminDashboard() {
               </p>
 
               <h2 className="mt-4 text-5xl font-bold text-green-700">
+
                 {loading
                   ? "..."
                   : businesses}
+
               </h2>
 
             </div>
@@ -406,9 +518,11 @@ export default function AdminDashboard() {
               </p>
 
               <h2 className="mt-4 text-5xl font-bold text-orange-600">
+
                 {loading
                   ? "..."
                   : offers}
+
               </h2>
 
             </div>
@@ -423,9 +537,11 @@ export default function AdminDashboard() {
               </p>
 
               <h2 className="mt-4 text-5xl font-bold text-purple-700">
+
                 {loading
                   ? "..."
                   : redemptions}
+
               </h2>
 
             </div>
@@ -491,9 +607,11 @@ export default function AdminDashboard() {
                   }
                   className="rounded-xl bg-indigo-600 px-7 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
+
                   {addingCategory
                     ? "Adding..."
                     : "➕ Add Category"}
+
                 </button>
 
               </div>
@@ -580,10 +698,12 @@ export default function AdminDashboard() {
                           }
                           className="ml-3 shrink-0 rounded-lg bg-red-100 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         >
+
                           {deletingCategory ===
                           category.id
                             ? "..."
                             : "🗑️"}
+
                         </button>
 
                       </div>
@@ -623,7 +743,8 @@ export default function AdminDashboard() {
 
                   <p className="mt-3 text-gray-600">
                     Review and approve pending
-                    business registrations.
+                    student and business
+                    registrations.
                   </p>
 
                 </div>
@@ -631,9 +752,11 @@ export default function AdminDashboard() {
                 <div className="shrink-0 rounded-2xl bg-yellow-100 px-5 py-3 text-center">
 
                   <span className="block text-3xl font-extrabold text-yellow-700">
+
                     {loading
                       ? "..."
-                      : pendingBusinesses}
+                      : totalPendingApprovals}
+
                   </span>
 
                   <span className="text-xs font-bold uppercase text-yellow-700">
