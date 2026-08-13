@@ -47,6 +47,13 @@ export default function StudentOffers() {
   const [categories, setCategories] =
     useState<string[]>([]);
 
+  /*
+   * offerId -> number of times
+   * current student redeemed that offer
+   */
+  const [usageCounts, setUsageCounts] =
+    useState<Record<string, number>>({});
+
   const [loading, setLoading] =
     useState(true);
 
@@ -81,6 +88,9 @@ export default function StudentOffers() {
             await Promise.all([
               loadOffers(),
               loadCategories(),
+              loadRedemptionUsage(
+                user.uid
+              ),
             ]);
           } finally {
             setLoading(false);
@@ -99,11 +109,6 @@ export default function StudentOffers() {
 
   const loadOffers = async () => {
     try {
-      /*
-       * Only ACTIVE offers should be visible
-       * to students.
-       */
-
       const offerQuery = query(
         collection(db, "offers"),
         where(
@@ -117,7 +122,7 @@ export default function StudentOffers() {
         await getDocs(offerQuery);
 
       /*
-       * Load businesses
+       * LOAD BUSINESSES
        */
 
       const businessSnap =
@@ -238,6 +243,117 @@ export default function StudentOffers() {
         "Offer loading error:",
         error
       );
+    }
+  };
+
+  /*
+   * ==========================================
+   * LOAD STUDENT REDEMPTION USAGE
+   * ==========================================
+   */
+
+  const loadRedemptionUsage = async (
+    studentUid: string
+  ) => {
+    try {
+      /*
+       * We load the redemptions collection and
+       * filter the current student's records.
+       *
+       * This supports common field names used
+       * in the redemption system.
+       */
+
+      const redemptionSnap =
+        await getDocs(
+          collection(
+            db,
+            "redemptions"
+          )
+        );
+
+      const counts: Record<
+        string,
+        number
+      > = {};
+
+      redemptionSnap.docs.forEach(
+        (redemptionDoc) => {
+          const data =
+            redemptionDoc.data();
+
+          /*
+           * STUDENT IDENTIFICATION
+           *
+           * Support common possible fields:
+           * studentUid
+           * studentId
+           * uid
+           * userId
+           */
+
+          const redemptionStudentUid =
+            String(
+              data.studentUid ||
+                data.studentId ||
+                data.uid ||
+                data.userId ||
+                ""
+            );
+
+          /*
+           * Only count current student's
+           * redemptions.
+           */
+
+          if (
+            redemptionStudentUid !==
+            studentUid
+          ) {
+            return;
+          }
+
+          /*
+           * OFFER IDENTIFICATION
+           *
+           * Support common possible fields.
+           */
+
+          const offerId =
+            String(
+              data.offerId ||
+                data.offerID ||
+                data.offer?.id ||
+                ""
+            );
+
+          if (!offerId) {
+            return;
+          }
+
+          counts[offerId] =
+            (counts[offerId] || 0) + 1;
+        }
+      );
+
+      setUsageCounts(counts);
+
+      console.log(
+        "Student redemption usage:",
+        counts
+      );
+    } catch (error) {
+      console.error(
+        "Redemption usage loading error:",
+        error
+      );
+
+      /*
+       * If usage loading fails, don't block
+       * the offers page.
+       */
+
+      setUsageCounts({});
     }
   };
 
@@ -379,6 +495,20 @@ export default function StudentOffers() {
 
   /*
    * ==========================================
+   * GET USAGE COUNT
+   * ==========================================
+   */
+
+  const getUsageCount = (
+    offerId: string
+  ) => {
+    return usageCounts[
+      offerId
+    ] || 0;
+  };
+
+  /*
+   * ==========================================
    * PAGE
    * ==========================================
    */
@@ -509,145 +639,224 @@ export default function StudentOffers() {
           <div className="grid items-stretch gap-8 md:grid-cols-2 lg:grid-cols-3">
 
             {filteredOffers.map(
-              (offer) => (
+              (offer) => {
 
-                <div
-                  key={offer.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-2xl"
-                >
+                const usedCount =
+                  getUsageCount(
+                    offer.id
+                  );
 
-                  {/* IMAGE */}
+                const limitReached =
+                  usedCount >= 4;
 
-                  <div className="h-64 overflow-hidden bg-gray-100">
+                return (
+                  <div
+                    key={offer.id}
+                    className="group flex h-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-2xl"
+                  >
 
-                    {offer.image ? (
+                    {/* IMAGE */}
 
-                      <img
-                        src={offer.image}
-                        alt={
-                          offer.title ||
-                          "Offer"
-                        }
-                        loading="lazy"
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
+                    <div className="h-64 overflow-hidden bg-gray-100">
 
-                    ) : (
+                      {offer.image ? (
 
-                      <div className="flex h-full items-center justify-center text-6xl">
-                        🎁
-                      </div>
-
-                    )}
-
-                  </div>
-
-                  {/* CONTENT */}
-
-                  <div className="flex flex-1 flex-col bg-slate-100 p-6">
-
-                    <div className="flex flex-wrap gap-3">
-
-                      <span className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white">
-                        {offer.category ||
-                          "Other"}
-                      </span>
-
-                      <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
-                        🔥 SBC Exclusive
-                      </span>
-
-                    </div>
-
-                    {/* BUSINESS */}
-
-                    <p className="mt-4 text-sm font-bold text-slate-500">
-                      🏢{" "}
-                      {offer.businessName ||
-                        "SBC Partner Business"}
-                    </p>
-
-                    {/* ADDRESS */}
-
-                    <div className="mt-2 min-h-[40px]">
-
-                      {offer.businessAddress ? (
-
-                        <p className="flex items-start gap-1 text-sm text-slate-500">
-
-                          <span>
-                            📍
-                          </span>
-
-                          <span className="line-clamp-2">
-                            {
-                              offer.businessAddress
-                            }
-                          </span>
-
-                        </p>
+                        <img
+                          src={offer.image}
+                          alt={
+                            offer.title ||
+                            "Offer"
+                          }
+                          loading="lazy"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
 
                       ) : (
 
-                        <p className="text-sm text-slate-400">
-                          📍 Address not available
-                        </p>
+                        <div className="flex h-full items-center justify-center text-6xl">
+                          🎁
+                        </div>
 
                       )}
 
                     </div>
 
-                    {/* TITLE */}
+                    {/* CONTENT */}
 
-                    <h2 className="mt-3 min-h-[56px] text-2xl font-bold text-green-600">
-                      {offer.title}
-                    </h2>
+                    <div className="flex flex-1 flex-col bg-slate-100 p-6">
 
-                    {/* DISCOUNT */}
+                      <div className="flex flex-wrap gap-3">
 
-                    <h3 className="mt-3 min-h-[45px] text-4xl font-extrabold text-yellow-500">
-                      {offer.discount}
-                    </h3>
+                        <span className="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white">
+                          {offer.category ||
+                            "Other"}
+                        </span>
 
-                    {/* DESCRIPTION */}
+                        <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
+                          🔥 SBC Exclusive
+                        </span>
 
-                    <p className="mt-3 line-clamp-2 min-h-[48px] text-gray-600">
-                      {offer.description}
-                    </p>
+                      </div>
 
-                    {/* BUTTONS */}
+                      {/* BUSINESS */}
 
-                    <div className="mt-auto grid grid-cols-2 gap-3 pt-8">
+                      <p className="mt-4 text-sm font-bold text-slate-500">
+                        🏢{" "}
+                        {offer.businessName ||
+                          "SBC Partner Business"}
+                      </p>
 
-                      <button
-                        onClick={() =>
-                          setSelectedOffer(
-                            offer
-                          )
-                        }
-                        className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
+                      {/* ADDRESS */}
+
+                      <div className="mt-2 min-h-[40px]">
+
+                        {offer.businessAddress ? (
+
+                          <p className="flex items-start gap-1 text-sm text-slate-500">
+
+                            <span>
+                              📍
+                            </span>
+
+                            <span className="line-clamp-2">
+                              {
+                                offer.businessAddress
+                              }
+                            </span>
+
+                          </p>
+
+                        ) : (
+
+                          <p className="text-sm text-slate-400">
+                            📍 Address not available
+                          </p>
+
+                        )}
+
+                      </div>
+
+                      {/* TITLE */}
+
+                      <h2 className="mt-3 min-h-[56px] text-2xl font-bold text-green-600">
+                        {offer.title}
+                      </h2>
+
+                      {/* DISCOUNT */}
+
+                      <h3 className="mt-3 min-h-[45px] text-4xl font-extrabold text-yellow-500">
+                        {offer.discount}
+                      </h3>
+
+                      {/* =================================
+                          USAGE COUNT
+                      ================================== */}
+
+                      <div
+                        className={`mt-4 rounded-2xl border p-4 ${
+                          limitReached
+                            ? "border-red-200 bg-red-50"
+                            : "border-blue-200 bg-blue-50"
+                        }`}
                       >
-                        👁 View Details
-                      </button>
 
-                      <button
-                        onClick={() =>
-                          callBusiness(
-                            offer
-                          )
-                        }
-                        className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
-                      >
-                        📞 Call Us
-                      </button>
+                        <div className="flex items-center justify-between gap-3">
+
+                          <div>
+
+                            <p
+                              className={`text-sm font-bold ${
+                                limitReached
+                                  ? "text-red-600"
+                                  : "text-blue-600"
+                              }`}
+                            >
+                              🎟️ Your Usage
+                            </p>
+
+                            <p className="mt-1 text-xl font-extrabold text-slate-800">
+                              Used{" "}
+                              {usedCount}
+                              {" / 4"} times
+                            </p>
+
+                          </div>
+
+                          <div
+                            className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-extrabold ${
+                              limitReached
+                                ? "bg-red-100 text-red-600"
+                                : "bg-blue-100 text-blue-600"
+                            }`}
+                          >
+                            {usedCount}
+                          </div>
+
+                        </div>
+
+                        {limitReached ? (
+
+                          <p className="mt-2 text-sm font-bold text-red-600">
+                            🚫 Usage limit reached
+                          </p>
+
+                        ) : (
+
+                          <p className="mt-2 text-sm text-blue-700">
+                            {4 -
+                              usedCount}{" "}
+                            use
+                            {4 -
+                              usedCount ===
+                            1
+                              ? ""
+                              : "s"}{" "}
+                            remaining
+                          </p>
+
+                        )}
+
+                      </div>
+
+                      {/* DESCRIPTION */}
+
+                      <p className="mt-4 line-clamp-2 min-h-[48px] text-gray-600">
+                        {offer.description}
+                      </p>
+
+                      {/* BUTTONS */}
+
+                      <div className="mt-auto grid grid-cols-2 gap-3 pt-8">
+
+                        <button
+                          onClick={() =>
+                            setSelectedOffer(
+                              offer
+                            )
+                          }
+                          className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
+                        >
+                          👁 View Details
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            callBusiness(
+                              offer
+                            )
+                          }
+                          className="rounded-xl bg-green-600 py-4 text-sm font-bold text-white hover:bg-green-700"
+                        >
+                          📞 Call Us
+                        </button>
+
+                      </div>
 
                     </div>
 
                   </div>
-
-                </div>
-
-              )
+                );
+              }
             )}
 
           </div>
@@ -788,6 +997,11 @@ export default function StudentOffers() {
                   callBusiness={
                     callBusiness
                   }
+                  usageCount={
+                    getUsageCount(
+                      selectedOffer.id
+                    )
+                  }
                 />
 
               </div>
@@ -802,6 +1016,11 @@ export default function StudentOffers() {
                   }
                   callBusiness={
                     callBusiness
+                  }
+                  usageCount={
+                    getUsageCount(
+                      selectedOffer.id
+                    )
                   }
                 />
 
@@ -843,13 +1062,19 @@ export default function StudentOffers() {
 function OfferDetails({
   offer,
   callBusiness,
+  usageCount,
 }: {
   offer: Offer;
 
   callBusiness: (
     offer: Offer
   ) => void;
+
+  usageCount: number;
 }) {
+  const limitReached =
+    usageCount >= 4;
+
   return (
     <div className="p-5 sm:p-7">
 
@@ -893,6 +1118,52 @@ function OfferDetails({
         </p>
 
       )}
+
+      {/* =================================
+          USAGE
+      ================================== */}
+
+      <div
+        className={`mt-5 rounded-2xl border p-5 ${
+          limitReached
+            ? "border-red-200 bg-red-50"
+            : "border-blue-200 bg-blue-50"
+        }`}
+      >
+
+        <p
+          className={`text-sm font-bold ${
+            limitReached
+              ? "text-red-600"
+              : "text-blue-600"
+          }`}
+        >
+          🎟️ Your Usage
+        </p>
+
+        <div className="mt-2 flex items-center justify-between">
+
+          <p className="text-2xl font-extrabold text-slate-800">
+            Used{" "}
+            {usageCount}
+            {" / 4"}
+          </p>
+
+          <span
+            className={`rounded-full px-4 py-2 text-sm font-bold ${
+              limitReached
+                ? "bg-red-100 text-red-700"
+                : "bg-blue-100 text-blue-700"
+            }`}
+          >
+            {limitReached
+              ? "Limit Reached"
+              : `${4 - usageCount} Remaining`}
+          </span>
+
+        </div>
+
+      </div>
 
       <div className="my-5 border-t" />
 
@@ -943,6 +1214,10 @@ function OfferDetails({
 
           <p>
             • Offer cannot be combined with other offers
+          </p>
+
+          <p>
+            • Maximum 4 redemptions per offer
           </p>
 
         </div>
