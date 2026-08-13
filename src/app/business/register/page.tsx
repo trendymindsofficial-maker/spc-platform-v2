@@ -25,15 +25,29 @@ export default function BusinessRegister() {
 
   const [loading, setLoading] = useState(false);
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categories, setCategories] =
+    useState<Category[]>([]);
 
-  const [businessName, setBusinessName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [password, setPassword] = useState("");
-  const [category, setCategory] = useState("");
-  const [address, setAddress] = useState("");
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(true);
+
+  const [businessName, setBusinessName] =
+    useState("");
+
+  const [ownerName, setOwnerName] =
+    useState("");
+
+  const [mobile, setMobile] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("");
+
+  const [address, setAddress] =
+    useState("");
 
   /*
    * ==========================================
@@ -56,6 +70,7 @@ export default function BusinessRegister() {
 
             return {
               id: item.id,
+
               name:
                 itemData.name ||
                 itemData.category ||
@@ -63,7 +78,10 @@ export default function BusinessRegister() {
                 "",
             };
           })
-          .filter((item) => item.name.trim() !== "")
+          .filter(
+            (item) =>
+              item.name.trim() !== ""
+          )
           .sort((a, b) =>
             a.name.localeCompare(b.name)
           );
@@ -108,6 +126,15 @@ export default function BusinessRegister() {
     try {
       setLoading(true);
 
+      /*
+       * IMPORTANT:
+       *
+       * Keep existing .spc Firebase Auth format.
+       *
+       * Do NOT change this to .sbc because
+       * existing business accounts use this format.
+       */
+
       const loginEmail =
         `${mobile.trim()}@business.spc`;
 
@@ -143,19 +170,25 @@ export default function BusinessRegister() {
           mobile:
             mobile.trim(),
 
-          email: loginEmail,
+          email:
+            loginEmail,
 
           category,
 
           address:
             address.trim(),
 
-          status: "pending",
+          status:
+            "pending",
 
           createdAt:
             serverTimestamp(),
         }
       );
+
+      /*
+       * SUCCESS
+       */
 
       alert(
         "✅ Business registration successful!\n\nYour account is waiting for admin approval."
@@ -164,6 +197,7 @@ export default function BusinessRegister() {
       router.replace(
         "/business/login"
       );
+
     } catch (error: any) {
       console.error(
         "Business registration error:",
@@ -190,6 +224,7 @@ export default function BusinessRegister() {
             "Business registration failed."
         );
       }
+
     } finally {
       setLoading(false);
     }
@@ -202,12 +237,14 @@ export default function BusinessRegister() {
    */
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6 text-gray-900">
+
+      <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-gray-900 shadow-xl">
 
         {/* BACK HOME */}
 
         <div className="mb-6">
+
           <button
             type="button"
             onClick={() =>
@@ -217,13 +254,18 @@ export default function BusinessRegister() {
           >
             ← Back to Home
           </button>
+
         </div>
 
         {/* TITLE */}
 
-        <h1 className="mb-6 text-center text-3xl font-bold">
+        <h1 className="mb-2 text-center text-3xl font-bold text-green-700">
           🏪 Business Registration
         </h1>
+
+        <p className="mb-8 text-center text-sm font-medium text-gray-500">
+          Become a Student Benefit Card Partner
+        </p>
 
         <div className="space-y-4">
 
@@ -231,62 +273,66 @@ export default function BusinessRegister() {
 
           <input
             type="text"
+            autoComplete="organization"
             placeholder="Business Name"
-            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={businessName}
             onChange={(e) =>
               setBusinessName(
                 e.target.value
               )
             }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           {/* OWNER NAME */}
 
           <input
             type="text"
+            autoComplete="name"
             placeholder="Owner Name"
-            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={ownerName}
             onChange={(e) =>
               setOwnerName(
                 e.target.value
               )
             }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           {/* MOBILE */}
 
           <input
             type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
             placeholder="Mobile Number"
-            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={mobile}
             onChange={(e) =>
               setMobile(
                 e.target.value
               )
             }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           {/* PASSWORD */}
 
           <input
             type="password"
+            autoComplete="new-password"
             placeholder="Password"
-            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={password}
             onChange={(e) =>
               setPassword(
                 e.target.value
               )
             }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
-          {/* DYNAMIC CATEGORY */}
+          {/* CATEGORY */}
 
           <select
-            className="w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={category}
             onChange={(e) =>
               setCategory(
@@ -296,8 +342,13 @@ export default function BusinessRegister() {
             disabled={
               categoriesLoading
             }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
           >
-            <option value="">
+
+            <option
+              value=""
+              className="text-gray-500"
+            >
               {categoriesLoading
                 ? "Loading Categories..."
                 : categories.length === 0
@@ -315,34 +366,37 @@ export default function BusinessRegister() {
                 </option>
               )
             )}
+
           </select>
 
-          {/* CATEGORY INFO */}
+          {/* CATEGORY ERROR */}
 
           {!categoriesLoading &&
             categories.length === 0 && (
               <p className="text-sm font-medium text-red-600">
                 ❌ No categories available.
-                Please contact SPC Admin.
+                Please contact SBC Admin.
               </p>
             )}
 
           {/* ADDRESS */}
 
           <textarea
+            autoComplete="street-address"
             placeholder="Business Address"
-            className="h-28 w-full rounded-xl border p-3 outline-none focus:border-green-600"
             value={address}
             onChange={(e) =>
               setAddress(
                 e.target.value
               )
             }
+            className="h-28 w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           {/* REGISTER */}
 
           <button
+            type="button"
             onClick={
               registerBusiness
             }
@@ -359,7 +413,15 @@ export default function BusinessRegister() {
           </button>
 
         </div>
+
+        {/* BRANDING */}
+
+        <p className="mt-6 text-center text-xs text-gray-400">
+          Student Benefit Card • SBC
+        </p>
+
       </div>
+
     </main>
   );
 }

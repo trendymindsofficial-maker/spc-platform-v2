@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
 
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
 
 import {
   doc,
@@ -16,163 +18,325 @@ import {
 export default function StudentRegister() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
-  const [fullName, setFullName] = useState("");
-  const [mobile, setMobile] =useState("");
-  const [password, setPassword] = useState("");
+  const [fullName, setFullName] =
+    useState("");
 
-  const [college, setCollege] = useState("");
-  const [course, setCourse] = useState("");
-  const [year, setYear] = useState("");
+  const [mobile, setMobile] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [college, setCollege] =
+    useState("");
+
+  const [course, setCourse] =
+    useState("");
+
+  const [year, setYear] =
+    useState("");
+
+  /*
+   * ==========================================
+   * REGISTER STUDENT
+   * ==========================================
+   */
 
   const registerStudent = async () => {
-
     if (
-      !fullName ||
-      !mobile ||
+      !fullName.trim() ||
+      !mobile.trim() ||
       !password ||
-      !college ||
-      !course ||
-      !year
+      !college.trim() ||
+      !course.trim() ||
+      !year.trim()
     ) {
       alert("Fill all fields");
       return;
     }
 
     try {
-
       setLoading(true);
 
-      const loginEmail = `${mobile}@student.spc`;
+      /*
+       * IMPORTANT:
+       *
+       * Keep existing Firebase Auth format.
+       *
+       * Existing students use:
+       * mobile@student.spc
+       *
+       * Do NOT change this to .sbc now,
+       * otherwise existing students may
+       * not be able to login.
+       */
 
-console.log("LOGIN EMAIL =", loginEmail);
+      const loginEmail =
+        `${mobile.trim()}@student.spc`;
 
-const userCredential =
-  await createUserWithEmailAndPassword(
-    auth,
-    loginEmail,
-    password
-  );
+      console.log(
+        "LOGIN EMAIL =",
+        loginEmail
+      );
 
-      const uid = userCredential.user.uid;
+      /*
+       * CREATE FIREBASE AUTH USER
+       */
+
+      const userCredential =
+        await createUserWithEmailAndPassword(
+          auth,
+          loginEmail,
+          password
+        );
+
+      const uid =
+        userCredential.user.uid;
+
+      /*
+       * GENERATE SPC CARD NUMBER
+       *
+       * Keep existing format for compatibility.
+       */
 
       const cardNumber =
         "SPC" +
         Math.floor(
-          100000 + Math.random() * 900000
+          100000 +
+            Math.random() * 900000
         );
 
-      await setDoc(doc(db, "students", uid), {
+      /*
+       * SAVE STUDENT
+       */
 
-        uid,
+      await setDoc(
+        doc(db, "students", uid),
+        {
+          uid,
 
-        fullName,
+          fullName:
+            fullName.trim(),
 
-        mobile,
+          mobile:
+            mobile.trim(),
 
-        email: loginEmail,
+          email:
+            loginEmail,
 
-        college,
+          college:
+            college.trim(),
 
-        course,
+          course:
+            course.trim(),
 
-        year,
+          year:
+            year.trim(),
 
-        cardNumber,
+          cardNumber,
 
-        status: "pending",
+          status:
+            "pending",
 
-        createdAt: serverTimestamp(),
+          createdAt:
+            serverTimestamp(),
+        }
+      );
 
-      });
+      alert(
+        "✅ Registration successful!\n\nYour SBC account is waiting for admin approval."
+      );
 
-      router.push("/student/login");
+      router.replace(
+        "/student/login"
+      );
 
     } catch (error: any) {
+      console.error(
+        "Student registration error:",
+        error
+      );
 
-      console.log(error);
-
-      alert(error.message);
+      if (
+        error?.code ===
+        "auth/email-already-in-use"
+      ) {
+        alert(
+          "❌ This mobile number is already registered."
+        );
+      } else if (
+        error?.code ===
+        "auth/weak-password"
+      ) {
+        alert(
+          "❌ Password should be at least 6 characters."
+        );
+      } else {
+        alert(
+          error?.message ||
+            "Student registration failed."
+        );
+      }
 
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6 text-gray-900">
 
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-gray-900 shadow-xl">
+
+        {/* BACK HOME */}
+
         <div className="mb-6">
-    <button
-      type="button"
-      onClick={() => router.push("/")}
-      className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
-    >
-      ← Back to Home
-    </button>
-  </div>
 
-        <h1 className="mb-6 text-center text-3xl font-bold">
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/")
+            }
+            className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
+          >
+            ← Back to Home
+          </button>
+
+        </div>
+
+        {/* TITLE */}
+
+        <h1 className="mb-2 text-center text-3xl font-bold text-blue-700">
           🎓 Student Registration
         </h1>
 
+        <p className="mb-8 text-center text-sm font-medium text-gray-500">
+          Join Student Benefit Card
+        </p>
+
         <div className="space-y-4">
-                      <input
+
+          {/* FULL NAME */}
+
+          <input
+            type="text"
+            autoComplete="name"
             placeholder="Full Name"
-            className="w-full rounded-xl border p-3"
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
+            onChange={(e) =>
+              setFullName(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
 
+          {/* MOBILE */}
+
           <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
             placeholder="Mobile Number"
-            className="w-full rounded-xl border p-3"
             value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
+            onChange={(e) =>
+              setMobile(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
 
+          {/* PASSWORD */}
+
           <input
-            placeholder="Password"
             type="password"
-            className="w-full rounded-xl border p-3"
+            autoComplete="new-password"
+            placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) =>
+              setPassword(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
 
+          {/* COLLEGE */}
+
           <input
+            type="text"
+            autoComplete="organization"
             placeholder="College"
-            className="w-full rounded-xl border p-3"
             value={college}
-            onChange={(e) => setCollege(e.target.value)}
+            onChange={(e) =>
+              setCollege(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
 
+          {/* COURSE */}
+
           <input
+            type="text"
             placeholder="Course"
-            className="w-full rounded-xl border p-3"
             value={course}
-            onChange={(e) => setCourse(e.target.value)}
+            onChange={(e) =>
+              setCourse(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
 
+          {/* YEAR */}
+
           <input
+            type="text"
+            inputMode="numeric"
             placeholder="Year"
-            className="w-full rounded-xl border p-3"
             value={year}
-            onChange={(e) => setYear(e.target.value)}
+            onChange={(e) =>
+              setYear(
+                e.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           />
+
+          {/* REGISTER */}
 
           <button
-            onClick={registerStudent}
+            type="button"
+            onClick={
+              registerStudent
+            }
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 py-3 font-bold text-white hover:bg-blue-700"
+            className="w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Registering..." : "Register Student"}
+            {loading
+              ? "Registering..."
+              : "Register Student"}
           </button>
-                  </div>
+
+        </div>
+
+        {/* BRANDING */}
+
+        <p className="mt-6 text-center text-xs text-gray-400">
+          Student Benefit Card • SBC
+        </p>
 
       </div>
 
