@@ -269,7 +269,7 @@ export default function RedeemStudentOffer() {
 
   /*
    * ==========================================
-   * SEARCH STUDENT BY SPC CARD NUMBER
+   * SEARCH STUDENT BY SBC CARD NUMBER
    * ==========================================
    */
 

@@ -71,7 +71,7 @@ export default function AdminStudents() {
     name: string
   ) => {
     const ok = window.confirm(
-      `Approve "${name}" as an SPC student?`
+      `Approve "${name}" as an SBC student?`
     );
 
     if (!ok) return;
@@ -620,7 +620,7 @@ export default function AdminStudents() {
 
                               <div className="rounded-2xl bg-slate-50 p-5">
                                 <p className="text-sm text-gray-500">
-                                  SPC Card Number
+                                  SBC Card Number
                                 </p>
 
                                 <p className="mt-1 text-lg font-bold text-gray-800">
@@ -684,7 +684,7 @@ export default function AdminStudents() {
                                 <p className="mt-2 text-gray-600">
                                   Please verify the student
                                   details before approving
-                                  this SPC account.
+                                  this SBC account.
                                 </p>
 
                                 <button
@@ -721,7 +721,7 @@ export default function AdminStudents() {
 
                                 <p className="mt-2 text-gray-600">
                                   This student is currently
-                                  an active SPC member.
+                                  an active SBC member.
                                 </p>
 
                               </div>

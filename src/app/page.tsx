@@ -6,11 +6,11 @@ export default function Home() {
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
 
         <h1 className="mb-2 text-center text-4xl font-bold text-indigo-700">
-          SPC Platform
+          SBC Platform
         </h1>
 
         <p className="mb-10 text-center text-gray-500">
-          Student Privilege Card
+          Student Benefit Card
         </p>
 
         <div className="space-y-4">

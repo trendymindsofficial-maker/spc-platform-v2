@@ -212,7 +212,7 @@ export default function StudentOffers() {
               businessName:
                 offerData.businessName ||
                 business?.name ||
-                "SPC Partner Business",
+                "SBC Partner Business",
 
               businessMobile:
                 offerData.businessMobile ||
@@ -401,7 +401,7 @@ export default function StudentOffers() {
             </h1>
 
             <p className="mt-2 text-gray-500">
-              Exclusive Discounts for SPC Students
+              Exclusive Discounts for SBC Students
             </p>
 
           </div>
@@ -554,7 +554,7 @@ export default function StudentOffers() {
                       </span>
 
                       <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
-                        🔥 SPC Exclusive
+                        🔥 SBC Exclusive
                       </span>
 
                     </div>
@@ -564,7 +564,7 @@ export default function StudentOffers() {
                     <p className="mt-4 text-sm font-bold text-slate-500">
                       🏢{" "}
                       {offer.businessName ||
-                        "SPC Partner Business"}
+                        "SBC Partner Business"}
                     </p>
 
                     {/* ADDRESS */}
@@ -670,7 +670,7 @@ export default function StudentOffers() {
                 </h2>
 
                 <p className="mt-2 text-gray-600">
-                  Discover amazing discounts from SPC Partner Businesses.
+                  Discover amazing discounts from SBC Partner Businesses.
                 </p>
 
               </div>
@@ -863,7 +863,7 @@ function OfferDetails({
         </span>
 
         <span className="rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-black">
-          🔥 SPC Exclusive
+          🔥 SBC Exclusive
         </span>
 
       </div>
@@ -873,7 +873,7 @@ function OfferDetails({
       <h2 className="mt-4 text-2xl font-bold text-slate-700 sm:text-3xl">
         🏢{" "}
         {offer.businessName ||
-          "SPC Partner Business"}
+          "SBC Partner Business"}
       </h2>
 
       {/* ADDRESS */}
@@ -918,7 +918,7 @@ function OfferDetails({
 
         <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-700">
           {offer.description ||
-            "Exclusive offer for SPC students."}
+            "Exclusive offer for SBC students."}
         </p>
 
       </div>
@@ -934,7 +934,7 @@ function OfferDetails({
         <div className="mt-3 space-y-2 text-sm leading-6 text-gray-700">
 
           <p>
-            • Offer valid for SPC students
+            • Offer valid for SBC students
           </p>
 
           <p>

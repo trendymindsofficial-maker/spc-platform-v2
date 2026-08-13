@@ -264,7 +264,7 @@ export default function AdminCategories() {
               </h1>
 
               <p className="mt-2 text-gray-600">
-                Add, edit and manage SPC offer categories.
+                Add, edit and manage SBC offer categories.
               </p>
             </div>
 

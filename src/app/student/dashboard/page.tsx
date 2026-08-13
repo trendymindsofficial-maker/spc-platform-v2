@@ -312,7 +312,7 @@ export default function StudentDashboard() {
 
           <p className="mt-3 text-gray-600">
             {error ||
-              "We could not load your SPC student details."}
+              "We could not load your SBC student details."}
           </p>
 
           <button
@@ -386,7 +386,7 @@ export default function StudentDashboard() {
 
         <div className="grid gap-6 lg:grid-cols-2">
 
-          {/* DIGITAL SPC CARD */}
+          {/* DIGITAL SBC CARD */}
 
           <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-8 text-white shadow-xl">
 
