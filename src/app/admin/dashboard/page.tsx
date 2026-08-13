@@ -16,6 +16,8 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  query,
+  where,
 } from "firebase/firestore";
 
 interface Category {
@@ -29,6 +31,7 @@ export default function AdminDashboard() {
 
   const [students, setStudents] = useState(0);
   const [businesses, setBusinesses] = useState(0);
+  const [pendingBusinesses, setPendingBusinesses] = useState(0);
   const [offers, setOffers] = useState(0);
   const [redemptions, setRedemptions] = useState(0);
 
@@ -65,6 +68,15 @@ export default function AdminDashboard() {
         collection(db, "businesses")
       );
 
+      const pendingBusinessQuery = query(
+        collection(db, "businesses"),
+        where("status", "==", "pending")
+      );
+
+      const pendingBusinessSnap = await getDocs(
+        pendingBusinessQuery
+      );
+
       const offerSnap = await getDocs(
         collection(db, "offers")
       );
@@ -75,6 +87,9 @@ export default function AdminDashboard() {
 
       setStudents(studentSnap.size);
       setBusinesses(businessSnap.size);
+      setPendingBusinesses(
+        pendingBusinessSnap.size
+      );
       setOffers(offerSnap.size);
       setRedemptions(redeemSnap.size);
     } catch (error) {
@@ -146,10 +161,6 @@ export default function AdminDashboard() {
     try {
       setAddingCategory(true);
 
-      /*
-       * Check duplicate category
-       */
-
       const existingCategory =
         categories.find(
           (category) =>
@@ -166,10 +177,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      /*
-       * Save category
-       */
-
       const categoryRef =
         await addDoc(
           collection(db, "categories"),
@@ -179,10 +186,6 @@ export default function AdminDashboard() {
               serverTimestamp(),
           }
         );
-
-      /*
-       * Update UI immediately
-       */
 
       setCategories((current) =>
         [
@@ -327,7 +330,7 @@ export default function AdminDashboard() {
               </h1>
 
               <p className="mt-2 text-gray-600">
-                SPC Administration Dashboard
+                SBC Administration Dashboard
               </p>
 
             </div>
@@ -414,6 +417,72 @@ export default function AdminDashboard() {
               </h2>
 
             </div>
+
+          </div>
+
+
+          {/* ==================================
+              PENDING BUSINESS APPROVALS
+          =================================== */}
+
+          <div className="mt-8">
+
+            <Link
+              href="/admin/pending-approvals"
+              className="block rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-7 shadow-xl transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-2xl"
+            >
+
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+
+                <div>
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-200 text-3xl">
+                      ⏳
+                    </div>
+
+                    <div>
+
+                      <h2 className="text-2xl font-bold text-yellow-800">
+                        Pending Business Approvals
+                      </h2>
+
+                      <p className="mt-1 text-yellow-700">
+                        Review and approve newly registered businesses.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div className="flex items-center gap-4">
+
+                  <div className="rounded-2xl bg-yellow-400 px-7 py-4 text-center shadow-md">
+
+                    <span className="block text-4xl font-extrabold text-white">
+                      {loading
+                        ? "..."
+                        : pendingBusinesses}
+                    </span>
+
+                    <span className="text-xs font-bold uppercase text-white">
+                      Pending
+                    </span>
+
+                  </div>
+
+                  <div className="hidden rounded-xl bg-yellow-600 px-5 py-3 font-bold text-white md:block">
+                    Review →
+                  </div>
+
+                </div>
+
+              </div>
+
+            </Link>
 
           </div>
 
@@ -591,6 +660,30 @@ export default function AdminDashboard() {
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
 
+            {/* PENDING APPROVALS */}
+
+            <Link
+              href="/admin/pending-approvals"
+              className="rounded-3xl border-2 border-yellow-200 bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:border-yellow-400 hover:shadow-2xl"
+            >
+
+              <h2 className="text-3xl font-bold text-yellow-700">
+                ⏳ Pending Approvals
+              </h2>
+
+              <p className="mt-3 text-gray-600">
+                Review and approve pending business registrations.
+              </p>
+
+              <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-4 py-2 font-bold text-yellow-800">
+                {loading
+                  ? "Loading..."
+                  : `${pendingBusinesses} Pending`}
+              </div>
+
+            </Link>
+
+
             {/* BUSINESSES */}
 
             <Link
@@ -672,7 +765,7 @@ export default function AdminDashboard() {
           <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
 
             <h2 className="text-3xl font-bold text-blue-700">
-              🚀 SPC Admin Portal
+              🚀 SBC Admin Portal
             </h2>
 
             <p className="mt-4 text-lg text-gray-600">
