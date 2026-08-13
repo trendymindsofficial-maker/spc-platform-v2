@@ -279,7 +279,7 @@ export default function RedemptionHistory() {
           <div className="mb-8">
             <input
               type="text"
-              placeholder="🔍 Search Student / Mobile / SPC Number / Offer..."
+              placeholder="🔍 Search Student / Mobile / SBC Number / Offer..."
               value={search}
               onChange={(e) =>
                 setSearch(e.target.value)
@@ -341,7 +341,7 @@ export default function RedemptionHistory() {
 
               <p className="mt-3 text-gray-500">
                 {search
-                  ? "Try a different student name, mobile number, SPC number or offer name."
+                  ? "Try a different student name, mobile number, SBC number or offer name."
                   : "Redeemed offers will appear here."}
               </p>
 
@@ -405,7 +405,7 @@ export default function RedemptionHistory() {
                         <div className="rounded-2xl bg-purple-50 p-5">
 
                           <p className="text-sm font-semibold text-purple-600">
-                            🎫 SPC Card Number
+                            🎫 SBC Card Number
                           </p>
 
                           <h3 className="mt-2 text-lg font-bold text-purple-800">
