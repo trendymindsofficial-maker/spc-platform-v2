@@ -73,15 +73,16 @@ export default function AdminDashboard() {
         where("status", "==", "pending")
       );
 
-      const pendingBusinessSnap = await getDocs(
-        pendingBusinessQuery
-      );
+      const pendingBusinessSnap =
+        await getDocs(
+          pendingBusinessQuery
+        );
 
       const offerSnap = await getDocs(
         collection(db, "offers")
       );
 
-      const redeemSnap = await getDocs(
+      const redemptionSnap = await getDocs(
         collection(db, "redemptions")
       );
 
@@ -91,7 +92,9 @@ export default function AdminDashboard() {
         pendingBusinessSnap.size
       );
       setOffers(offerSnap.size);
-      setRedemptions(redeemSnap.size);
+      setRedemptions(
+        redemptionSnap.size
+      );
     } catch (error) {
       console.error(
         "Dashboard loading error:",
@@ -119,8 +122,10 @@ export default function AdminDashboard() {
       const data = snap.docs
         .map((item) => ({
           id: item.id,
-          name: item.data().name || "",
-          createdAt: item.data().createdAt,
+          name:
+            item.data().name || "",
+          createdAt:
+            item.data().createdAt,
         }))
         .filter(
           (category) =>
@@ -179,7 +184,10 @@ export default function AdminDashboard() {
 
       const categoryRef =
         await addDoc(
-          collection(db, "categories"),
+          collection(
+            db,
+            "categories"
+          ),
           {
             name: categoryName,
             createdAt:
@@ -227,9 +235,10 @@ export default function AdminDashboard() {
   const handleDeleteCategory = async (
     category: Category
   ) => {
-    const ok = window.confirm(
-      `Delete "${category.name}" category?\n\nThis will remove it from the category list. Existing businesses and offers will NOT be deleted.`
-    );
+    const ok =
+      window.confirm(
+        `Delete "${category.name}" category?\n\nThis will remove it from the category list. Existing businesses and offers will NOT be deleted.`
+      );
 
     if (!ok) {
       return;
@@ -274,7 +283,7 @@ export default function AdminDashboard() {
 
   /*
    * ==========================================
-   * ADD CATEGORY WITH ENTER
+   * CATEGORY ENTER
    * ==========================================
    */
 
@@ -296,7 +305,9 @@ export default function AdminDashboard() {
   const logout = async () => {
     try {
       await signOut(auth);
-      router.replace("/admin/login");
+      router.replace(
+        "/admin/login"
+      );
     } catch (error) {
       console.error(
         "Logout error:",
@@ -313,6 +324,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminProtected>
+
       <main className="min-h-screen bg-gray-100 p-6 md:p-10">
 
         <div className="mx-auto max-w-7xl">
@@ -422,72 +434,6 @@ export default function AdminDashboard() {
 
 
           {/* ==================================
-              PENDING BUSINESS APPROVALS
-          =================================== */}
-
-          <div className="mt-8">
-
-            <Link
-              href="/admin/pending-approvals"
-              className="block rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-7 shadow-xl transition hover:-translate-y-1 hover:border-yellow-400 hover:shadow-2xl"
-            >
-
-              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-
-                <div>
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-yellow-200 text-3xl">
-                      ⏳
-                    </div>
-
-                    <div>
-
-                      <h2 className="text-2xl font-bold text-yellow-800">
-                        Pending Business Approvals
-                      </h2>
-
-                      <p className="mt-1 text-yellow-700">
-                        Review and approve newly registered businesses.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                <div className="flex items-center gap-4">
-
-                  <div className="rounded-2xl bg-yellow-400 px-7 py-4 text-center shadow-md">
-
-                    <span className="block text-4xl font-extrabold text-white">
-                      {loading
-                        ? "..."
-                        : pendingBusinesses}
-                    </span>
-
-                    <span className="text-xs font-bold uppercase text-white">
-                      Pending
-                    </span>
-
-                  </div>
-
-                  <div className="hidden rounded-xl bg-yellow-600 px-5 py-3 font-bold text-white md:block">
-                    Review →
-                  </div>
-
-                </div>
-
-              </div>
-
-            </Link>
-
-          </div>
-
-
-          {/* ==================================
               CATEGORY MANAGEMENT
           =================================== */}
 
@@ -500,9 +446,9 @@ export default function AdminDashboard() {
               </h2>
 
               <p className="mt-2 text-gray-600">
-                Add or remove categories used across
-                Business Registration, Offers and
-                Student Offers.
+                Add or remove categories used
+                across Business Registration,
+                Offers and Student Offers.
               </p>
 
             </div>
@@ -667,18 +613,35 @@ export default function AdminDashboard() {
               className="rounded-3xl border-2 border-yellow-200 bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:border-yellow-400 hover:shadow-2xl"
             >
 
-              <h2 className="text-3xl font-bold text-yellow-700">
-                ⏳ Pending Approvals
-              </h2>
+              <div className="flex items-start justify-between gap-4">
 
-              <p className="mt-3 text-gray-600">
-                Review and approve pending business registrations.
-              </p>
+                <div>
 
-              <div className="mt-5 inline-flex rounded-full bg-yellow-100 px-4 py-2 font-bold text-yellow-800">
-                {loading
-                  ? "Loading..."
-                  : `${pendingBusinesses} Pending`}
+                  <h2 className="text-3xl font-bold text-yellow-700">
+                    ⏳ Pending Approvals
+                  </h2>
+
+                  <p className="mt-3 text-gray-600">
+                    Review and approve pending
+                    business registrations.
+                  </p>
+
+                </div>
+
+                <div className="shrink-0 rounded-2xl bg-yellow-100 px-5 py-3 text-center">
+
+                  <span className="block text-3xl font-extrabold text-yellow-700">
+                    {loading
+                      ? "..."
+                      : pendingBusinesses}
+                  </span>
+
+                  <span className="text-xs font-bold uppercase text-yellow-700">
+                    Pending
+                  </span>
+
+                </div>
+
               </div>
 
             </Link>
@@ -769,9 +732,10 @@ export default function AdminDashboard() {
             </h2>
 
             <p className="mt-4 text-lg text-gray-600">
-              Manage Students, Businesses, Offers,
-              Categories and Redemptions from one
-              central dashboard.
+              Manage Students, Businesses,
+              Offers, Categories and
+              Redemptions from one central
+              dashboard.
             </p>
 
           </div>
@@ -779,6 +743,7 @@ export default function AdminDashboard() {
         </div>
 
       </main>
+
     </AdminProtected>
   );
 }

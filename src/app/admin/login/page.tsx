@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
 </div>
 
         <h1 className="text-center text-4xl font-bold text-blue-700">
-          SPC Admin
+          SBC Admin
         </h1>
 
         <p className="mt-3 text-center text-gray-500">
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
             onChange={(e) =>
               setEmail(e.target.value)
             }
-            placeholder="admin@spc.in"
+            placeholder="admin@sbc.in"
             className="mt-2 w-full rounded-xl border p-3 outline-none focus:border-blue-600"
           />
 
