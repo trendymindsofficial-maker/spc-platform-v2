@@ -16,6 +16,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   serverTimestamp,
   where,
 } from "firebase/firestore";
@@ -38,7 +39,10 @@ interface Offer {
   title: string;
   discount: string;
   businessId: string;
+  status?: string;
 }
+
+const MAX_REDEMPTIONS = 4;
 
 export default function RedeemStudentOffer() {
   const router = useRouter();
@@ -49,6 +53,9 @@ export default function RedeemStudentOffer() {
 
   const [student, setStudent] =
     useState<Student | null>(null);
+
+  const [offers, setOffers] =
+    useState<Offer[]>([]);
 
   const [offer, setOffer] =
     useState<Offer | null>(null);
@@ -79,11 +86,11 @@ export default function RedeemStudentOffer() {
 
   /*
    * ==========================================
-   * LOAD ACTIVE OFFER
+   * LOAD ACTIVE OFFERS
    * ==========================================
    */
 
-  const loadOffer = async (businessId: string) => {
+  const loadOffers = async (businessId: string) => {
     try {
       const offerQuery = query(
         collection(db, "offers"),
@@ -94,30 +101,66 @@ export default function RedeemStudentOffer() {
       const offerSnap =
         await getDocs(offerQuery);
 
-      if (offerSnap.empty) {
+      const activeOffers: Offer[] =
+        offerSnap.docs.map((offerDoc) => {
+          const data = offerDoc.data();
+
+          return {
+            id: offerDoc.id,
+            title: data.title || "",
+            discount: data.discount || "",
+            businessId:
+              data.businessId || businessId,
+            status: data.status || "active",
+          };
+        });
+
+      setOffers(activeOffers);
+
+      if (activeOffers.length > 0) {
+        setOffer(activeOffers[0]);
+      } else {
         setOffer(null);
-        return;
       }
-
-      const offerDoc =
-        offerSnap.docs[0];
-
-      const data =
-        offerDoc.data();
-
-      setOffer({
-        id: offerDoc.id,
-        title: data.title || "",
-        discount: data.discount || "",
-        businessId:
-          data.businessId || businessId,
-      });
     } catch (error) {
       console.error(
         "Offer loading error:",
         error
       );
+
+      setOffers([]);
+      setOffer(null);
     }
+  };
+
+  /*
+   * ==========================================
+   * GET BUSINESS-WISE REDEMPTION COUNT
+   * ==========================================
+   *
+   * IMPORTANT:
+   *
+   * studentId + businessId
+   *
+   * offerId is NOT used for counting.
+   *
+   * Maximum = 4 per business.
+   */
+
+  const getBusinessUsage = async (
+    studentId: string,
+    businessId: string
+  ) => {
+    const redemptionQuery = query(
+      collection(db, "redemptions"),
+      where("studentId", "==", studentId),
+      where("businessId", "==", businessId)
+    );
+
+    const redemptionSnap =
+      await getDocs(redemptionQuery);
+
+    return redemptionSnap.size;
   };
 
   /*
@@ -130,8 +173,11 @@ export default function RedeemStudentOffer() {
     studentId: string
   ) => {
     try {
-      const studentRef =
-        doc(db, "students", studentId);
+      const studentRef = doc(
+        db,
+        "students",
+        studentId
+      );
 
       const studentSnap =
         await getDoc(studentRef);
@@ -146,15 +192,34 @@ export default function RedeemStudentOffer() {
 
       const studentInfo: Student = {
         id: studentSnap.id,
-        uid: data.uid || studentSnap.id,
-        fullName: data.fullName || "",
-        college: data.college || "",
-        mobile: data.mobile || "",
-        email: data.email || "",
-        cardNumber: data.cardNumber || "",
-        course: data.course || "",
-        year: data.year || "",
-        status: data.status || "",
+
+        uid:
+          data.uid ||
+          studentSnap.id,
+
+        fullName:
+          data.fullName || "",
+
+        college:
+          data.college || "",
+
+        mobile:
+          data.mobile || "",
+
+        email:
+          data.email || "",
+
+        cardNumber:
+          data.cardNumber || "",
+
+        course:
+          data.course || "",
+
+        year:
+          data.year || "",
+
+        status:
+          data.status || "",
       };
 
       const user =
@@ -168,7 +233,9 @@ export default function RedeemStudentOffer() {
       }
 
       /*
-       * Load current active offer
+       * ========================================
+       * CHECK BUSINESS OFFERS
+       * ========================================
        */
 
       const offerQuery = query(
@@ -195,63 +262,97 @@ export default function RedeemStudentOffer() {
         return;
       }
 
-      const offerDoc =
-        offerSnap.docs[0];
+      const activeOffers: Offer[] =
+        offerSnap.docs.map(
+          (offerDoc) => {
+            const offerData =
+              offerDoc.data();
 
-      const offerData =
-        offerDoc.data();
+            return {
+              id: offerDoc.id,
 
-      const activeOffer: Offer = {
-        id: offerDoc.id,
-        title:
-          offerData.title || "",
-        discount:
-          offerData.discount || "",
-        businessId:
-          offerData.businessId ||
-          user.uid,
-      };
+              title:
+                offerData.title ||
+                "",
 
-      setOffer(activeOffer);
+              discount:
+                offerData.discount ||
+                "",
 
-      /*
-       * Check previous redemptions
-       */
+              businessId:
+                offerData.businessId ||
+                user.uid,
 
-      const redemptionQuery =
-        query(
-          collection(
-            db,
-            "redemptions"
-          ),
-          where(
-            "studentId",
-            "==",
-            studentSnap.id
-          ),
-          where(
-            "offerId",
-            "==",
-            activeOffer.id
-          )
+              status:
+                offerData.status ||
+                "active",
+            };
+          }
         );
 
-      const redemptionSnap =
-        await getDocs(
-          redemptionQuery
+      setOffers(
+        activeOffers
+      );
+
+      /*
+       * If no selected offer,
+       * automatically select first one.
+       */
+
+      setOffer((current) => {
+        if (
+          current &&
+          activeOffers.some(
+            (item) =>
+              item.id ===
+              current.id
+          )
+        ) {
+          return current;
+        }
+
+        return activeOffers[0];
+      });
+
+      /*
+       * ========================================
+       * BUSINESS-WISE USAGE CHECK
+       * ========================================
+       */
+
+      const businessUsage =
+        await getBusinessUsage(
+          studentSnap.id,
+          user.uid
         );
 
       setUsedCount(
-        redemptionSnap.size
+        businessUsage
+      );
+
+      console.log(
+        "BUSINESS USAGE CHECK:",
+        {
+          studentId:
+            studentSnap.id,
+
+          businessId:
+            user.uid,
+
+          usedCount:
+            businessUsage,
+
+          maximum:
+            MAX_REDEMPTIONS,
+
+          activeOffers:
+            activeOffers.length,
+        }
       );
 
       setStudent(
         studentInfo
       );
-
-      /*
-       * Stop scanner after student found
-       */
 
       await stopScanner();
 
@@ -269,7 +370,7 @@ export default function RedeemStudentOffer() {
 
   /*
    * ==========================================
-   * SEARCH STUDENT BY SBC CARD NUMBER
+   * SEARCH BY SBC CARD NUMBER
    * ==========================================
    */
 
@@ -288,8 +389,12 @@ export default function RedeemStudentOffer() {
       }
 
       try {
-        setSearchingCard(true);
+        setSearchingCard(
+          true
+        );
+
         setStudent(null);
+
         setUsedCount(0);
 
         const studentQuery =
@@ -307,7 +412,9 @@ export default function RedeemStudentOffer() {
             studentQuery
           );
 
-        if (studentSnap.empty) {
+        if (
+          studentSnap.empty
+        ) {
           alert(
             "❌ SBC Card Number Not Found"
           );
@@ -320,6 +427,7 @@ export default function RedeemStudentOffer() {
         await verifyStudent(
           studentDoc.id
         );
+
       } catch (error) {
         console.error(
           "Card search error:",
@@ -330,7 +438,9 @@ export default function RedeemStudentOffer() {
           "❌ Unable to search card number"
         );
       } finally {
-        setSearchingCard(false);
+        setSearchingCard(
+          false
+        );
       }
     };
 
@@ -349,7 +459,9 @@ export default function RedeemStudentOffer() {
       }
 
       try {
-        setProcessing(true);
+        setProcessing(
+          true
+        );
 
         let qrData: any;
 
@@ -367,7 +479,8 @@ export default function RedeemStudentOffer() {
 
         if (
           !qrData ||
-          qrData.type !== "student" ||
+          qrData.type !==
+            "student" ||
           !qrData.studentId
         ) {
           alert(
@@ -390,7 +503,9 @@ export default function RedeemStudentOffer() {
           "❌ Unable to process QR Code"
         );
       } finally {
-        setProcessing(false);
+        setProcessing(
+          false
+        );
       }
     };
 
@@ -406,7 +521,9 @@ export default function RedeemStudentOffer() {
         scannerRef.current;
 
       if (!scanner) {
-        setCameraStarted(false);
+        setCameraStarted(
+          false
+        );
         return;
       }
 
@@ -418,17 +535,25 @@ export default function RedeemStudentOffer() {
         await scanner.clear();
       } catch {}
 
-      scannerRef.current = null;
+      scannerRef.current =
+        null;
 
-      if (mountedRef.current) {
-        setCameraStarted(false);
-        setScannerLoading(false);
+      if (
+        mountedRef.current
+      ) {
+        setCameraStarted(
+          false
+        );
+
+        setScannerLoading(
+          false
+        );
       }
     };
 
   /*
    * ==========================================
-   * START CAMERA / QR SCANNER
+   * START CAMERA
    * ==========================================
    */
 
@@ -440,21 +565,19 @@ export default function RedeemStudentOffer() {
         return;
       }
 
-      startingScannerRef.current = true;
+      startingScannerRef.current =
+        true;
 
       try {
-        setScannerError("");
-        setScannerLoading(true);
+        setScannerError(
+          ""
+        );
 
-        /*
-         * Stop existing scanner
-         */
+        setScannerLoading(
+          true
+        );
 
         await stopScanner();
-
-        /*
-         * Dynamic import
-         */
 
         const module =
           await import(
@@ -481,64 +604,56 @@ export default function RedeemStudentOffer() {
           );
         }
 
-        /*
-         * Clear reader area
-         */
-
-        reader.innerHTML = "";
-
-        /*
-         * Check browser camera support
-         */
+        reader.innerHTML =
+          "";
 
         if (
           !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
+          !navigator
+            .mediaDevices
+            .getUserMedia
         ) {
           throw new Error(
             "Camera is not supported by this browser."
           );
         }
 
-        /*
-         * Get available cameras.
-         *
-         * This also gives Chrome an opportunity
-         * to request camera permission.
-         */
-
-        let cameras: any[] = [];
+        let cameras: any[] =
+          [];
 
         try {
           cameras =
             await Html5Qrcode.getCameras();
-        } catch (cameraError) {
+
+        } catch (
+          cameraError
+        ) {
           console.error(
             "Camera detection error:",
             cameraError
           );
 
-          /*
-           * Try direct camera permission.
-           */
-
           try {
             const stream =
-              await navigator.mediaDevices.getUserMedia(
-                {
+              await navigator
+                .mediaDevices
+                .getUserMedia({
                   video: true,
-                }
-              );
+                });
 
             stream
               .getTracks()
-              .forEach((track) =>
-                track.stop()
+              .forEach(
+                (track) =>
+                  track.stop()
               );
 
             cameras =
               await Html5Qrcode.getCameras();
-          } catch (permissionError) {
+
+          } catch (
+            permissionError
+          ) {
             console.error(
               "Camera permission error:",
               permissionError
@@ -550,31 +665,26 @@ export default function RedeemStudentOffer() {
           }
         }
 
-        if (!cameras.length) {
+        if (
+          !cameras.length
+        ) {
           throw new Error(
             "No camera found on this device. Please use SBC Card Number search or open this page on a phone/tablet with a camera."
           );
         }
 
-        /*
-         * Prefer rear camera.
-         */
-
         const rearCamera =
           cameras.find(
             (camera: any) =>
               /back|rear|environment/i.test(
-                camera.label || ""
+                camera.label ||
+                  ""
               )
           );
 
         const cameraId =
           rearCamera?.id ||
           cameras[0].id;
-
-        /*
-         * Create scanner
-         */
 
         const scanner =
           new Html5Qrcode(
@@ -584,21 +694,19 @@ export default function RedeemStudentOffer() {
         scannerRef.current =
           scanner;
 
-        /*
-         * Start scanner using
-         * actual camera ID.
-         */
-
         await scanner.start(
           cameraId,
           {
             fps: 10,
+
             qrbox: {
               width: 250,
               height: 250,
             },
+
             aspectRatio: 1,
           },
+
           async (
             decodedText: string
           ) => {
@@ -606,15 +714,24 @@ export default function RedeemStudentOffer() {
               decodedText
             );
           },
+
           () => {}
         );
 
         if (
           mountedRef.current
         ) {
-          setScannerLoading(false);
-          setCameraStarted(true);
-          setScannerError("");
+          setScannerLoading(
+            false
+          );
+
+          setCameraStarted(
+            true
+          );
+
+          setScannerError(
+            ""
+          );
         }
 
       } catch (error: any) {
@@ -626,16 +743,18 @@ export default function RedeemStudentOffer() {
         if (
           mountedRef.current
         ) {
-          setScannerLoading(false);
-          setCameraStarted(false);
+          setScannerLoading(
+            false
+          );
 
-          const message =
-            error?.message ||
-            error?.name ||
-            "Unable to start camera.";
+          setCameraStarted(
+            false
+          );
 
           setScannerError(
-            message
+            error?.message ||
+              error?.name ||
+              "Unable to start camera."
           );
         }
 
@@ -647,15 +766,18 @@ export default function RedeemStudentOffer() {
 
   /*
    * ==========================================
-   * RESET / SEARCH ANOTHER
+   * RESET STUDENT
    * ==========================================
    */
 
   const resetStudent =
     async () => {
       setStudent(null);
+
       setUsedCount(0);
+
       setCardNumber("");
+
       setScannerError("");
 
       await stopScanner();
@@ -676,7 +798,8 @@ export default function RedeemStudentOffer() {
    */
 
   useEffect(() => {
-    mountedRef.current = true;
+    mountedRef.current =
+      true;
 
     const unsubscribe =
       onAuthStateChanged(
@@ -686,23 +809,27 @@ export default function RedeemStudentOffer() {
             router.replace(
               "/business/login"
             );
+
             return;
           }
 
-          await loadOffer(
+          await loadOffers(
             user.uid
           );
 
           if (
             mountedRef.current
           ) {
-            setBusinessReady(true);
+            setBusinessReady(
+              true
+            );
           }
         }
       );
 
     return () => {
-      mountedRef.current = false;
+      mountedRef.current =
+        false;
 
       unsubscribe();
 
@@ -717,17 +844,24 @@ export default function RedeemStudentOffer() {
    */
 
   useEffect(() => {
-    if (!businessReady) {
+    if (
+      !businessReady
+    ) {
       return;
     }
 
     const timer =
-      window.setTimeout(() => {
-        startScanner();
-      }, 500);
+      window.setTimeout(
+        () => {
+          startScanner();
+        },
+        500
+      );
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(
+        timer
+      );
     };
   }, [businessReady]);
 
@@ -735,21 +869,36 @@ export default function RedeemStudentOffer() {
    * ==========================================
    * REDEEM OFFER
    * ==========================================
+   *
+   * IMPORTANT:
+   *
+   * 4 LIMIT IS BUSINESS-WISE.
+   *
+   * studentId + businessId
+   *
+   * NOT:
+   * studentId + businessId + offerId
+   *
+   * Therefore:
+   *
+   * Offer A = 2
+   * Offer B = 1
+   * Offer C = 1
+   * Total = 4/4
+   *
+   * New offer cannot reset the limit.
    */
 
   const redeemOffer =
     async () => {
-      if (!student || !offer) {
+      if (
+        !student ||
+        !offer
+      ) {
         alert(
           "❌ Student or Offer not found"
         );
-        return;
-      }
 
-      if (usedCount >= 4) {
-        alert(
-          "❌ Limit Reached\n\nThis student has already used this offer 4/4 times."
-        );
         return;
       }
 
@@ -760,17 +909,56 @@ export default function RedeemStudentOffer() {
         alert(
           "❌ Business login required"
         );
+
+        return;
+      }
+
+      if (
+        usedCount >=
+        MAX_REDEMPTIONS
+      ) {
+        alert(
+          `❌ Limit Reached\n\nThis student has already used the SBC benefit ${MAX_REDEMPTIONS}/${MAX_REDEMPTIONS} times at this business.`
+        );
+
         return;
       }
 
       try {
-        setProcessing(true);
+        setProcessing(
+          true
+        );
 
         /*
-         * Final database check
+         * ========================================
+         * BUSINESS + STUDENT USAGE DOCUMENT
+         * ========================================
+         *
+         * One fixed document per:
+         *
+         * business + student
+         *
+         * This makes the 4-use counter atomic.
          */
 
-        const redemptionQuery =
+        const usageDocId =
+          `${user.uid}_${student.id}`;
+
+        const usageRef =
+          doc(
+            db,
+            "businessStudentUsage",
+            usageDocId
+          );
+
+        /*
+         * We need the existing redemption
+         * count only when this is the first
+         * time the new counter document is
+         * created.
+         */
+
+        const existingRedemptionQuery =
           query(
             collection(
               db,
@@ -782,105 +970,193 @@ export default function RedeemStudentOffer() {
               student.id
             ),
             where(
-              "offerId",
+              "businessId",
               "==",
-              offer.id
+              user.uid
             )
           );
 
-        const redemptionSnap =
+        const existingRedemptionSnap =
           await getDocs(
-            redemptionQuery
+            existingRedemptionQuery
           );
 
-        const currentCount =
-          redemptionSnap.size;
-
-        if (currentCount >= 4) {
-          setUsedCount(
-            currentCount
-          );
-
-          alert(
-            "❌ Limit Reached\n\nThis offer has already been used 4/4 times."
-          );
-
-          return;
-        }
+        const existingCount =
+          existingRedemptionSnap.size;
 
         /*
-         * Save redemption
+         * ========================================
+         * ATOMIC TRANSACTION
+         * ========================================
          */
 
-        await addDoc(
-          collection(
-            db,
-            "redemptions"
-          ),
-          {
-            studentId:
-              student.id,
+        let newCount =
+          existingCount + 1;
 
-            studentName:
-              student.fullName,
+        await runTransaction(
+          db,
+          async (
+            transaction
+          ) => {
+            const usageSnap =
+              await transaction.get(
+                usageRef
+              );
 
-            studentMobile:
-              student.mobile || "",
+            let currentCount =
+              existingCount;
 
-            studentCardNumber:
-              student.cardNumber || "",
+            if (
+              usageSnap.exists()
+            ) {
+              const usageData =
+                usageSnap.data();
 
-            businessId:
-              user.uid,
+              currentCount =
+                Number(
+                  usageData.count ||
+                    0
+                );
+            }
 
-            offerId:
-              offer.id,
+            /*
+             * HARD LIMIT
+             */
 
-            offerTitle:
-              offer.title,
+            if (
+              currentCount >=
+              MAX_REDEMPTIONS
+            ) {
+              throw new Error(
+                "LIMIT_REACHED"
+              );
+            }
 
-            discount:
-              offer.discount,
+            newCount =
+              currentCount + 1;
 
-            redeemedAt:
-              serverTimestamp(),
+            /*
+             * UPDATE BUSINESS-STUDENT COUNTER
+             */
 
-            status:
-              "redeemed",
+            transaction.set(
+              usageRef,
+              {
+                studentId:
+                  student.id,
+
+                businessId:
+                  user.uid,
+
+                count:
+                  newCount,
+
+                maxAllowed:
+                  MAX_REDEMPTIONS,
+
+                updatedAt:
+                  serverTimestamp(),
+              },
+              {
+                merge: true,
+              }
+            );
+
+            /*
+             * CREATE REDEMPTION
+             */
+
+            const redemptionRef =
+              doc(
+                collection(
+                  db,
+                  "redemptions"
+                )
+              );
+
+            transaction.set(
+              redemptionRef,
+              {
+                studentId:
+                  student.id,
+
+                studentName:
+                  student.fullName,
+
+                studentMobile:
+                  student.mobile ||
+                  "",
+
+                studentCardNumber:
+                  student.cardNumber ||
+                  "",
+
+                businessId:
+                  user.uid,
+
+                offerId:
+                  offer.id,
+
+                offerTitle:
+                  offer.title,
+
+                discount:
+                  offer.discount,
+
+                redeemedAt:
+                  serverTimestamp(),
+
+                status:
+                  "redeemed",
+              }
+            );
           }
         );
 
-        const nextCount =
-          currentCount + 1;
+        /*
+         * Update UI
+         */
 
         setUsedCount(
-          nextCount
+          newCount
         );
 
         /*
-         * Success messages
+         * SUCCESS MESSAGES
          */
 
-        if (nextCount === 1) {
+        if (
+          newCount === 1
+        ) {
           alert(
-            "🌟 First Time Use\n\nOffer redeemed successfully!"
+            "🌟 First Time Use\n\nOffer redeemed successfully!\n\nUsed: 1/4"
           );
-        } else if (nextCount === 4) {
+
+        } else if (
+          newCount ===
+          MAX_REDEMPTIONS
+        ) {
           alert(
-            "🏆 Final Use (4/4)\n\nOffer redeemed successfully!\n\nThis offer cannot be used again."
+            "🏆 Final Use (4/4)\n\nOffer redeemed successfully!\n\nThis student has reached the maximum 4 uses at this business."
           );
+
         } else {
           alert(
-            `✅ Offer Redeemed Successfully!\n\nUsed: ${nextCount}/4`
+            `✅ Offer Redeemed Successfully!\n\nUsed: ${newCount}/4\n\nRemaining: ${
+              MAX_REDEMPTIONS -
+              newCount
+            }`
           );
         }
 
         /*
-         * Reset for next student
+         * RESET FOR NEXT STUDENT
          */
 
         setStudent(null);
+
         setUsedCount(0);
+
         setCardNumber("");
 
         await stopScanner();
@@ -893,20 +1169,37 @@ export default function RedeemStudentOffer() {
           }
         }, 500);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           "Redemption error:",
           error
         );
 
-        alert(
-          "❌ Redemption failed. Please try again."
-        );
+        if (
+          error?.message ===
+          "LIMIT_REACHED"
+        ) {
+          setUsedCount(
+            MAX_REDEMPTIONS
+          );
+
+          alert(
+            "❌ Limit Reached\n\nThis student has already used the SBC benefit 4/4 times at this business."
+          );
+
+        } else {
+          alert(
+            "❌ Redemption failed. Please try again."
+          );
+        }
+
       } finally {
         if (
           mountedRef.current
         ) {
-          setProcessing(false);
+          setProcessing(
+            false
+          );
         }
       }
     };
@@ -919,7 +1212,6 @@ export default function RedeemStudentOffer() {
 
   return (
     <BusinessProtected>
-
       <main className="min-h-screen bg-slate-100 p-6">
 
         <div className="mx-auto max-w-5xl">
@@ -954,31 +1246,73 @@ export default function RedeemStudentOffer() {
 
           </div>
 
+          {/* ACTIVE OFFERS */}
 
-          {/* ACTIVE OFFER */}
-
-          {offer && (
+          {offers.length > 0 && (
             <div className="mb-6 rounded-3xl bg-white p-6 shadow-xl">
 
-              <p className="text-sm font-semibold text-gray-500">
-                Current Active Offer
-              </p>
+              <div className="mb-4">
 
-              <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm font-semibold text-gray-500">
+                  Active Offers
+                </p>
 
-                <h2 className="text-2xl font-bold text-blue-700">
-                  {offer.title}
-                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Select the offer the student wants
+                  to redeem.
+                </p>
 
-                <span className="text-2xl font-bold text-green-600">
-                  {offer.discount}
-                </span>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+
+                {offers.map(
+                  (item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() =>
+                        setOffer(item)
+                      }
+                      className={`rounded-2xl border-2 p-4 text-left transition ${
+                        offer?.id ===
+                        item.id
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-gray-200 bg-white hover:border-blue-300"
+                      }`}
+                    >
+
+                      <div className="flex items-start justify-between gap-4">
+
+                        <div>
+
+                          <p className="font-bold text-gray-900">
+                            {item.title}
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold text-green-600">
+                            {item.discount}
+                          </p>
+
+                        </div>
+
+                        {offer?.id ===
+                          item.id && (
+                          <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
+                            Selected
+                          </span>
+                        )}
+
+                      </div>
+
+                    </button>
+                  )
+                )}
 
               </div>
 
             </div>
           )}
-
 
           {/* SEARCH OPTIONS */}
 
@@ -1005,7 +1339,6 @@ export default function RedeemStudentOffer() {
 
                 </div>
 
-
                 {scannerLoading && (
                   <div className="mb-4 rounded-2xl bg-blue-50 p-5 text-center">
 
@@ -1021,7 +1354,6 @@ export default function RedeemStudentOffer() {
 
                   </div>
                 )}
-
 
                 {scannerError && (
                   <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
@@ -1049,12 +1381,10 @@ export default function RedeemStudentOffer() {
                   </div>
                 )}
 
-
                 <div
                   id="reader"
                   className="mx-auto w-full max-w-md overflow-hidden rounded-2xl"
                 />
-
 
                 {!cameraStarted &&
                   !scannerLoading && (
@@ -1068,7 +1398,6 @@ export default function RedeemStudentOffer() {
                     </button>
                   )}
 
-
                 {cameraStarted && (
                   <button
                     onClick={
@@ -1081,7 +1410,6 @@ export default function RedeemStudentOffer() {
                 )}
 
               </div>
-
 
               {/* CARD NUMBER */}
 
@@ -1104,7 +1432,6 @@ export default function RedeemStudentOffer() {
 
                 </div>
 
-
                 <div className="mt-8">
 
                   <label className="mb-2 block font-semibold text-gray-700">
@@ -1118,12 +1445,16 @@ export default function RedeemStudentOffer() {
                       setCardNumber(
                         e.target.value
                           .toUpperCase()
-                          .replace(/\s/g, "")
+                          .replace(
+                            /\s/g,
+                            ""
+                          )
                       )
                     }
                     onKeyDown={(e) => {
                       if (
-                        e.key === "Enter"
+                        e.key ===
+                        "Enter"
                       ) {
                         searchByCardNumber();
                       }
@@ -1148,7 +1479,6 @@ export default function RedeemStudentOffer() {
 
                 </div>
 
-
                 <div className="mt-8 rounded-2xl bg-yellow-50 p-5 text-center">
 
                   <p className="font-semibold text-yellow-800">
@@ -1166,7 +1496,6 @@ export default function RedeemStudentOffer() {
 
             </div>
           )}
-
 
           {/* STUDENT VERIFIED */}
 
@@ -1201,7 +1530,6 @@ export default function RedeemStudentOffer() {
 
               </div>
 
-
               {/* DETAILS */}
 
               <div className="mt-8 grid gap-5 md:grid-cols-2">
@@ -1213,11 +1541,11 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold">
-                    {student.fullName || "-"}
+                    {student.fullName ||
+                      "-"}
                   </h3>
 
                 </div>
-
 
                 <div className="rounded-2xl bg-slate-100 p-5">
 
@@ -1226,11 +1554,11 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold text-purple-700">
-                    {student.cardNumber || "-"}
+                    {student.cardNumber ||
+                      "-"}
                   </h3>
 
                 </div>
-
 
                 <div className="rounded-2xl bg-slate-100 p-5">
 
@@ -1239,11 +1567,11 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold">
-                    {student.college || "-"}
+                    {student.college ||
+                      "-"}
                   </h3>
 
                 </div>
-
 
                 <div className="rounded-2xl bg-slate-100 p-5">
 
@@ -1252,11 +1580,11 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold">
-                    {student.course || "-"}
+                    {student.course ||
+                      "-"}
                   </h3>
 
                 </div>
-
 
                 <div className="rounded-2xl bg-slate-100 p-5">
 
@@ -1265,11 +1593,11 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold">
-                    {student.year || "-"}
+                    {student.year ||
+                      "-"}
                   </h3>
 
                 </div>
-
 
                 <div className="rounded-2xl bg-slate-100 p-5">
 
@@ -1278,23 +1606,24 @@ export default function RedeemStudentOffer() {
                   </p>
 
                   <h3 className="mt-2 text-xl font-bold">
-                    {student.mobile || "-"}
+                    {student.mobile ||
+                      "-"}
                   </h3>
 
                 </div>
 
               </div>
 
-
-              {/* USAGE */}
+              {/* BUSINESS USAGE */}
 
               <div className="mt-8 rounded-2xl border border-gray-200 p-6">
 
-                {usedCount === 0 && (
+                {usedCount ===
+                  0 && (
                   <div className="rounded-2xl bg-green-50 p-5">
 
                     <p className="text-sm font-semibold text-green-600">
-                      Offer Usage
+                      Business Usage
                     </p>
 
                     <h2 className="mt-1 text-2xl font-bold text-green-700">
@@ -1302,40 +1631,43 @@ export default function RedeemStudentOffer() {
                     </h2>
 
                     <p className="mt-1 text-gray-600">
-                      This student has not used this
-                      offer yet.
+                      This student has not used any
+                      SBC benefit at this business yet.
                     </p>
 
                   </div>
                 )}
 
-
                 {usedCount > 0 &&
-                  usedCount < 4 && (
+                  usedCount <
+                    MAX_REDEMPTIONS && (
                     <div className="rounded-2xl bg-blue-50 p-5">
 
                       <p className="text-sm font-semibold text-blue-600">
-                        Offer Usage
+                        Business Usage
                       </p>
 
                       <h2 className="mt-1 text-2xl font-bold text-blue-700">
-                        ✅ Used: {usedCount}/4
+                        ✅ Used:{" "}
+                        {usedCount}/
+                        {MAX_REDEMPTIONS}
                       </h2>
 
                       <p className="mt-1 text-gray-600">
                         Remaining uses:{" "}
-                        {4 - usedCount}
+                        {MAX_REDEMPTIONS -
+                          usedCount}
                       </p>
 
                     </div>
                   )}
 
-
-                {usedCount >= 4 && (
+                {usedCount >=
+                  MAX_REDEMPTIONS && (
                   <div className="rounded-2xl bg-red-50 p-5">
 
                     <p className="text-sm font-semibold text-red-600">
-                      Offer Usage
+                      Business Usage
                     </p>
 
                     <h2 className="mt-1 text-2xl font-bold text-red-700">
@@ -1343,8 +1675,12 @@ export default function RedeemStudentOffer() {
                     </h2>
 
                     <p className="mt-1 font-semibold text-red-600">
-                      Used 4/4 times.
-                      No more redemptions allowed.
+                      Used{" "}
+                      {MAX_REDEMPTIONS}/
+                      {MAX_REDEMPTIONS}
+                      times.
+                      No more redemptions allowed
+                      at this business.
                     </p>
 
                   </div>
@@ -1352,14 +1688,13 @@ export default function RedeemStudentOffer() {
 
               </div>
 
-
-              {/* ACTIVE OFFER */}
+              {/* SELECTED OFFER */}
 
               {offer && (
                 <div className="mt-6 rounded-2xl bg-blue-50 p-6">
 
                   <p className="text-sm font-semibold text-gray-500">
-                    Current Offer
+                    Selected Offer
                   </p>
 
                   <h3 className="mt-2 text-2xl font-bold text-blue-700">
@@ -1373,28 +1708,35 @@ export default function RedeemStudentOffer() {
                 </div>
               )}
 
-
               {/* REDEEM */}
 
               <button
                 disabled={
-                  usedCount >= 4 ||
-                  processing
+                  usedCount >=
+                    MAX_REDEMPTIONS ||
+                  processing ||
+                  !offer
                 }
                 onClick={
                   redeemOffer
                 }
                 className={`mt-8 w-full rounded-2xl py-5 text-xl font-bold text-white transition ${
-                  usedCount >= 4
+                  usedCount >=
+                  MAX_REDEMPTIONS
+                    ? "cursor-not-allowed bg-gray-400"
+                    : !offer
                     ? "cursor-not-allowed bg-gray-400"
                     : "bg-gradient-to-r from-green-600 to-emerald-600 hover:scale-[1.01] hover:shadow-xl"
                 }`}
               >
                 {processing
                   ? "⏳ Processing..."
-                  : usedCount >= 4
+                  : usedCount >=
+                    MAX_REDEMPTIONS
                   ? "❌ Limit Reached (4/4)"
-                  : "🎉 Redeem Offer"}
+                  : !offer
+                  ? "❌ Select an Offer"
+                  : "🎉 Redeem Selected Offer"}
               </button>
 
             </div>
@@ -1403,7 +1745,6 @@ export default function RedeemStudentOffer() {
         </div>
 
       </main>
-
     </BusinessProtected>
   );
 }

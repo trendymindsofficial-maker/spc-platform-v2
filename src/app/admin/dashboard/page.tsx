@@ -768,6 +768,18 @@ export default function AdminDashboard() {
               </div>
 
             </Link>
+            <Link
+  href="/admin/notifications"
+  className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+>
+  <h2 className="text-3xl font-bold text-blue-700">
+    🔔 Send Notifications
+  </h2>
+
+  <p className="mt-3 text-gray-600">
+    Send web push notifications to all registered students.
+  </p>
+</Link>
 
 
             {/* BUSINESSES */}

@@ -9,6 +9,8 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   query,
   where,
@@ -32,11 +34,7 @@ interface Offer {
   status?: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  status?: string;
-}
+const MAX_REDEMPTIONS = 4;
 
 export default function StudentOffers() {
   const router = useRouter();
@@ -48,9 +46,30 @@ export default function StudentOffers() {
     useState<string[]>([]);
 
   /*
-   * offerId -> number of times
-   * current student redeemed that offer
+   * ==========================================
+   * BUSINESS ID -> TOTAL USAGE COUNT
+   *
+   * IMPORTANT:
+   *
+   * Usage is BUSINESS-WISE.
+   *
+   * NOT offer-wise.
+   *
+   * Example:
+   *
+   * Business A
+   *
+   * Old Offer -> 3 uses
+   * Old Offer deleted
+   * New Offer -> still 3/4
+   *
+   * Therefore:
+   *
+   * usageCounts[businessId]
+   *
+   * ==========================================
    */
+
   const [usageCounts, setUsageCounts] =
     useState<Record<string, number>>({});
 
@@ -81,24 +100,42 @@ export default function StudentOffers() {
             router.replace(
               "/student/login"
             );
+
             return;
           }
 
           try {
+            /*
+             * Load offers/categories first.
+             */
+
             await Promise.all([
               loadOffers(),
               loadCategories(),
-              loadRedemptionUsage(
-                user.uid
-              ),
             ]);
+
+            /*
+             * Load usage after authentication.
+             */
+
+            await loadBusinessUsage(
+              user.uid
+            );
+
+          } catch (error) {
+            console.error(
+              "Student offers loading error:",
+              error
+            );
+
           } finally {
             setLoading(false);
           }
         }
       );
 
-    return () => unsubscribe();
+    return () =>
+      unsubscribe();
   }, [router]);
 
   /*
@@ -109,17 +146,23 @@ export default function StudentOffers() {
 
   const loadOffers = async () => {
     try {
-      const offerQuery = query(
-        collection(db, "offers"),
-        where(
-          "status",
-          "==",
-          "active"
-        )
-      );
+      const offerQuery =
+        query(
+          collection(
+            db,
+            "offers"
+          ),
+          where(
+            "status",
+            "==",
+            "active"
+          )
+        );
 
       const offerSnap =
-        await getDocs(offerQuery);
+        await getDocs(
+          offerQuery
+        );
 
       /*
        * LOAD BUSINESSES
@@ -189,7 +232,8 @@ export default function StudentOffers() {
               );
 
             return {
-              id: item.id,
+              id:
+                item.id,
 
               title:
                 offerData.title ||
@@ -237,125 +281,480 @@ export default function StudentOffers() {
           }
         );
 
-      setOffers(data);
+      setOffers(
+        data
+      );
+
     } catch (error) {
       console.error(
         "Offer loading error:",
         error
       );
+
+      setOffers([]);
     }
   };
 
   /*
    * ==========================================
-   * LOAD STUDENT REDEMPTION USAGE
+   * FIND STUDENT DOCUMENT IDs
+   * ==========================================
+   *
+   * Normally:
+   *
+   * Firebase Auth UID
+   * =
+   * students document ID
+   *
+   * But old records may have:
+   *
+   * students/{documentId}
+   * uid: Firebase Auth UID
+   *
+   * So we support both.
    * ==========================================
    */
 
-  const loadRedemptionUsage = async (
-    studentUid: string
-  ) => {
-    try {
+  const findStudentIds =
+    async (
+      studentUid: string
+    ) => {
+      const studentIds =
+        new Set<string>();
+
       /*
-       * We load the redemptions collection and
-       * filter the current student's records.
-       *
-       * This supports common field names used
-       * in the redemption system.
+       * Auth UID
        */
 
-      const redemptionSnap =
-        await getDocs(
-          collection(
+      studentIds.add(
+        studentUid
+      );
+
+      /*
+       * students/{authUid}
+       */
+
+      try {
+        const studentRef =
+          doc(
             db,
-            "redemptions"
-          )
+            "students",
+            studentUid
+          );
+
+        const studentSnap =
+          await getDoc(
+            studentRef
+          );
+
+        if (
+          studentSnap.exists()
+        ) {
+          studentIds.add(
+            studentSnap.id
+          );
+        }
+
+      } catch (error) {
+        console.error(
+          "Student document lookup error:",
+          error
+        );
+      }
+
+      /*
+       * students where uid == auth UID
+       */
+
+      try {
+        const studentQuery =
+          query(
+            collection(
+              db,
+              "students"
+            ),
+            where(
+              "uid",
+              "==",
+              studentUid
+            )
+          );
+
+        const studentSnap =
+          await getDocs(
+            studentQuery
+          );
+
+        studentSnap.docs.forEach(
+          (studentDoc) => {
+            studentIds.add(
+              studentDoc.id
+            );
+          }
         );
 
-      const counts: Record<
-        string,
-        number
-      > = {};
+      } catch (error) {
+        console.error(
+          "Student UID query error:",
+          error
+        );
+      }
 
-      redemptionSnap.docs.forEach(
-        (redemptionDoc) => {
-          const data =
-            redemptionDoc.data();
+      return Array.from(
+        studentIds
+      );
+    };
 
-          /*
-           * STUDENT IDENTIFICATION
-           *
-           * Support common possible fields:
-           * studentUid
-           * studentId
-           * uid
-           * userId
-           */
+  /*
+   * ==========================================
+   * LOAD BUSINESS-WISE USAGE
+   * ==========================================
+   *
+   * PRIMARY SOURCE:
+   *
+   * businessStudentUsage
+   *
+   * Document:
+   *
+   * {businessId}_{studentId}
+   *
+   * Example:
+   *
+   * businessStudentUsage/
+   *   BUSINESS123_STUDENT456
+   *
+   * count: 3
+   *
+   *
+   * FALLBACK:
+   *
+   * Existing redemptions collection.
+   *
+   * This keeps old redemption records working.
+   * ==========================================
+   */
 
-          const redemptionStudentUid =
-            String(
-              data.studentUid ||
-                data.studentId ||
-                data.uid ||
-                data.userId ||
+  const loadBusinessUsage =
+    async (
+      studentUid: string
+    ) => {
+      try {
+        /*
+         * Find all possible student document IDs.
+         */
+
+        const studentIds =
+          await findStudentIds(
+            studentUid
+          );
+
+        console.log(
+          "STUDENT IDS FOR USAGE:",
+          studentIds
+        );
+
+        /*
+         * ========================================
+         * GET BUSINESS IDS FROM ACTIVE OFFERS
+         * ========================================
+         */
+
+        const offerQuery =
+          query(
+            collection(
+              db,
+              "offers"
+            ),
+            where(
+              "status",
+              "==",
+              "active"
+            )
+          );
+
+        const offerSnap =
+          await getDocs(
+            offerQuery
+          );
+
+        const businessIds =
+          new Set<string>();
+
+        offerSnap.docs.forEach(
+          (offerDoc) => {
+            const data =
+              offerDoc.data();
+
+            const businessId =
+              String(
+                data.businessId ||
                 ""
-            );
+              );
+
+            if (
+              businessId
+            ) {
+              businessIds.add(
+                businessId
+              );
+            }
+          }
+        );
+
+        /*
+         * ========================================
+         * PRIMARY USAGE COUNTS
+         * ========================================
+         */
+
+        const counts: Record<
+          string,
+          number
+        > = {};
+
+        for (
+          const businessId of businessIds
+        ) {
+          let highestCount =
+            0;
 
           /*
-           * Only count current student's
-           * redemptions.
+           * Check every possible student ID.
            */
+
+          for (
+            const studentId of studentIds
+          ) {
+            try {
+              const usageRef =
+                doc(
+                  db,
+                  "businessStudentUsage",
+                  `${businessId}_${studentId}`
+                );
+
+              const usageSnap =
+                await getDoc(
+                  usageRef
+                );
+
+              if (
+                usageSnap.exists()
+              ) {
+                const data =
+                  usageSnap.data();
+
+                const count =
+                  Number(
+                    data.count ||
+                    0
+                  );
+
+                /*
+                 * If old duplicate student IDs
+                 * exist, use the highest valid count.
+                 */
+
+                if (
+                  count >
+                  highestCount
+                ) {
+                  highestCount =
+                    count;
+                }
+              }
+
+            } catch (error) {
+              console.error(
+                "Business usage document error:",
+                {
+                  businessId,
+                  studentId,
+                  error,
+                }
+              );
+            }
+          }
 
           if (
-            redemptionStudentUid !==
-            studentUid
+            highestCount >
+            0
           ) {
-            return;
+            counts[
+              businessId
+            ] =
+              Math.min(
+                highestCount,
+                MAX_REDEMPTIONS
+              );
           }
+        }
 
-          /*
-           * OFFER IDENTIFICATION
-           *
-           * Support common possible fields.
-           */
+        /*
+         * ========================================
+         * FALLBACK FOR OLD REDEMPTIONS
+         * ========================================
+         *
+         * If businessStudentUsage doesn't exist
+         * yet for an old redemption, count old
+         * redemptions business-wise.
+         *
+         * IMPORTANT:
+         *
+         * offerId is ignored.
+         */
 
-          const offerId =
-            String(
-              data.offerId ||
-                data.offerID ||
-                data.offer?.id ||
-                ""
+        const legacyCounts: Record<
+          string,
+          number
+        > = {};
+
+        const redemptionDocs =
+          new Map<
+            string,
+            any
+          >();
+
+        for (
+          const studentId of studentIds
+        ) {
+          try {
+            const redemptionQuery =
+              query(
+                collection(
+                  db,
+                  "redemptions"
+                ),
+                where(
+                  "studentId",
+                  "==",
+                  studentId
+                )
+              );
+
+            const redemptionSnap =
+              await getDocs(
+                redemptionQuery
+              );
+
+            redemptionSnap.docs.forEach(
+              (redemptionDoc) => {
+                redemptionDocs.set(
+                  redemptionDoc.id,
+                  redemptionDoc.data()
+                );
+              }
             );
 
-          if (!offerId) {
-            return;
+          } catch (error) {
+            console.error(
+              "Legacy redemption query error:",
+              error
+            );
           }
-
-          counts[offerId] =
-            (counts[offerId] || 0) + 1;
         }
-      );
 
-      setUsageCounts(counts);
+        redemptionDocs.forEach(
+          (data) => {
+            const businessId =
+              String(
+                data.businessId ||
+                ""
+              );
 
-      console.log(
-        "Student redemption usage:",
-        counts
-      );
-    } catch (error) {
-      console.error(
-        "Redemption usage loading error:",
-        error
-      );
+            if (
+              !businessId
+            ) {
+              return;
+            }
 
-      /*
-       * If usage loading fails, don't block
-       * the offers page.
-       */
+            legacyCounts[
+              businessId
+            ] =
+              (
+                legacyCounts[
+                  businessId
+                ] ||
+                0
+              ) + 1;
+          }
+        );
 
-      setUsageCounts({});
-    }
-  };
+        /*
+         * ========================================
+         * COMBINE COUNTS
+         * ========================================
+         *
+         * If new businessStudentUsage exists,
+         * it is the source of truth.
+         *
+         * Otherwise use old redemption count.
+         */
+
+        Object.keys(
+          legacyCounts
+        ).forEach(
+          (businessId) => {
+            if (
+              counts[
+                businessId
+              ] === undefined
+            ) {
+              counts[
+                businessId
+              ] =
+                Math.min(
+                  legacyCounts[
+                    businessId
+                  ],
+                  MAX_REDEMPTIONS
+                );
+            }
+          }
+        );
+
+        /*
+         * ========================================
+         * SAVE
+         * ========================================
+         */
+
+        setUsageCounts(
+          counts
+        );
+
+        console.log(
+          "================================"
+        );
+
+        console.log(
+          "SBC BUSINESS-WISE USAGE:",
+          {
+            studentUid,
+            studentIds,
+            businessIds:
+              Array.from(
+                businessIds
+              ),
+            usageCounts:
+              counts,
+            legacyCounts,
+          }
+        );
+
+        console.log(
+          "================================"
+        );
+
+      } catch (error) {
+        console.error(
+          "Business usage loading error:",
+          error
+        );
+
+        setUsageCounts({});
+      }
+    };
 
   /*
    * ==========================================
@@ -363,45 +762,47 @@ export default function StudentOffers() {
    * ==========================================
    */
 
-  const loadCategories = async () => {
-    try {
-      const snap =
-        await getDocs(
-          collection(
-            db,
-            "categories"
-          )
+  const loadCategories =
+    async () => {
+      try {
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
+          );
+
+        const data =
+          snap.docs
+            .map(
+              (item) =>
+                item.data()
+            )
+            .filter(
+              (item: any) =>
+                item.status !==
+                "inactive"
+            )
+            .map(
+              (item: any) =>
+                item.name
+            )
+            .filter(Boolean);
+
+        setCategories(
+          Array.from(
+            new Set(data)
+          ) as string[]
         );
 
-      const data =
-        snap.docs
-          .map(
-            (item) =>
-              item.data()
-          )
-          .filter(
-            (item: any) =>
-              item.status !==
-              "inactive"
-          )
-          .map(
-            (item: any) =>
-              item.name
-          )
-          .filter(Boolean);
-
-      setCategories(
-        Array.from(
-          new Set(data)
-        ) as string[]
-      );
-    } catch (error) {
-      console.error(
-        "Category loading error:",
-        error
-      );
-    }
-  };
+      } catch (error) {
+        console.error(
+          "Category loading error:",
+          error
+        );
+      }
+    };
 
   /*
    * ==========================================
@@ -439,7 +840,9 @@ export default function StudentOffers() {
           .trim()
           .toLowerCase();
 
-      if (searchText) {
+      if (
+        searchText
+      ) {
         list =
           list.filter(
             (offer) =>
@@ -464,6 +867,7 @@ export default function StudentOffers() {
       }
 
       return list;
+
     }, [
       offers,
       search,
@@ -477,7 +881,9 @@ export default function StudentOffers() {
    */
 
   const callBusiness =
-    (offer: Offer) => {
+    (
+      offer: Offer
+    ) => {
       const phone =
         offer.businessMobile ||
         "";
@@ -486,6 +892,7 @@ export default function StudentOffers() {
         alert(
           "📞 Business phone number is not available."
         );
+
         return;
       }
 
@@ -495,17 +902,27 @@ export default function StudentOffers() {
 
   /*
    * ==========================================
-   * GET USAGE COUNT
+   * GET BUSINESS USAGE
    * ==========================================
    */
 
-  const getUsageCount = (
-    offerId: string
-  ) => {
-    return usageCounts[
-      offerId
-    ] || 0;
-  };
+  const getUsageCount =
+    (
+      businessId?: string
+    ) => {
+      if (
+        !businessId
+      ) {
+        return 0;
+      }
+
+      return Math.min(
+        usageCounts[
+          businessId
+        ] || 0,
+        MAX_REDEMPTIONS
+      );
+    };
 
   /*
    * ==========================================
@@ -518,9 +935,7 @@ export default function StudentOffers() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-        {/* =====================================
-            HEADER
-        ====================================== */}
+        {/* HEADER */}
 
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -531,7 +946,7 @@ export default function StudentOffers() {
             </h1>
 
             <p className="mt-2 text-gray-500">
-              Exclusive Discounts for SBC Students
+              Exclusive Benefits for SBC Students
             </p>
 
           </div>
@@ -549,9 +964,7 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* =====================================
-            FILTERS
-        ====================================== */}
+        {/* FILTERS */}
 
         <div className="mb-10 grid gap-5 md:grid-cols-2">
 
@@ -596,9 +1009,7 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* =====================================
-            LOADING
-        ====================================== */}
+        {/* LOADING */}
 
         {loading ? (
 
@@ -632,9 +1043,7 @@ export default function StudentOffers() {
 
         ) : (
 
-          /* =================================
-             OFFER GRID
-          ================================== */
+          /* OFFER GRID */
 
           <div className="grid items-stretch gap-8 md:grid-cols-2 lg:grid-cols-3">
 
@@ -643,11 +1052,12 @@ export default function StudentOffers() {
 
                 const usedCount =
                   getUsageCount(
-                    offer.id
+                    offer.businessId
                   );
 
                 const limitReached =
-                  usedCount >= 4;
+                  usedCount >=
+                  MAX_REDEMPTIONS;
 
                 return (
                   <div
@@ -662,7 +1072,9 @@ export default function StudentOffers() {
                       {offer.image ? (
 
                         <img
-                          src={offer.image}
+                          src={
+                            offer.image
+                          }
                           alt={
                             offer.title ||
                             "Offer"
@@ -684,6 +1096,8 @@ export default function StudentOffers() {
                     {/* CONTENT */}
 
                     <div className="flex flex-1 flex-col bg-slate-100 p-6">
+
+                      {/* BADGES */}
 
                       <div className="flex flex-wrap gap-3">
 
@@ -748,9 +1162,7 @@ export default function StudentOffers() {
                         {offer.discount}
                       </h3>
 
-                      {/* =================================
-                          USAGE COUNT
-                      ================================== */}
+                      {/* BUSINESS USAGE */}
 
                       <div
                         className={`mt-4 rounded-2xl border p-4 ${
@@ -771,13 +1183,15 @@ export default function StudentOffers() {
                                   : "text-blue-600"
                               }`}
                             >
-                              🎟️ Your Usage
+                              🎟️ Your Usage at this Business
                             </p>
 
                             <p className="mt-1 text-xl font-extrabold text-slate-800">
                               Used{" "}
                               {usedCount}
-                              {" / 4"} times
+                              {" / "}
+                              {MAX_REDEMPTIONS}
+                              {" times"}
                             </p>
 
                           </div>
@@ -797,16 +1211,16 @@ export default function StudentOffers() {
                         {limitReached ? (
 
                           <p className="mt-2 text-sm font-bold text-red-600">
-                            🚫 Usage limit reached
+                            🚫 Usage limit reached at this business
                           </p>
 
                         ) : (
 
                           <p className="mt-2 text-sm text-blue-700">
-                            {4 -
+                            {MAX_REDEMPTIONS -
                               usedCount}{" "}
                             use
-                            {4 -
+                            {MAX_REDEMPTIONS -
                               usedCount ===
                             1
                               ? ""
@@ -863,9 +1277,7 @@ export default function StudentOffers() {
 
         )}
 
-        {/* =====================================
-            TOTAL
-        ====================================== */}
+        {/* TOTAL */}
 
         {!loading && (
           <div className="mt-12 rounded-3xl bg-slate-100 p-8 shadow-xl">
@@ -879,7 +1291,7 @@ export default function StudentOffers() {
                 </h2>
 
                 <p className="mt-2 text-gray-600">
-                  Discover amazing discounts from SBC Partner Businesses.
+                  Discover amazing benefits from SBC Partner Businesses.
                 </p>
 
               </div>
@@ -903,9 +1315,7 @@ export default function StudentOffers() {
 
       </div>
 
-      {/* =====================================
-          OFFER MODAL
-      ====================================== */}
+      {/* OFFER MODAL */}
 
       {selectedOffer && (
 
@@ -947,7 +1357,8 @@ export default function StudentOffers() {
                       selectedOffer.image
                     }
                     alt={
-                      selectedOffer.title
+                      selectedOffer.title ||
+                      "Offer"
                     }
                     className="block max-h-[42vh] w-full object-contain"
                   />
@@ -975,7 +1386,8 @@ export default function StudentOffers() {
                         selectedOffer.image
                       }
                       alt={
-                        selectedOffer.title
+                        selectedOffer.title ||
+                        "Offer"
                       }
                       className="max-h-[620px] w-full object-contain"
                     />
@@ -999,7 +1411,7 @@ export default function StudentOffers() {
                   }
                   usageCount={
                     getUsageCount(
-                      selectedOffer.id
+                      selectedOffer.businessId
                     )
                   }
                 />
@@ -1019,7 +1431,7 @@ export default function StudentOffers() {
                   }
                   usageCount={
                     getUsageCount(
-                      selectedOffer.id
+                      selectedOffer.businessId
                     )
                   }
                 />
@@ -1028,7 +1440,7 @@ export default function StudentOffers() {
 
             </div>
 
-            {/* CLOSE BUTTON */}
+            {/* CLOSE */}
 
             <div className="border-t bg-white p-4">
 
@@ -1073,7 +1485,8 @@ function OfferDetails({
   usageCount: number;
 }) {
   const limitReached =
-    usageCount >= 4;
+    usageCount >=
+    MAX_REDEMPTIONS;
 
   return (
     <div className="p-5 sm:p-7">
@@ -1119,9 +1532,7 @@ function OfferDetails({
 
       )}
 
-      {/* =================================
-          USAGE
-      ================================== */}
+      {/* BUSINESS USAGE */}
 
       <div
         className={`mt-5 rounded-2xl border p-5 ${
@@ -1138,7 +1549,7 @@ function OfferDetails({
               : "text-blue-600"
           }`}
         >
-          🎟️ Your Usage
+          🎟️ Your Usage at this Business
         </p>
 
         <div className="mt-2 flex items-center justify-between">
@@ -1146,7 +1557,8 @@ function OfferDetails({
           <p className="text-2xl font-extrabold text-slate-800">
             Used{" "}
             {usageCount}
-            {" / 4"}
+            {" / "}
+            {MAX_REDEMPTIONS}
           </p>
 
           <span
@@ -1158,7 +1570,7 @@ function OfferDetails({
           >
             {limitReached
               ? "Limit Reached"
-              : `${4 - usageCount} Remaining`}
+              : `${MAX_REDEMPTIONS - usageCount} Remaining`}
           </span>
 
         </div>
@@ -1217,7 +1629,7 @@ function OfferDetails({
           </p>
 
           <p>
-            • Maximum 4 redemptions per offer
+            • Maximum 4 redemptions per business
           </p>
 
         </div>
