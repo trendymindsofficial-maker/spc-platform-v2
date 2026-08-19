@@ -6,17 +6,11 @@ import {
   initializeApp,
 } from "firebase-admin/app";
 
-import {
-  getAuth,
-} from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
 
-import {
-  getFirestore,
-} from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 
-import {
-  getMessaging,
-} from "firebase-admin/messaging";
+import { getMessaging } from "firebase-admin/messaging";
 
 export const runtime = "nodejs";
 
@@ -39,6 +33,14 @@ function getAdminApp() {
   const clientEmail =
     process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
+  /*
+   * IMPORTANT:
+   *
+   * Vercel environment variable usually contains
+   * literal \n characters.
+   *
+   * Convert them into real new lines.
+   */
   const privateKey =
     process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
       /\\n/g,
@@ -75,31 +77,23 @@ export async function POST(
 ) {
   try {
     /*
-     * --------------------------------------------------
      * STEP 1
      * Initialize Firebase Admin
-     * --------------------------------------------------
      */
 
     const adminApp = getAdminApp();
 
     /*
-     * --------------------------------------------------
      * STEP 2
-     * Check Authorization Header
-     * --------------------------------------------------
+     * Authorization
      */
 
     const authorization =
-      request.headers.get(
-        "authorization"
-      );
+      request.headers.get("authorization");
 
     if (
       !authorization ||
-      !authorization.startsWith(
-        "Bearer "
-      )
+      !authorization.startsWith("Bearer ")
     ) {
       return NextResponse.json(
         {
@@ -113,10 +107,8 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 3
-     * Get Firebase ID Token
-     * --------------------------------------------------
+     * Firebase ID Token
      */
 
     const idToken =
@@ -135,38 +127,29 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 4
      * Verify Firebase User
-     * --------------------------------------------------
      */
 
-    const auth =
-      getAuth(adminApp);
+    const auth = getAuth(adminApp);
 
     const decodedToken =
-      await auth.verifyIdToken(
-        idToken
-      );
+      await auth.verifyIdToken(idToken);
 
     const adminUid =
       decodedToken.uid;
 
     /*
-     * --------------------------------------------------
      * STEP 5
      * Firestore
-     * --------------------------------------------------
      */
 
     const db =
       getFirestore(adminApp);
 
     /*
-     * --------------------------------------------------
      * STEP 6
      * Verify Admin
-     * --------------------------------------------------
      */
 
     const adminSnap =
@@ -175,9 +158,7 @@ export async function POST(
         .doc(adminUid)
         .get();
 
-    if (
-      !adminSnap.exists
-    ) {
+    if (!adminSnap.exists) {
       return NextResponse.json(
         {
           error:
@@ -190,10 +171,8 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 7
      * Read Request Body
-     * --------------------------------------------------
      */
 
     let body: {
@@ -202,8 +181,7 @@ export async function POST(
     };
 
     try {
-      body =
-        await request.json();
+      body = await request.json();
     } catch {
       return NextResponse.json(
         {
@@ -217,28 +195,21 @@ export async function POST(
     }
 
     const title =
-      typeof body.title ===
-      "string"
+      typeof body.title === "string"
         ? body.title.trim()
         : "";
 
     const message =
-      typeof body.message ===
-      "string"
+      typeof body.message === "string"
         ? body.message.trim()
         : "";
 
     /*
-     * --------------------------------------------------
      * STEP 8
-     * Validate Message
-     * --------------------------------------------------
+     * Validate
      */
 
-    if (
-      !title ||
-      !message
-    ) {
+    if (!title || !message) {
       return NextResponse.json(
         {
           error:
@@ -251,10 +222,8 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 9
      * Get FCM Tokens
-     * --------------------------------------------------
      */
 
     const tokenSnap =
@@ -264,17 +233,15 @@ export async function POST(
 
     const tokens =
       tokenSnap.docs
-        .map(
-          (tokenDoc) => {
-            const data =
-              tokenDoc.data();
+        .map((tokenDoc) => {
+          const data =
+            tokenDoc.data();
 
-            return {
-              id: tokenDoc.id,
-              token: data.token,
-            };
-          }
-        )
+          return {
+            id: tokenDoc.id,
+            token: data.token,
+          };
+        })
         .filter(
           (
             item
@@ -284,20 +251,14 @@ export async function POST(
           } =>
             typeof item.token ===
               "string" &&
-            item.token.trim()
-              .length > 0
+            item.token.trim().length > 0
         );
 
     /*
-     * --------------------------------------------------
-     * No Tokens
-     * --------------------------------------------------
+     * No tokens
      */
 
-    if (
-      tokens.length ===
-      0
-    ) {
+    if (tokens.length === 0) {
       return NextResponse.json({
         success: true,
         totalTokens: 0,
@@ -310,26 +271,20 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 10
      * Firebase Messaging
-     * --------------------------------------------------
      */
 
     const messaging =
-      getMessaging(
-        adminApp
-      );
+      getMessaging(adminApp);
 
     let successCount = 0;
     let failureCount = 0;
 
-    const invalidTokenIds: string[] =
-      [];
+    const invalidTokenIds: string[] = [];
 
     /*
-     * Firebase allows maximum
-     * 500 tokens per multicast request.
+     * Maximum 500 tokens per request
      */
 
     for (
@@ -338,28 +293,21 @@ export async function POST(
       i += 500
     ) {
       const batch =
-        tokens.slice(
-          i,
-          i + 500
-        );
+        tokens.slice(i, i + 500);
 
       const batchTokens =
         batch.map(
-          (item) =>
-            item.token
+          (item) => item.token
         );
 
       /*
-       * ------------------------------------------------
-       * Send Notification
-       * ------------------------------------------------
+       * Send notification
        */
 
       const response =
         await messaging.sendEachForMulticast(
           {
-            tokens:
-              batchTokens,
+            tokens: batchTokens,
 
             notification: {
               title,
@@ -394,9 +342,7 @@ export async function POST(
         response.failureCount;
 
       /*
-       * ------------------------------------------------
-       * Find Invalid Tokens
-       * ------------------------------------------------
+       * Check failed tokens
        */
 
       response.responses.forEach(
@@ -404,23 +350,18 @@ export async function POST(
           result,
           index
         ) => {
-          if (
-            result.success
-          ) {
+          if (result.success) {
             return;
           }
 
           const errorCode =
-            result.error?.code ||
-            "";
+            result.error?.code || "";
 
           console.error(
             "FCM token error:",
             {
               token:
-                batchTokens[
-                  index
-                ],
+                batchTokens[index],
               error:
                 errorCode,
               message:
@@ -448,10 +389,8 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 11
-     * Delete Invalid Tokens
-     * --------------------------------------------------
+     * Delete invalid tokens
      */
 
     for (
@@ -459,14 +398,10 @@ export async function POST(
     ) {
       try {
         await db
-          .collection(
-            "fcmTokens"
-          )
+          .collection("fcmTokens")
           .doc(tokenId)
           .delete();
-      } catch (
-        deleteError
-      ) {
+      } catch (deleteError) {
         console.error(
           "Failed to delete invalid FCM token:",
           deleteError
@@ -475,16 +410,12 @@ export async function POST(
     }
 
     /*
-     * --------------------------------------------------
      * STEP 12
-     * Save Notification Log
-     * --------------------------------------------------
+     * Save notification log
      */
 
     await db
-      .collection(
-        "notificationLogs"
-      )
+      .collection("notificationLogs")
       .add({
         title,
         message,
@@ -510,10 +441,8 @@ export async function POST(
       });
 
     /*
-     * --------------------------------------------------
      * STEP 13
-     * Success Response
-     * --------------------------------------------------
+     * Success
      */
 
     return NextResponse.json({
@@ -534,12 +463,6 @@ export async function POST(
     });
 
   } catch (error) {
-    /*
-     * --------------------------------------------------
-     * ERROR
-     * --------------------------------------------------
-     */
-
     console.error(
       "Notification send error:",
       error
