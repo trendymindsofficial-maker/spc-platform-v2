@@ -1,10 +1,5 @@
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"
-);
-
-importScripts(
-  "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js"
-);
+importScripts("https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyCLcQaHSbQ7SOz4uJkAgcXFtGg4S77x6Co",
@@ -18,13 +13,21 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
+  console.log(
+    "[firebase-messaging-sw.js] Background message:",
+    payload
+  );
+
   const title =
     payload.notification?.title || "SBC Notification";
 
   const options = {
     body: payload.notification?.body || "",
     icon: "/icon-192.png",
-    data: payload.data || {},
+    data: {
+      ...(payload.data || {}),
+      url: payload.data?.url || "/student/dashboard",
+    },
   };
 
   self.registration.showNotification(title, options);
@@ -33,9 +36,11 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
+  const url =
+    event.notification?.data?.url ||
+    "/student/dashboard";
+
   event.waitUntil(
-    clients.openWindow(
-      event.notification.data?.url || "/student/dashboard"
-    )
+    clients.openWindow(url)
   );
 });
