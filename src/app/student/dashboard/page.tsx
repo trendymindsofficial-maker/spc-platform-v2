@@ -37,14 +37,9 @@ interface Student {
 export default function StudentDashboard() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [student, setStudent] =
-    useState<Student | null>(null);
-
-  const [error, setError] =
-    useState("");
+  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [error, setError] = useState("");
 
   /*
    * ==========================================
@@ -52,9 +47,7 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  const getCacheKey = (
-    uid: string
-  ) => {
+  const getCacheKey = (uid: string) => {
     return `sbc_student_dashboard_${uid}`;
   };
 
@@ -64,30 +57,20 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  const saveStudentToCache = (
-    studentData: Student
-  ) => {
+  const saveStudentToCache = (studentData: Student) => {
     try {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
+      if (typeof window === "undefined") {
         return;
       }
 
       sessionStorage.setItem(
-        getCacheKey(
-          studentData.uid
-        ),
-        JSON.stringify(
-          studentData
-        )
+        getCacheKey(studentData.uid),
+        JSON.stringify(studentData)
       );
 
       console.log(
         "✅ Student saved to session cache."
       );
-
     } catch (error) {
       console.error(
         "Student cache save error:",
@@ -106,44 +89,32 @@ export default function StudentDashboard() {
     uid: string
   ): Student | null => {
     try {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
+      if (typeof window === "undefined") {
         return null;
       }
 
-      const cached =
-        sessionStorage.getItem(
-          getCacheKey(uid)
-        );
+      const cached = sessionStorage.getItem(
+        getCacheKey(uid)
+      );
 
       if (!cached) {
         return null;
       }
 
-      const parsed =
-        JSON.parse(
-          cached
-        ) as Student;
+      const parsed = JSON.parse(
+        cached
+      ) as Student;
 
-      if (
-        !parsed ||
-        !parsed.uid
-      ) {
+      if (!parsed || !parsed.uid) {
         return null;
       }
 
       /*
-       * VERY IMPORTANT:
-       *
        * Cache UID must match
        * current Firebase Auth UID.
        */
 
-      if (
-        parsed.uid !== uid
-      ) {
+      if (parsed.uid !== uid) {
         console.warn(
           "Cached student UID does not match current auth UID."
         );
@@ -152,7 +123,6 @@ export default function StudentDashboard() {
       }
 
       return parsed;
-
     } catch (error) {
       console.error(
         "Student cache read error:",
@@ -178,28 +148,22 @@ export default function StudentDashboard() {
       uid,
 
       fullName:
-        data.fullName ||
-        "",
+        data.fullName || "",
 
       cardNumber:
-        data.cardNumber ||
-        "",
+        data.cardNumber || "",
 
       college:
-        data.college ||
-        "",
+        data.college || "",
 
       course:
-        data.course ||
-        "",
+        data.course || "",
 
       year:
-        data.year ||
-        "",
+        data.year || "",
 
       mobile:
-        data.mobile ||
-        "",
+        data.mobile || "",
 
       email:
         data.email ||
@@ -221,10 +185,7 @@ export default function StudentDashboard() {
   const applyStudent = (
     studentData: Student
   ) => {
-    setStudent(
-      studentData
-    );
-
+    setStudent(studentData);
     setError("");
 
     saveStudentToCache(
@@ -267,35 +228,28 @@ export default function StudentDashboard() {
      */
 
     try {
-      const studentRef =
-        doc(
-          db,
-          "students",
-          uid
-        );
+      const studentRef = doc(
+        db,
+        "students",
+        uid
+      );
 
-      const snap =
-        await getDoc(
-          studentRef
-        );
+      const snap = await getDoc(
+        studentRef
+      );
 
       console.log(
         "Direct student document:",
         {
-          id:
-            snap.id,
-          exists:
-            snap.exists(),
+          id: snap.id,
+          exists: snap.exists(),
           uid,
           email,
         }
       );
 
-      if (
-        snap.exists()
-      ) {
-        const data =
-          snap.data();
+      if (snap.exists()) {
+        const data = snap.data();
 
         const studentData =
           buildStudentData(
@@ -314,7 +268,6 @@ export default function StudentDashboard() {
 
         return true;
       }
-
     } catch (error) {
       console.error(
         "Direct student document error:",
@@ -330,18 +283,17 @@ export default function StudentDashboard() {
      */
 
     try {
-      const uidQuery =
-        query(
-          collection(
-            db,
-            "students"
-          ),
-          where(
-            "uid",
-            "==",
-            uid
-          )
-        );
+      const uidQuery = query(
+        collection(
+          db,
+          "students"
+        ),
+        where(
+          "uid",
+          "==",
+          uid
+        )
+      );
 
       const uidSnap =
         await getDocs(
@@ -358,9 +310,7 @@ export default function StudentDashboard() {
         }
       );
 
-      if (
-        !uidSnap.empty
-      ) {
+      if (!uidSnap.empty) {
         const studentDoc =
           uidSnap.docs[0];
 
@@ -368,7 +318,7 @@ export default function StudentDashboard() {
           studentDoc.data();
 
         /*
-         * Use the actual student
+         * Use actual student
          * document ID.
          */
 
@@ -382,9 +332,9 @@ export default function StudentDashboard() {
         /*
          * IMPORTANT:
          *
-         * Verify that the Firestore
-         * student record really belongs
-         * to current Auth UID.
+         * Verify Firestore student
+         * record belongs to current
+         * Auth UID.
          */
 
         if (
@@ -408,7 +358,6 @@ export default function StudentDashboard() {
 
         return true;
       }
-
     } catch (error) {
       console.error(
         "Student UID query error:",
@@ -463,9 +412,9 @@ export default function StudentDashboard() {
             studentDoc.data();
 
           /*
-           * If UID exists in the
-           * student record, it MUST
-           * match current Auth UID.
+           * If UID exists in student
+           * record, it MUST match
+           * current Auth UID.
            */
 
           if (
@@ -496,7 +445,6 @@ export default function StudentDashboard() {
 
           return true;
         }
-
       } catch (error) {
         console.error(
           "Student email query error:",
@@ -526,19 +474,6 @@ export default function StudentDashboard() {
    * ==========================================
    * FORCE STUDENT LOGIN
    * ==========================================
-   *
-   * This is the important fix.
-   *
-   * If business account opens
-   * student dashboard:
-   *
-   * Business Auth
-   *       ↓
-   * No student document
-   *       ↓
-   * Sign out
-   *       ↓
-   * Student Login
    */
 
   const redirectToStudentLogin =
@@ -548,16 +483,12 @@ export default function StudentDashboard() {
           "⚠️ Current account is not a student. Redirecting to student login."
         );
 
-        await signOut(
-          auth
-        );
-
+        await signOut(auth);
       } catch (error) {
         console.error(
           "Sign out during student guard failed:",
           error
         );
-
       } finally {
         router.replace(
           "/student/login"
@@ -567,14 +498,34 @@ export default function StudentDashboard() {
 
   /*
    * ==========================================
-   * FIRST LOGIN NOTIFICATION
+   * SBC NOTIFICATION PROMPT
    * ==========================================
+   *
+   * REQUIRED BEHAVIOUR:
+   *
+   * FIRST LOGIN:
+   * Dashboard → Popup
+   *
+   * OK:
+   * Popup → Browser permission
+   *
+   * Permission GRANTED:
+   * Never show popup again.
+   *
+   * Permission DENIED:
+   * Popup only once during current login.
+   * After logout/login → popup can appear again.
+   *
+   * CANCEL:
+   * Popup only once during current login.
+   * After logout/login → popup can appear again.
+   *
+   * Dashboard → Offers → Dashboard:
+   * No popup again.
    */
 
   const enableNotificationsOnFirstLogin =
-    async (
-      uid: string
-    ) => {
+    async (uid: string) => {
       try {
         if (
           typeof window ===
@@ -584,19 +535,82 @@ export default function StudentDashboard() {
         }
 
         if (
-          !(
-            "Notification" in
-            window
-          )
+          !("Notification" in window)
         ) {
+          console.log(
+            "Browser does not support notifications."
+          );
+
           return;
         }
 
-        const promptKey =
-          `sbc_notification_prompted_${uid}`;
+        /*
+         * ========================================
+         * PERMANENTLY ENABLED
+         * ========================================
+         *
+         * Student already enabled
+         * notifications successfully.
+         *
+         * NEVER show popup again.
+         */
+
+        const enabledKey =
+          `sbc_notifications_enabled_${uid}`;
+
+        const permanentlyEnabled =
+          localStorage.getItem(
+            enabledKey
+          );
+
+        if (
+          permanentlyEnabled ===
+          "true"
+        ) {
+          console.log(
+            "🔔 SBC notifications already enabled. No popup."
+          );
+
+          return;
+        }
 
         /*
-         * Permission already granted
+         * ========================================
+         * CURRENT LOGIN SESSION
+         * ========================================
+         *
+         * Prevent duplicate popup when:
+         *
+         * Dashboard
+         *     ↓
+         * Offers
+         *     ↓
+         * Dashboard
+         */
+
+        const sessionPromptKey =
+          `sbc_notification_prompt_shown_${uid}`;
+
+        const alreadyShownThisLogin =
+          sessionStorage.getItem(
+            sessionPromptKey
+          );
+
+        if (
+          alreadyShownThisLogin ===
+          "true"
+        ) {
+          console.log(
+            "🔔 Notification popup already shown in this login session."
+          );
+
+          return;
+        }
+
+        /*
+         * ========================================
+         * BROWSER PERMISSION ALREADY GRANTED
+         * ========================================
          */
 
         if (
@@ -605,6 +619,15 @@ export default function StudentDashboard() {
         ) {
           try {
             await enableStudentNotifications();
+
+            localStorage.setItem(
+              enabledKey,
+              "true"
+            );
+
+            console.log(
+              "✅ Browser notification permission already granted."
+            );
           } catch (error) {
             console.error(
               "Unable to refresh notification token:",
@@ -616,35 +639,21 @@ export default function StudentDashboard() {
         }
 
         /*
-         * Permission denied
+         * ========================================
+         * SHOW SBC CUSTOM POPUP
+         * ========================================
+         *
+         * Mark immediately.
+         *
+         * Therefore even if user presses
+         * Cancel, popup won't appear again
+         * during this login.
          */
 
-        if (
-          Notification.permission ===
-          "denied"
-        ) {
-          return;
-        }
-
-        /*
-         * Already successfully prompted
-         */
-
-        const alreadyPrompted =
-          localStorage.getItem(
-            promptKey
-          );
-
-        if (
-          alreadyPrompted ===
+        sessionStorage.setItem(
+          sessionPromptKey,
           "true"
-        ) {
-          return;
-        }
-
-        /*
-         * Ask student
-         */
+        );
 
         const shouldEnable =
           window.confirm(
@@ -654,39 +663,56 @@ export default function StudentDashboard() {
               "Click OK to enable notifications."
           );
 
-        if (
-          !shouldEnable
-        ) {
+        /*
+         * ========================================
+         * USER CLICKED CANCEL
+         * ========================================
+         */
+
+        if (!shouldEnable) {
+          console.log(
+            "ℹ️ Student cancelled notification setup."
+          );
+
           return;
         }
 
         /*
-         * Enable notifications
+         * ========================================
+         * USER CLICKED OK
+         * ========================================
          */
 
         try {
           await enableStudentNotifications();
 
+          /*
+           * ONLY after successful notification
+           * setup permanently remember it.
+           */
+
           localStorage.setItem(
-            promptKey,
+            enabledKey,
             "true"
           );
 
           console.log(
             "✅ SBC notifications enabled successfully."
           );
-
         } catch (error) {
           console.error(
             "Notification enable failed:",
             error
           );
 
-          localStorage.removeItem(
-            promptKey
-          );
+          /*
+           * Do NOT save permanent enabled flag.
+           *
+           * If browser permission was denied
+           * or setup failed, user can be asked
+           * again after next login.
+           */
         }
-
       } catch (error) {
         console.error(
           "Notification setup error:",
@@ -708,10 +734,7 @@ export default function StudentDashboard() {
       onAuthStateChanged(
         auth,
         async (user) => {
-
-          if (
-            !mounted
-          ) {
+          if (!mounted) {
             return;
           }
 
@@ -722,13 +745,8 @@ export default function StudentDashboard() {
            */
 
           if (!user) {
-            setStudent(
-              null
-            );
-
-            setLoading(
-              false
-            );
+            setStudent(null);
+            setLoading(false);
 
             router.replace(
               "/student/login"
@@ -767,7 +785,8 @@ export default function StudentDashboard() {
             cachedStudent
           ) {
             /*
-             * Show cached student immediately.
+             * Show cached student
+             * immediately.
              */
 
             setStudent(
@@ -775,19 +794,13 @@ export default function StudentDashboard() {
             );
 
             setError("");
-
-            setLoading(
-              false
-            );
+            setLoading(false);
 
             console.log(
               "✅ Showing cached student dashboard."
             );
           } else {
-            setLoading(
-              true
-            );
-
+            setLoading(true);
             setError("");
           }
 
@@ -804,30 +817,18 @@ export default function StudentDashboard() {
               user.email
             );
 
-          if (
-            !mounted
-          ) {
+          if (!mounted) {
             return;
           }
 
           /*
            * ==================================
            * STEP 3
-           *
-           * VERY IMPORTANT
-           *
-           * If no student record exists,
-           * NEVER show Student Details
-           * Not Available if this is simply
-           * a business account.
-           *
-           * Sign out and redirect.
+           * INVALID ACCOUNT
            * ==================================
            */
 
-          if (
-            !success
-          ) {
+          if (!success) {
             console.warn(
               "❌ This authenticated account is not a valid SBC student."
             );
@@ -837,13 +838,8 @@ export default function StudentDashboard() {
              * when current Auth UID is different.
              */
 
-            setStudent(
-              null
-            );
-
-            setLoading(
-              false
-            );
+            setStudent(null);
+            setLoading(false);
 
             await redirectToStudentLogin();
 
@@ -857,13 +853,11 @@ export default function StudentDashboard() {
            * ==================================
            */
 
-          setLoading(
-            false
-          );
+          setLoading(false);
 
           /*
-           * Notifications should NOT block
-           * dashboard.
+           * Notifications must NOT block
+           * dashboard loading.
            */
 
           enableNotificationsOnFirstLogin(
@@ -883,33 +877,54 @@ export default function StudentDashboard() {
 
       unsubscribe();
     };
-
   }, [router]);
 
   /*
    * ==========================================
    * LOGOUT
    * ==========================================
+   *
+   * IMPORTANT:
+   *
+   * Clear ONLY the session popup flag.
+   *
+   * Permanent "enabled" flag remains.
+   *
+   * Therefore:
+   *
+   * User enabled notifications:
+   * logout → login → NO popup.
+   *
+   * User cancelled/denied:
+   * logout → login → popup again.
    */
 
-  const logout =
-    async () => {
-      try {
-        await signOut(
-          auth
-        );
+  const logout = async () => {
+    try {
+      const user =
+        auth.currentUser;
 
-        router.replace(
-          "/student/login"
-        );
+      if (user) {
+        const sessionPromptKey =
+          `sbc_notification_prompt_shown_${user.uid}`;
 
-      } catch (error) {
-        console.error(
-          "Logout error:",
-          error
+        sessionStorage.removeItem(
+          sessionPromptKey
         );
       }
-    };
+
+      await signOut(auth);
+
+      router.replace(
+        "/student/login"
+      );
+    } catch (error) {
+      console.error(
+        "Logout error:",
+        error
+      );
+    }
+  };
 
   /*
    * ==========================================
@@ -917,89 +932,74 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  const retryLoading =
-    async () => {
-      const user =
-        auth.currentUser;
+  const retryLoading = async () => {
+    const user =
+      auth.currentUser;
 
-      if (!user) {
-        router.replace(
-          "/student/login"
-        );
-
-        return;
-      }
-
-      setLoading(
-        true
+    if (!user) {
+      router.replace(
+        "/student/login"
       );
 
-      setError("");
+      return;
+    }
 
+    setLoading(true);
+    setError("");
+
+    /*
+     * Check cache first.
+     */
+
+    const cachedStudent =
+      loadStudentFromCache(
+        user.uid
+      );
+
+    if (
+      cachedStudent
+    ) {
+      setStudent(
+        cachedStudent
+      );
+
+      setLoading(false);
+    }
+
+    /*
+     * Verify Firestore.
+     */
+
+    const success =
+      await loadStudent(
+        user.uid,
+        user.email
+      );
+
+    if (!success) {
       /*
-       * Check cache first.
+       * If cache belongs to same UID,
+       * keep it.
        */
 
-      const cachedStudent =
-        loadStudentFromCache(
-          user.uid
-        );
-
-      if (
-        cachedStudent
-      ) {
+      if (cachedStudent) {
         setStudent(
           cachedStudent
         );
 
-        setLoading(
-          false
-        );
-      }
-
-      /*
-       * Verify Firestore.
-       */
-
-      const success =
-        await loadStudent(
-          user.uid,
-          user.email
-        );
-
-      if (
-        !success
-      ) {
-        /*
-         * If cache belongs to the
-         * same UID, keep it.
-         */
-
-        if (
-          cachedStudent
-        ) {
-          setStudent(
-            cachedStudent
-          );
-
-          setError("");
-
-          setLoading(
-            false
-          );
-
-          return;
-        }
-
-        await redirectToStudentLogin();
+        setError("");
+        setLoading(false);
 
         return;
       }
 
-      setLoading(
-        false
-      );
-    };
+      await redirectToStudentLogin();
+
+      return;
+    }
+
+    setLoading(false);
+  };
 
   /*
    * ==========================================
@@ -1036,14 +1036,9 @@ export default function StudentDashboard() {
    * ==========================================
    * STUDENT NOT AVAILABLE
    * ==========================================
-   *
-   * Normally this should almost never appear
-   * now because invalid accounts are redirected.
    */
 
-  if (
-    !student
-  ) {
+  if (!student) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
 
