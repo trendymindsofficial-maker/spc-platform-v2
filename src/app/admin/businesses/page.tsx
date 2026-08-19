@@ -79,7 +79,7 @@ export default function AdminBusinesses() {
     name: string
   ) => {
     const ok = window.confirm(
-      `Approve "${name}" as an SPC Partner Business?`
+      `Approve "${name}" as an SBC Partner Business?`
     );
 
     if (!ok) {
