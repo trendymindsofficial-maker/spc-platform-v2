@@ -41,12 +41,12 @@ function getAdminApp() {
    *
    * Convert them into real new lines.
    */
-  const privateKey =
-    process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
-      /\\n/g,
-      "\n"
-    );
+  const privateKeyBase64 =
+  process.env.FIREBASE_ADMIN_PRIVATE_KEY_BASE64;
 
+const privateKey = privateKeyBase64
+  ? Buffer.from(privateKeyBase64, "base64").toString("utf8")
+  : undefined;
   if (
     !projectId ||
     !clientEmail ||

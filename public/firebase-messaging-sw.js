@@ -1,5 +1,10 @@
-importScripts("https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js");
+importScripts(
+  "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"
+);
+
+importScripts(
+  "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js"
+);
 
 firebase.initializeApp({
   apiKey: "AIzaSyCLcQaHSbQ7SOz4uJkAgcXFtGg4S77x6Co",
@@ -26,21 +31,41 @@ messaging.onBackgroundMessage((payload) => {
     icon: "/icon-192.png",
     data: {
       ...(payload.data || {}),
-      url: payload.data?.url || "/student/dashboard",
+      url:
+        payload.data?.url ||
+        "/student/dashboard",
     },
   };
 
-  self.registration.showNotification(title, options);
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  const url =
-    event.notification?.data?.url ||
-    "/student/dashboard";
-
-  event.waitUntil(
-    clients.openWindow(url)
+  self.registration.showNotification(
+    title,
+    options
   );
 });
+
+self.addEventListener(
+  "notificationclick",
+  (event) => {
+    event.notification.close();
+
+    const url =
+      event.notification?.data?.url ||
+      "/student/dashboard";
+
+    event.waitUntil(
+      clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      }).then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) {
+            client.navigate(url);
+            return client.focus();
+          }
+        }
+
+        return clients.openWindow(url);
+      })
+    );
+  }
+);
