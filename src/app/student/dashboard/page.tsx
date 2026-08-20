@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 import { auth, db } from "@/lib/firebase";
-import { enableStudentNotifications } from "@/lib/firebase-messaging";
+import {
+  enableStudentNotifications,
+  listenForStudentNotifications,
+} from "@/lib/firebase-messaging";
 
 import {
   onAuthStateChanged,

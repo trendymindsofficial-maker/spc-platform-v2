@@ -3,6 +3,7 @@ import {
   getToken,
   isSupported,
   onMessage,
+  type MessagePayload,
 } from "firebase/messaging";
 
 import { getApp } from "firebase/app";
@@ -17,6 +18,12 @@ import {
 
 const VAPID_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
+/*
+|--------------------------------------------------------------------------
+| ENABLE STUDENT NOTIFICATIONS
+|--------------------------------------------------------------------------
+*/
 
 export async function enableStudentNotifications() {
   if (typeof window === "undefined") {
@@ -54,40 +61,20 @@ export async function enableStudentNotifications() {
   }
 
   /*
-   * ==========================================
-   * BROWSER PERMISSION
-   * ==========================================
-   *
-   * IMPORTANT:
-   *
-   * If permission is already "granted",
-   * NEVER call requestPermission().
-   *
-   * Only ask when permission is "default".
+   * Request browser permission
    */
 
-  let permission =
-    Notification.permission;
+  const permission =
+    await Notification.requestPermission();
 
-  if (
-    permission === "default"
-  ) {
-    permission =
-      await Notification.requestPermission();
-  }
-
-  if (
-    permission !== "granted"
-  ) {
+  if (permission !== "granted") {
     throw new Error(
       "Notification permission was not granted."
     );
   }
 
   /*
-   * ==========================================
-   * SERVICE WORKER
-   * ==========================================
+   * Register Firebase Messaging Service Worker
    */
 
   const registration =
@@ -96,16 +83,10 @@ export async function enableStudentNotifications() {
     );
 
   /*
-   * Wait until service worker is ready.
+   * Wait until service worker is ready
    */
 
   await navigator.serviceWorker.ready;
-
-  /*
-   * ==========================================
-   * FIREBASE MESSAGING
-   * ==========================================
-   */
 
   const app = getApp();
 
@@ -113,88 +94,17 @@ export async function enableStudentNotifications() {
     getMessaging(app);
 
   /*
-   * ==========================================
-   * FOREGROUND MESSAGE LISTENER
-   * ==========================================
-   *
-   * This handles notifications when the
-   * student dashboard/browser tab is open.
+   * Get FCM token
    */
 
-  onMessage(
+  const token = await getToken(
     messaging,
-    (payload) => {
-      console.log(
-        "🔔 Foreground FCM notification received:",
-        payload
-      );
-
-      const title =
-        payload.notification?.title ||
-        "SBC Notification";
-
-      const body =
-        payload.notification?.body ||
-        "";
-
-      if (
-        Notification.permission ===
-        "granted"
-      ) {
-        try {
-          const notification =
-            new Notification(
-              title,
-              {
-                body,
-                icon:
-                  "/icon-192.png",
-                data: {
-                  url:
-                    payload.data?.url ||
-                    "/student/dashboard",
-                },
-              }
-            );
-
-          notification.onclick =
-            () => {
-              notification.close();
-
-              const url =
-                payload.data?.url ||
-                "/student/dashboard";
-
-              window.location.href =
-                url;
-            };
-        } catch (error) {
-          console.error(
-            "Foreground notification display error:",
-            error
-          );
-        }
-      }
+    {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration:
+        registration,
     }
   );
-
-  /*
-   * ==========================================
-   * GET FCM TOKEN
-   * ==========================================
-   */
-
-  const token =
-    await getToken(
-      messaging,
-      {
-        vapidKey:
-          VAPID_KEY,
-
-        serviceWorkerRegistration:
-          registration,
-      }
-    );
 
   if (!token) {
     throw new Error(
@@ -203,13 +113,11 @@ export async function enableStudentNotifications() {
   }
 
   console.log(
-    "✅ FCM token received."
+    "✅ FCM token generated successfully."
   );
 
   /*
-   * ==========================================
-   * SAVE TOKEN
-   * ==========================================
+   * Save FCM token
    */
 
   await setDoc(
@@ -230,10 +138,10 @@ export async function enableStudentNotifications() {
       userAgent:
         navigator.userAgent,
 
-      updatedAt:
+      createdAt:
         serverTimestamp(),
 
-      createdAt:
+      updatedAt:
         serverTimestamp(),
     },
     {
@@ -246,4 +154,160 @@ export async function enableStudentNotifications() {
   );
 
   return token;
+}
+
+/*
+|--------------------------------------------------------------------------
+| FOREGROUND NOTIFICATION LISTENER
+|--------------------------------------------------------------------------
+|
+| This handles notifications when the
+| Student Dashboard is currently open.
+|
+*/
+
+export async function listenForStudentNotifications(
+  onNotification?: (
+    payload: MessagePayload
+  ) => void
+) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const supported =
+    await isSupported();
+
+  if (!supported) {
+    console.log(
+      "Firebase Messaging is not supported."
+    );
+
+    return () => {};
+  }
+
+  const app = getApp();
+
+  const messaging =
+    getMessaging(app);
+
+  const unsubscribe =
+    onMessage(
+      messaging,
+      async (payload) => {
+        console.log(
+          "🔔 SBC foreground FCM message received:",
+          payload
+        );
+
+        /*
+         * Send payload to caller
+         */
+
+        if (onNotification) {
+          onNotification(
+            payload
+          );
+        }
+
+        /*
+         * Show notification while
+         * dashboard is open.
+         */
+
+        try {
+          if (
+            Notification.permission !==
+            "granted"
+          ) {
+            console.log(
+              "Notification permission is not granted."
+            );
+
+            return;
+          }
+
+          /*
+           * Get registered Firebase
+           * messaging service worker.
+           */
+
+          const registration =
+            await navigator.serviceWorker.getRegistration(
+              "/firebase-messaging-sw.js"
+            );
+
+          const title =
+            payload.notification
+              ?.title ||
+            "SBC Notification";
+
+          const body =
+            payload.notification
+              ?.body ||
+            "";
+
+          const url =
+            payload.data?.url ||
+            "/student/dashboard";
+
+          /*
+           * Prefer Service Worker
+           * notification.
+           */
+
+          if (registration) {
+            await registration.showNotification(
+              title,
+              {
+                body,
+
+                icon:
+                  "/icon-192.png",
+
+                data: {
+                  url,
+                },
+
+                badge:
+                  "/icon-192.png",
+
+              }
+            );
+
+            console.log(
+              "✅ Foreground notification displayed."
+            );
+
+            return;
+          }
+
+          /*
+           * Browser fallback.
+           */
+
+          new Notification(
+            title,
+            {
+              body,
+
+              icon:
+                "/icon-192.png",
+            }
+          );
+
+        } catch (error) {
+          console.error(
+            "Foreground notification display error:",
+            error
+          );
+        }
+      }
+    );
+
+  console.log(
+    "✅ SBC foreground notification listener started."
+  );
+
+  return unsubscribe;
 }
