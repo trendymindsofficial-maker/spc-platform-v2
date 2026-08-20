@@ -2,6 +2,7 @@ import {
   getMessaging,
   getToken,
   isSupported,
+  onMessage,
 } from "firebase/messaging";
 
 import { getApp } from "firebase/app";
@@ -52,39 +53,164 @@ export async function enableStudentNotifications() {
     );
   }
 
-  const permission =
-    await Notification.requestPermission();
+  /*
+   * ==========================================
+   * BROWSER PERMISSION
+   * ==========================================
+   *
+   * IMPORTANT:
+   *
+   * If permission is already "granted",
+   * NEVER call requestPermission().
+   *
+   * Only ask when permission is "default".
+   */
 
-  if (permission !== "granted") {
+  let permission =
+    Notification.permission;
+
+  if (
+    permission === "default"
+  ) {
+    permission =
+      await Notification.requestPermission();
+  }
+
+  if (
+    permission !== "granted"
+  ) {
     throw new Error(
       "Notification permission was not granted."
     );
   }
+
+  /*
+   * ==========================================
+   * SERVICE WORKER
+   * ==========================================
+   */
 
   const registration =
     await navigator.serviceWorker.register(
       "/firebase-messaging-sw.js"
     );
 
+  /*
+   * Wait until service worker is ready.
+   */
+
+  await navigator.serviceWorker.ready;
+
+  /*
+   * ==========================================
+   * FIREBASE MESSAGING
+   * ==========================================
+   */
+
   const app = getApp();
 
   const messaging =
     getMessaging(app);
 
-  const token = await getToken(
+  /*
+   * ==========================================
+   * FOREGROUND MESSAGE LISTENER
+   * ==========================================
+   *
+   * This handles notifications when the
+   * student dashboard/browser tab is open.
+   */
+
+  onMessage(
     messaging,
-    {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration:
-        registration,
+    (payload) => {
+      console.log(
+        "🔔 Foreground FCM notification received:",
+        payload
+      );
+
+      const title =
+        payload.notification?.title ||
+        "SBC Notification";
+
+      const body =
+        payload.notification?.body ||
+        "";
+
+      if (
+        Notification.permission ===
+        "granted"
+      ) {
+        try {
+          const notification =
+            new Notification(
+              title,
+              {
+                body,
+                icon:
+                  "/icon-192.png",
+                data: {
+                  url:
+                    payload.data?.url ||
+                    "/student/dashboard",
+                },
+              }
+            );
+
+          notification.onclick =
+            () => {
+              notification.close();
+
+              const url =
+                payload.data?.url ||
+                "/student/dashboard";
+
+              window.location.href =
+                url;
+            };
+        } catch (error) {
+          console.error(
+            "Foreground notification display error:",
+            error
+          );
+        }
+      }
     }
   );
+
+  /*
+   * ==========================================
+   * GET FCM TOKEN
+   * ==========================================
+   */
+
+  const token =
+    await getToken(
+      messaging,
+      {
+        vapidKey:
+          VAPID_KEY,
+
+        serviceWorkerRegistration:
+          registration,
+      }
+    );
 
   if (!token) {
     throw new Error(
       "Unable to get notification token."
     );
   }
+
+  console.log(
+    "✅ FCM token received."
+  );
+
+  /*
+   * ==========================================
+   * SAVE TOKEN
+   * ==========================================
+   */
 
   await setDoc(
     doc(
@@ -94,18 +220,29 @@ export async function enableStudentNotifications() {
     ),
     {
       token,
-      studentId: user.uid,
-      platform: "web",
+
+      studentId:
+        user.uid,
+
+      platform:
+        "web",
+
       userAgent:
         navigator.userAgent,
-      createdAt:
-        serverTimestamp(),
+
       updatedAt:
+        serverTimestamp(),
+
+      createdAt:
         serverTimestamp(),
     },
     {
       merge: true,
     }
+  );
+
+  console.log(
+    "✅ FCM token saved to Firestore."
   );
 
   return token;

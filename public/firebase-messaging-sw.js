@@ -15,33 +15,42 @@ firebase.initializeApp({
   appId: "1:866414423703:web:0c7e002ac9ceb0f74b03d2",
 });
 
-const messaging = firebase.messaging();
+const messaging =
+  firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  console.log(
-    "[firebase-messaging-sw.js] Background message:",
-    payload
-  );
+messaging.onBackgroundMessage(
+  (payload) => {
+    console.log(
+      "[firebase-messaging-sw.js] Background message:",
+      payload
+    );
 
-  const title =
-    payload.notification?.title || "SBC Notification";
+    const title =
+      payload.notification?.title ||
+      "SBC Notification";
 
-  const options = {
-    body: payload.notification?.body || "",
-    icon: "/icon-192.png",
-    data: {
-      ...(payload.data || {}),
-      url:
-        payload.data?.url ||
-        "/student/dashboard",
-    },
-  };
+    const options = {
+      body:
+        payload.notification?.body ||
+        "",
 
-  self.registration.showNotification(
-    title,
-    options
-  );
-});
+      icon:
+        "/icon-192.png",
+
+      data: {
+        ...(payload.data || {}),
+        url:
+          payload.data?.url ||
+          "/student/dashboard",
+      },
+    };
+
+    self.registration.showNotification(
+      title,
+      options
+    );
+  }
+);
 
 self.addEventListener(
   "notificationclick",
@@ -53,19 +62,30 @@ self.addEventListener(
       "/student/dashboard";
 
     event.waitUntil(
-      clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      }).then((clientList) => {
-        for (const client of clientList) {
-          if ("focus" in client) {
-            client.navigate(url);
-            return client.focus();
-          }
-        }
+      clients
+        .matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        })
+        .then((clientList) => {
+          for (
+            const client of clientList
+          ) {
+            if (
+              "focus" in client
+            ) {
+              client.navigate(
+                url
+              );
 
-        return clients.openWindow(url);
-      })
+              return client.focus();
+            }
+          }
+
+          return clients.openWindow(
+            url
+          );
+        })
     );
   }
 );
