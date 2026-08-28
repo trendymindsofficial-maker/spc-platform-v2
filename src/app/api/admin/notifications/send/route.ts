@@ -6,25 +6,13 @@ import {
   initializeApp,
 } from "firebase-admin/app";
 
-import {
-  getAuth,
-} from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
 
-import {
-  getFirestore,
-} from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 
-import {
-  getMessaging,
-} from "firebase-admin/messaging";
+import { getMessaging } from "firebase-admin/messaging";
 
 export const runtime = "nodejs";
-
-/*
-|--------------------------------------------------------------------------
-| Firebase Admin App
-|--------------------------------------------------------------------------
-*/
 
 function getAdminApp() {
   const existingApps = getApps();
@@ -48,7 +36,7 @@ function getAdminApp() {
     !privateKeyBase64
   ) {
     throw new Error(
-      "Firebase Admin credentials are not configured. Please check FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY_BASE64."
+      "Firebase Admin credentials are not configured."
     );
   }
 
@@ -60,10 +48,6 @@ function getAdminApp() {
       "base64"
     ).toString("utf8");
 
-    /*
-     * Make sure escaped newlines are converted
-     * into real newlines.
-     */
     privateKey = privateKey.replace(
       /\\n/g,
       "\n"
@@ -88,7 +72,7 @@ function getAdminApp() {
     );
 
     throw new Error(
-      "Failed to decode FIREBASE_ADMIN_PRIVATE_KEY_BASE64."
+      "Failed to decode Firebase Admin private key."
     );
   }
 
@@ -101,12 +85,6 @@ function getAdminApp() {
   });
 }
 
-/*
-|--------------------------------------------------------------------------
-| POST
-|--------------------------------------------------------------------------
-*/
-
 export async function POST(
   request: NextRequest
 ) {
@@ -114,30 +92,25 @@ export async function POST(
     /*
      * --------------------------------------------------
      * STEP 1
-     * Initialize Firebase Admin
+     * Firebase Admin
      * --------------------------------------------------
      */
 
-    const adminApp =
-      getAdminApp();
+    const adminApp = getAdminApp();
 
     /*
      * --------------------------------------------------
      * STEP 2
-     * Check Authorization Header
+     * Authorization
      * --------------------------------------------------
      */
 
     const authorization =
-      request.headers.get(
-        "authorization"
-      );
+      request.headers.get("authorization");
 
     if (
       !authorization ||
-      !authorization.startsWith(
-        "Bearer "
-      )
+      !authorization.startsWith("Bearer ")
     ) {
       return NextResponse.json(
         {
@@ -145,18 +118,9 @@ export async function POST(
           error:
             "Unauthorized. Firebase ID token is required.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
-
-    /*
-     * --------------------------------------------------
-     * STEP 3
-     * Get Firebase ID Token
-     * --------------------------------------------------
-     */
 
     const idToken =
       authorization
@@ -170,46 +134,30 @@ export async function POST(
           error:
             "Firebase ID token is missing.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
     /*
      * --------------------------------------------------
-     * STEP 4
-     * Verify Firebase User
+     * STEP 3
+     * Verify Admin
      * --------------------------------------------------
      */
 
-    const auth =
+    const adminAuth =
       getAuth(adminApp);
 
     const decodedToken =
-      await auth.verifyIdToken(
+      await adminAuth.verifyIdToken(
         idToken
       );
 
     const adminUid =
       decodedToken.uid;
 
-    /*
-     * --------------------------------------------------
-     * STEP 5
-     * Firestore
-     * --------------------------------------------------
-     */
-
     const db =
       getFirestore(adminApp);
-
-    /*
-     * --------------------------------------------------
-     * STEP 6
-     * Verify Admin
-     * --------------------------------------------------
-     */
 
     const adminSnap =
       await db
@@ -221,19 +169,16 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Admin access denied.",
+          error: "Admin access denied.",
         },
-        {
-          status: 403,
-        }
+        { status: 403 }
       );
     }
 
     /*
      * --------------------------------------------------
-     * STEP 7
-     * Read Request Body
+     * STEP 4
+     * Request body
      * --------------------------------------------------
      */
 
@@ -243,60 +188,42 @@ export async function POST(
     };
 
     try {
-      body =
-        await request.json();
+      body = await request.json();
     } catch {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Invalid JSON request body.",
+          error: "Invalid JSON request body.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
     const title =
-      typeof body.title ===
-      "string"
+      typeof body.title === "string"
         ? body.title.trim()
         : "";
 
     const message =
-      typeof body.message ===
-      "string"
+      typeof body.message === "string"
         ? body.message.trim()
         : "";
 
-    /*
-     * --------------------------------------------------
-     * STEP 8
-     * Validate Message
-     * --------------------------------------------------
-     */
-
-    if (
-      !title ||
-      !message
-    ) {
+    if (!title || !message) {
       return NextResponse.json(
         {
           success: false,
           error:
             "Notification title and message are required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
     /*
      * --------------------------------------------------
-     * STEP 9
-     * Get FCM Tokens
+     * STEP 5
+     * Get FCM tokens
      * --------------------------------------------------
      */
 
@@ -304,16 +231,6 @@ export async function POST(
       await db
         .collection("fcmTokens")
         .get();
-
-    /*
-     * IMPORTANT:
-     *
-     * Do NOT use a custom type predicate here.
-     *
-     * Firebase Firestore returns any values,
-     * so we normalize the token first and then
-     * simply filter empty tokens.
-     */
 
     const tokens = tokenSnap.docs
       .map((tokenDoc) => {
@@ -324,16 +241,14 @@ export async function POST(
           id: tokenDoc.id,
 
           token:
-            typeof data.token ===
-            "string"
+            typeof data.token === "string"
               ? data.token.trim()
               : "",
 
           studentId:
-            typeof data.studentId ===
-            "string"
+            typeof data.studentId === "string"
               ? data.studentId
-              : undefined,
+              : "",
         };
       })
       .filter(
@@ -342,30 +257,39 @@ export async function POST(
       );
 
     console.log(
-      "FCM tokens found:",
+      "===================================="
+    );
+
+    console.log(
+      "FCM NOTIFICATION REQUEST"
+    );
+
+    console.log(
+      "Total tokens:",
       tokens.length
     );
 
-    /*
-     * --------------------------------------------------
-     * No Tokens
-     * --------------------------------------------------
-     */
+    console.log(
+      "Title:",
+      title
+    );
 
-    if (
-      tokens.length === 0
-    ) {
+    console.log(
+      "Message:",
+      message
+    );
+
+    console.log(
+      "===================================="
+    );
+
+    if (tokens.length === 0) {
       return NextResponse.json({
         success: true,
-
         totalTokens: 0,
-
         successCount: 0,
-
         failureCount: 0,
-
         cleanedTokens: 0,
-
         message:
           "No students have enabled notifications yet.",
       });
@@ -373,26 +297,28 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 10
+     * STEP 6
      * Firebase Messaging
      * --------------------------------------------------
      */
 
     const messaging =
-      getMessaging(
-        adminApp
-      );
+      getMessaging(adminApp);
 
     let successCount = 0;
-
     let failureCount = 0;
 
-    const invalidTokenIds: string[] =
-      [];
+    const invalidTokenIds: string[] = [];
+
+    const failedTokens: Array<{
+      tokenId: string;
+      studentId: string;
+      errorCode: string;
+      errorMessage: string;
+    }> = [];
 
     /*
-     * Firebase supports maximum
-     * 500 tokens per multicast request.
+     * Firebase multicast maximum = 500
      */
 
     for (
@@ -401,36 +327,31 @@ export async function POST(
       i += 500
     ) {
       const batch =
-        tokens.slice(
-          i,
-          i + 500
-        );
+        tokens.slice(i, i + 500);
 
       const batchTokens =
         batch.map(
-          (item) =>
-            item.token
+          (item) => item.token
         );
 
       console.log(
-        `Sending FCM batch ${
+        `Sending batch ${
           Math.floor(i / 500) + 1
         } with ${
           batchTokens.length
-        } tokens.`
+        } tokens`
       );
 
       /*
        * ------------------------------------------------
-       * Send Notification
+       * WEB PUSH PAYLOAD
        * ------------------------------------------------
        */
 
       const response =
         await messaging.sendEachForMulticast(
           {
-            tokens:
-              batchTokens,
+            tokens: batchTokens,
 
             notification: {
               title,
@@ -438,82 +359,125 @@ export async function POST(
             },
 
             data: {
+              title,
+              body: message,
               url:
-                "/student/dashboard",
+                "https://www.studentbenefitcard.com/student/dashboard",
             },
 
             webpush: {
+              headers: {
+                Urgency: "high",
+              },
+
               notification: {
                 title,
                 body: message,
 
                 icon:
-                  "/icon-192.png",
+                  "https://www.studentbenefitcard.com/icon-192.png",
 
                 badge:
-                  "/icon-192.png",
+                  "https://www.studentbenefitcard.com/icon-192.png",
 
-                requireInteraction:
-                  false,
+                requireInteraction: false,
+
+                tag: "sbc-notification",
               },
 
               fcmOptions: {
                 link:
-                  "https://studentbenefitcard.com/student/dashboard",
+                  "https://www.studentbenefitcard.com/student/dashboard",
               },
             },
           }
         );
 
-      successCount +=
-        response.successCount;
+      console.log(
+        "FCM batch response:",
+        {
+          successCount:
+            response.successCount,
 
-      failureCount +=
-        response.failureCount;
+          failureCount:
+            response.failureCount,
+        }
+      );
 
       /*
        * ------------------------------------------------
-       * Find Invalid Tokens
+       * Successful messages
        * ------------------------------------------------
        */
 
       response.responses.forEach(
-        (
-          result,
-          index
-        ) => {
-          if (
-            result.success
-          ) {
+        (result, index) => {
+          const currentToken =
+            batch[index];
+
+          if (result.success) {
+            successCount++;
+
+            console.log(
+              "✅ FCM accepted:",
+              {
+                tokenId:
+                  currentToken.id,
+
+                studentId:
+                  currentToken.studentId,
+
+                messageId:
+                  result.messageId,
+              }
+            );
+
             return;
           }
 
+          /*
+           * ------------------------------------------------
+           * Failed message
+           * ------------------------------------------------
+           */
+
+          failureCount++;
+
           const errorCode =
-            result.error?.code ||
-            "";
+            result.error?.code || "";
 
           const errorMessage =
-            result.error?.message ||
-            "";
+            result.error?.message || "";
 
           console.error(
-            "FCM token error:",
+            "❌ FCM failed:",
             {
-              token:
-                batchTokens[
-                  index
-                ],
+              tokenId:
+                currentToken.id,
 
-              error:
-                errorCode,
+              studentId:
+                currentToken.studentId,
 
-              message:
-                errorMessage,
+              errorCode,
+
+              errorMessage,
             }
           );
 
+          failedTokens.push({
+            tokenId:
+              currentToken.id,
+
+            studentId:
+              currentToken.studentId,
+
+            errorCode,
+
+            errorMessage,
+          });
+
           /*
-           * Remove expired / invalid tokens.
+           * Remove invalid tokens
            */
 
           if (
@@ -525,13 +489,10 @@ export async function POST(
             ) ||
             errorCode.includes(
               "unregistered"
-            ) ||
-            errorCode.includes(
-              "invalid-argument"
             )
           ) {
             invalidTokenIds.push(
-              batch[index].id
+              currentToken.id
             );
           }
         }
@@ -540,8 +501,8 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 11
-     * Delete Invalid Tokens
+     * STEP 7
+     * Delete invalid tokens
      * --------------------------------------------------
      */
 
@@ -550,40 +511,33 @@ export async function POST(
     ) {
       try {
         await db
-          .collection(
-            "fcmTokens"
-          )
+          .collection("fcmTokens")
           .doc(tokenId)
           .delete();
 
         console.log(
-          "Deleted invalid FCM token:",
+          "🗑 Deleted invalid FCM token:",
           tokenId
         );
-      } catch (
-        deleteError
-      ) {
+      } catch (error) {
         console.error(
-          "Failed to delete invalid FCM token:",
-          deleteError
+          "Failed to delete invalid token:",
+          error
         );
       }
     }
 
     /*
      * --------------------------------------------------
-     * STEP 12
-     * Save Notification Log
+     * STEP 8
+     * Notification log
      * --------------------------------------------------
      */
 
     await db
-      .collection(
-        "notificationLogs"
-      )
+      .collection("notificationLogs")
       .add({
         title,
-
         message,
 
         target:
@@ -608,24 +562,33 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 13
-     * Success Response
+     * STEP 9
+     * Final response
      * --------------------------------------------------
      */
 
     console.log(
-      "Notification completed:",
-      {
-        totalTokens:
-          tokens.length,
+      "===================================="
+    );
 
-        successCount,
+    console.log(
+      "FCM NOTIFICATION COMPLETED"
+    );
 
-        failureCount,
+    console.log({
+      totalTokens:
+        tokens.length,
 
-        cleanedTokens:
-          invalidTokenIds.length,
-      }
+      successCount,
+
+      failureCount,
+
+      cleanedTokens:
+        invalidTokenIds.length,
+    });
+
+    console.log(
+      "===================================="
     );
 
     return NextResponse.json({
@@ -641,16 +604,12 @@ export async function POST(
       cleanedTokens:
         invalidTokenIds.length,
 
+      failedTokens,
+
       message:
         `Notification sent. ${successCount} successful, ${failureCount} failed.`,
     });
   } catch (error) {
-    /*
-     * --------------------------------------------------
-     * ERROR
-     * --------------------------------------------------
-     */
-
     console.error(
       "Notification send error:",
       error
@@ -665,9 +624,7 @@ export async function POST(
             ? error.message
             : "Failed to send notification.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
