@@ -7,12 +7,16 @@ import {
 } from "firebase-admin/app";
 
 import { getAuth } from "firebase-admin/auth";
-
 import { getFirestore } from "firebase-admin/firestore";
-
 import { getMessaging } from "firebase-admin/messaging";
 
 export const runtime = "nodejs";
+
+/*
+|--------------------------------------------------------------------------
+| Firebase Admin
+|--------------------------------------------------------------------------
+*/
 
 function getAdminApp() {
   const existingApps = getApps();
@@ -85,22 +89,20 @@ function getAdminApp() {
   });
 }
 
+/*
+|--------------------------------------------------------------------------
+| POST
+|--------------------------------------------------------------------------
+*/
+
 export async function POST(
   request: NextRequest
 ) {
   try {
-    /*
-     * --------------------------------------------------
-     * STEP 1
-     * Firebase Admin
-     * --------------------------------------------------
-     */
-
     const adminApp = getAdminApp();
 
     /*
      * --------------------------------------------------
-     * STEP 2
      * Authorization
      * --------------------------------------------------
      */
@@ -140,7 +142,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 3
      * Verify Admin
      * --------------------------------------------------
      */
@@ -177,7 +178,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 4
      * Request body
      * --------------------------------------------------
      */
@@ -185,6 +185,7 @@ export async function POST(
     let body: {
       title?: unknown;
       message?: unknown;
+      imageUrl?: unknown;
     };
 
     try {
@@ -209,6 +210,11 @@ export async function POST(
         ? body.message.trim()
         : "";
 
+    const imageUrl =
+      typeof body.imageUrl === "string"
+        ? body.imageUrl.trim()
+        : "";
+
     if (!title || !message) {
       return NextResponse.json(
         {
@@ -220,9 +226,22 @@ export async function POST(
       );
     }
 
+    if (
+      imageUrl &&
+      !imageUrl.startsWith("https://")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Notification image URL must use HTTPS.",
+        },
+        { status: 400 }
+      );
+    }
+
     /*
      * --------------------------------------------------
-     * STEP 5
      * Get FCM tokens
      * --------------------------------------------------
      */
@@ -232,29 +251,30 @@ export async function POST(
         .collection("fcmTokens")
         .get();
 
-    const tokens = tokenSnap.docs
-      .map((tokenDoc) => {
-        const data =
-          tokenDoc.data();
+    const tokens =
+      tokenSnap.docs
+        .map((tokenDoc) => {
+          const data =
+            tokenDoc.data();
 
-        return {
-          id: tokenDoc.id,
+          return {
+            id: tokenDoc.id,
 
-          token:
-            typeof data.token === "string"
-              ? data.token.trim()
-              : "",
+            token:
+              typeof data.token === "string"
+                ? data.token.trim()
+                : "",
 
-          studentId:
-            typeof data.studentId === "string"
-              ? data.studentId
-              : "",
-        };
-      })
-      .filter(
-        (item) =>
-          item.token.length > 0
-      );
+            studentId:
+              typeof data.studentId === "string"
+                ? data.studentId
+                : "",
+          };
+        })
+        .filter(
+          (item) =>
+            item.token.length > 0
+        );
 
     console.log(
       "===================================="
@@ -280,6 +300,11 @@ export async function POST(
     );
 
     console.log(
+      "Image:",
+      imageUrl || "No image"
+    );
+
+    console.log(
       "===================================="
     );
 
@@ -297,7 +322,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 6
      * Firebase Messaging
      * --------------------------------------------------
      */
@@ -344,54 +368,84 @@ export async function POST(
 
       /*
        * ------------------------------------------------
-       * WEB PUSH PAYLOAD
+       * Web notification
+       * ------------------------------------------------
+       */
+
+      const webNotification: {
+        title: string;
+        body: string;
+        icon: string;
+        badge: string;
+        requireInteraction: boolean;
+        tag: string;
+        image?: string;
+      } = {
+        title,
+        body: message,
+
+        icon:
+          "https://www.studentbenefitcard.com/sbc-notification-icon.png",
+
+        badge:
+          "https://www.studentbenefitcard.com/sbc-notification-icon.png",
+
+        requireInteraction: false,
+
+        tag:
+          `sbc-${Date.now()}-${i}`,
+      };
+
+      /*
+       * Cloudinary image is optional.
+       */
+
+      if (imageUrl) {
+        webNotification.image =
+          imageUrl;
+      }
+
+      /*
+       * ------------------------------------------------
+       * Send FCM
        * ------------------------------------------------
        */
 
       const response =
-        await messaging.sendEachForMulticast(
-          {
-            tokens: batchTokens,
+        await messaging.sendEachForMulticast({
+          tokens: batchTokens,
 
-            notification: {
-              title,
-              body: message,
+          notification: {
+            title,
+            body: message,
+          },
+
+          data: {
+            title,
+            body: message,
+
+            url:
+              "https://www.studentbenefitcard.com/student/dashboard",
+
+            ...(imageUrl
+              ? { imageUrl }
+              : {}),
+          },
+
+          webpush: {
+            headers: {
+              Urgency: "high",
             },
 
-            data: {
-              title,
-              body: message,
-              url:
+            notification:
+              webNotification,
+
+            fcmOptions: {
+              link:
                 "https://www.studentbenefitcard.com/student/dashboard",
             },
-
-            webpush: {
-              headers: {
-                Urgency: "high",
-              },
-
-              notification: {
-                title,
-                body: message,
-
-                icon:
-                  "https://www.studentbenefitcard.com/icon-192.png",
-
-                badge:
-                  "https://www.studentbenefitcard.com/icon-192.png",
-
-                requireInteraction: false,
-
-                tag: "sbc-notification",
-              },
-
-              fcmOptions: {
-                link:
-                  "https://www.studentbenefitcard.com/student/dashboard",
-              },
-            },
-          }
-        );
+          },
+        });
 
       console.log(
         "FCM batch response:",
@@ -406,7 +460,7 @@ export async function POST(
 
       /*
        * ------------------------------------------------
-       * Successful messages
+       * Process responses
        * ------------------------------------------------
        */
 
@@ -434,12 +488,6 @@ export async function POST(
 
             return;
           }
-
-          /*
-           * ------------------------------------------------
-           * Failed message
-           * ------------------------------------------------
-           */
 
           failureCount++;
 
@@ -476,10 +524,6 @@ export async function POST(
             errorMessage,
           });
 
-          /*
-           * Remove invalid tokens
-           */
-
           if (
             errorCode.includes(
               "registration-token-not-registered"
@@ -501,7 +545,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 7
      * Delete invalid tokens
      * --------------------------------------------------
      */
@@ -529,7 +572,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 8
      * Notification log
      * --------------------------------------------------
      */
@@ -539,6 +581,9 @@ export async function POST(
       .add({
         title,
         message,
+
+        imageUrl:
+          imageUrl || null,
 
         target:
           "all_students",
@@ -562,7 +607,6 @@ export async function POST(
 
     /*
      * --------------------------------------------------
-     * STEP 9
      * Final response
      * --------------------------------------------------
      */
@@ -585,6 +629,9 @@ export async function POST(
 
       cleanedTokens:
         invalidTokenIds.length,
+
+      image:
+        imageUrl || null,
     });
 
     console.log(
@@ -605,6 +652,9 @@ export async function POST(
         invalidTokenIds.length,
 
       failedTokens,
+
+      imageUrl:
+        imageUrl || null,
 
       message:
         `Notification sent. ${successCount} successful, ${failureCount} failed.`,
