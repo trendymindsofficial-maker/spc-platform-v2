@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import AdminProtected from "@/components/AdminProtected";
 
 export default function AdminNotificationsPage() {
+  const router = useRouter();
+
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
 
@@ -20,9 +23,7 @@ export default function AdminNotificationsPage() {
    * ============================================================
    */
 
-  const uploadImageToCloudinary = async (
-    file: File
-  ) => {
+  const uploadImageToCloudinary = async (file: File) => {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -55,10 +56,7 @@ export default function AdminNotificationsPage() {
       const formData = new FormData();
 
       formData.append("file", file);
-      formData.append(
-        "upload_preset",
-        uploadPreset
-      );
+      formData.append("upload_preset", uploadPreset);
 
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -134,8 +132,7 @@ export default function AdminNotificationsPage() {
       setSending(true);
       setResult("");
 
-      const idToken =
-        await user.getIdToken();
+      const idToken = await user.getIdToken();
 
       const response = await fetch(
         "/api/admin/notifications/send",
@@ -143,24 +140,19 @@ export default function AdminNotificationsPage() {
           method: "POST",
 
           headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
           },
 
           body: JSON.stringify({
             title: cleanTitle,
             message: cleanMessage,
-            imageUrl:
-              cleanImageUrl || null,
+            imageUrl: cleanImageUrl || null,
           }),
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -205,26 +197,46 @@ export default function AdminNotificationsPage() {
     <AdminProtected>
       <main className="min-h-screen bg-[#f4f6f8] text-slate-900">
 
-        {/* TOP HEADER */}
+        {/* =====================================================
+            TOP HEADER
+        ===================================================== */}
 
         <header className="border-b border-slate-200 bg-[#07111f] text-white">
           <div className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
 
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-xl font-black text-[#f1cf63] shadow-[0_0_35px_rgba(212,175,55,0.12)]">
-                SBC
+              {/* BRAND */}
+
+              <div className="flex items-center gap-4">
+
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-xl font-black text-[#f1cf63] shadow-[0_0_35px_rgba(212,175,55,0.12)]">
+                  SBC
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#f1cf63]">
+                    Student Benefit Card
+                  </p>
+
+                  <h1 className="mt-1 text-2xl font-black sm:text-3xl">
+                    Notification Center
+                  </h1>
+                </div>
+
               </div>
 
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#f1cf63]">
-                  Student Benefit Card
-                </p>
+              {/* DASHBOARD BUTTON */}
 
-                <h1 className="mt-1 text-2xl font-black sm:text-3xl">
-                  Notification Center
-                </h1>
-              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  router.push("/admin/dashboard")
+                }
+                className="shrink-0 rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2.5 text-sm font-black text-[#f1cf63] transition hover:bg-[#d4af37] hover:text-[#07111f]"
+              >
+                ← Dashboard
+              </button>
 
             </div>
 
@@ -236,13 +248,17 @@ export default function AdminNotificationsPage() {
           </div>
         </header>
 
+        {/* =====================================================
+            MAIN CONTENT
+        ===================================================== */}
+
         <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
 
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
 
-            {/* ================================================= */}
-            {/* LEFT - FORM */}
-            {/* ================================================= */}
+            {/* =================================================
+                LEFT - FORM
+            ================================================= */}
 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.07)] sm:p-8">
 
@@ -275,7 +291,7 @@ export default function AdminNotificationsPage() {
 
               </div>
 
-              {/* FORM TITLE */}
+              {/* TITLE */}
 
               <div className="mb-7">
 
@@ -349,6 +365,7 @@ export default function AdminNotificationsPage() {
                 </div>
 
                 {!imageUrl ? (
+
                   <label
                     className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:border-[#c49b27] hover:bg-[#fffdf5] ${
                       imageUploading ||
@@ -401,7 +418,9 @@ export default function AdminNotificationsPage() {
                     />
 
                   </label>
+
                 ) : (
+
                   <div className="overflow-hidden rounded-2xl border border-[#d4af37]/30 bg-[#fffdf5]">
 
                     <div className="relative">
@@ -434,9 +453,7 @@ export default function AdminNotificationsPage() {
 
                       <button
                         type="button"
-                        onClick={
-                          removeImage
-                        }
+                        onClick={removeImage}
                         disabled={sending}
                         className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-black text-red-600 transition hover:bg-red-100 disabled:opacity-50"
                       >
@@ -446,6 +463,7 @@ export default function AdminNotificationsPage() {
                     </div>
 
                   </div>
+
                 )}
 
               </div>
@@ -453,9 +471,7 @@ export default function AdminNotificationsPage() {
               {/* SEND BUTTON */}
 
               <button
-                onClick={
-                  sendNotification
-                }
+                onClick={sendNotification}
                 disabled={
                   sending ||
                   imageUploading ||
@@ -487,9 +503,9 @@ export default function AdminNotificationsPage() {
 
             </section>
 
-            {/* ================================================= */}
-            {/* RIGHT - LIVE PREVIEW */}
-            {/* ================================================= */}
+            {/* =================================================
+                RIGHT - LIVE PREVIEW
+            ================================================= */}
 
             <section>
 
@@ -528,6 +544,8 @@ export default function AdminNotificationsPage() {
 
                     <div className="overflow-hidden rounded-2xl bg-white shadow-2xl">
 
+                      {/* IMAGE */}
+
                       {imageUrl && (
                         <img
                           src={imageUrl}
@@ -539,6 +557,8 @@ export default function AdminNotificationsPage() {
                       <div className="p-4">
 
                         <div className="flex items-start gap-3">
+
+                          {/* SBC ICON */}
 
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#07111f] text-[10px] font-black text-[#f1cf63]">
                             SBC
