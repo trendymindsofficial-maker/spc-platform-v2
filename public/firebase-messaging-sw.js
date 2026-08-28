@@ -26,54 +26,16 @@ firebase.initializeApp({
     "1:866414423703:web:0c7e002ac9ceb0f74b03d2",
 });
 
-const messaging =
-  firebase.messaging();
+const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage(
-  (payload) => {
-    console.log(
-      "[SBC SW] Background message received:",
-      payload
-    );
-
-    const title =
-      payload?.notification?.title ||
-      payload?.data?.title ||
-      "SBC Notification";
-
-    const body =
-      payload?.notification?.body ||
-      payload?.data?.body ||
-      "";
-
-    const url =
-      payload?.data?.url ||
-      "https://www.studentbenefitcard.com/student/dashboard";
-
-    self.registration.showNotification(
-      title,
-      {
-        body,
-
-        icon:
-          "https://www.studentbenefitcard.com/icon-192.png",
-
-        badge:
-          "https://www.studentbenefitcard.com/icon-192.png",
-
-        tag:
-          "sbc-notification",
-
-        requireInteraction:
-          false,
-
-        data: {
-          url,
-        },
-      }
-    );
-  }
-);
+/*
+ * IMPORTANT:
+ *
+ * Do NOT call showNotification() here.
+ *
+ * Server sends a notification payload, so Firebase
+ * automatically displays the background notification.
+ */
 
 self.addEventListener(
   "notificationclick",
@@ -90,24 +52,13 @@ self.addEventListener(
         includeUncontrolled: true,
       }).then((clientList) => {
         for (const client of clientList) {
-          if (
-            "focus" in client &&
-            "navigate" in client
-          ) {
-            return client
-              .navigate(url)
-              .then(() =>
-                client.focus()
-              );
+          if ("focus" in client) {
+            return client.focus();
           }
         }
 
-        if (
-          clients.openWindow
-        ) {
-          return clients.openWindow(
-            url
-          );
+        if (clients.openWindow) {
+          return clients.openWindow(url);
         }
 
         return undefined;
