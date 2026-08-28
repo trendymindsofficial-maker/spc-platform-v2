@@ -61,71 +61,103 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
-        {/* Back to Home - Separate Button */}
-<div className="mb-6">
-  <button
-    type="button"
-    onClick={() => router.push("/")}
-    className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
-  >
-    ← Back to Home
-  </button>
-</div>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f3ed] px-4 py-8 text-[#07111f]">
 
-        <h1 className="text-center text-4xl font-bold text-blue-700">
-          SBC Admin
-        </h1>
+      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-[#d4af37]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl" />
 
-        <p className="mt-3 text-center text-gray-500">
-          Administrator Login
-        </p>
+      <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_25px_80px_rgba(7,17,31,0.14)]">
 
-        <div className="mt-8">
+        <div className="bg-[#07111f] px-8 py-7 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-xl font-black text-[#f1cf63]">
+            SBC
+          </div>
 
-          <label className="font-semibold">
-            Email
-          </label>
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
+            Admin Login
+          </h1>
 
-          <input
-            type="email"
-            value={email}
-            onChange={(e) =>
-              setEmail(e.target.value)
-            }
-            placeholder="admin@sbc.in"
-            className="mt-2 w-full rounded-xl border p-3 outline-none focus:border-blue-600"
-          />
-
+          <p className="mt-1 text-sm font-medium text-white/60">
+            Student Benefit Card
+          </p>
         </div>
 
-        <div className="mt-5">
+        <div className="p-7 sm:p-8">
 
-          <label className="font-semibold">
-            Password
-          </label>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="mb-7 rounded-xl border border-black/5 bg-[#f5f3ed] px-4 py-2.5 text-sm font-bold text-[#07111f] transition hover:bg-[#ebe7dc]"
+          >
+            ← Back to Home
+          </button>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
-            placeholder="********"
-            className="mt-2 w-full rounded-xl border p-3 outline-none focus:border-blue-600"
-          />
+          <div className="mb-7">
+            <h2 className="text-2xl font-black text-[#07111f]">
+              Welcome Back
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Sign in to manage the SBC platform.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-[#07111f]">
+                Email
+              </label>
+
+              <input
+                type="email"
+                value={email}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
+                placeholder="admin@sbc.in"
+                className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-medium text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-[#07111f]">
+                Password
+              </label>
+
+              <input
+                type="password"
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+                placeholder="Enter your password"
+                className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-medium text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={login}
+              disabled={loading}
+              className="w-full rounded-xl bg-[#07111f] py-3.5 text-base font-black text-[#f1cf63] shadow-lg transition hover:bg-[#101d2e] hover:shadow-xl disabled:cursor-not-allowed disabled:bg-slate-400 disabled:text-white"
+            >
+              {loading ? "⏳ Logging In..." : "🔐 Login"}
+            </button>
+
+          </div>
+
+          <div className="mt-7 border-t border-slate-100 pt-5 text-center">
+            <p className="text-xs font-semibold text-slate-400">
+              Secure Administrator Access
+            </p>
+
+            <p className="mt-1 text-[11px] font-medium text-slate-300">
+              SBC • Student Benefit Card
+            </p>
+          </div>
 
         </div>
-
-        <button
-          onClick={login}
-          disabled={loading}
-          className="mt-8 w-full rounded-xl bg-blue-600 py-3 text-lg font-bold text-white hover:bg-blue-700 disabled:bg-gray-400"
-        >
-          {loading ? "Logging In..." : "Login"}
-        </button>
-
       </div>
     </main>
   );

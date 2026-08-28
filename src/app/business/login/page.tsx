@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -31,18 +31,15 @@ export default function BusinessLogin() {
   ) => {
     let number = value.trim();
 
-    // Remove spaces, hyphens and brackets
     number = number.replace(
       /[\s\-()]/g,
       ""
     );
 
-    // Convert +91XXXXXXXXXX
     if (number.startsWith("+91")) {
       number = number.slice(3);
     }
 
-    // Convert 91XXXXXXXXXX
     if (
       number.startsWith("91") &&
       number.length === 12
@@ -50,7 +47,6 @@ export default function BusinessLogin() {
       number = number.slice(2);
     }
 
-    // Convert 0XXXXXXXXXX
     if (
       number.startsWith("0") &&
       number.length === 11
@@ -95,16 +91,6 @@ export default function BusinessLogin() {
     try {
       setLoading(true);
 
-      /*
-       * IMPORTANT
-       *
-       * Existing business accounts use:
-       *
-       * mobile@business.spc
-       *
-       * Keep this format.
-       */
-
       const email =
         `${normalizedMobile}@business.spc`;
 
@@ -112,10 +98,6 @@ export default function BusinessLogin() {
         "Business login email:",
         email
       );
-
-      /*
-       * FIREBASE AUTH LOGIN
-       */
 
       const userCredential =
         await signInWithEmailAndPassword(
@@ -126,10 +108,6 @@ export default function BusinessLogin() {
 
       const uid =
         userCredential.user.uid;
-
-      /*
-       * LOAD BUSINESS PROFILE
-       */
 
       const businessRef = doc(
         db,
@@ -142,11 +120,6 @@ export default function BusinessLogin() {
           businessRef
         );
 
-      /*
-       * AUTH ACCOUNT EXISTS,
-       * BUT BUSINESS DOCUMENT DOES NOT
-       */
-
       if (!businessSnap.exists()) {
         alert(
           "Your Firebase account exists, but your business profile was not found. Please contact SBC Admin."
@@ -157,10 +130,6 @@ export default function BusinessLogin() {
 
       const business =
         businessSnap.data();
-
-      /*
-       * CHECK APPROVAL
-       */
 
       const status =
         String(
@@ -189,10 +158,6 @@ export default function BusinessLogin() {
         return;
       }
 
-      /*
-       * SUCCESS
-       */
-
       router.replace(
         "/business/dashboard"
       );
@@ -202,10 +167,6 @@ export default function BusinessLogin() {
         "Business Login Error:",
         error
       );
-
-      /*
-       * FIREBASE AUTH ERRORS
-       */
 
       switch (error?.code) {
         case "auth/invalid-credential":
@@ -271,123 +232,182 @@ export default function BusinessLogin() {
    */
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-gray-900">
+    <main className="min-h-screen bg-[#f5f3ed] text-[#07111f]">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
 
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 text-gray-900 shadow-xl">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(212,175,55,0.14),transparent_32%),radial-gradient(circle_at_90%_85%,rgba(7,17,31,0.09),transparent_30%),linear-gradient(135deg,#fffdf7_0%,#f5f3ed_52%,#eeeade_100%)]" />
+        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl" />
 
-        {/* BACK TO HOME */}
-
-        <div className="mb-6">
+        <div className="relative w-full max-w-5xl">
 
           <button
             type="button"
-            onClick={() =>
-              router.push("/")
-            }
-            className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-200"
+            onClick={() => router.push("/")}
+            className="mb-5 rounded-full border border-black/10 bg-white/85 px-5 py-2.5 text-sm font-bold text-[#07111f] shadow-sm backdrop-blur transition hover:border-[#d4af37]/50 hover:bg-white"
           >
             ← Back to Home
           </button>
 
-        </div>
+          <div className="grid overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-[0_30px_100px_rgba(7,17,31,0.16)] backdrop-blur-xl lg:grid-cols-[0.8fr_1.2fr]">
 
-        {/* HEADER */}
+            {/* BRAND PANEL */}
+            <div className="relative hidden overflow-hidden bg-[#07111f] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#d4af37]/15 blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-[#d4af37]/10 blur-3xl" />
 
-        <h1 className="mb-2 text-center text-3xl font-bold text-green-700">
-          🏪 Business Login
-        </h1>
+              <div className="relative">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">
+                  SBC
+                </div>
 
-        <p className="mb-2 text-center text-gray-500">
-          Login to your SBC Business Account
-        </p>
+                <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">
+                  Student Benefit Card
+                </p>
 
-        <p className="mb-8 text-center text-sm font-medium text-gray-400">
-          Student Benefit Card Partner
-        </p>
+                <h2 className="mt-3 text-4xl font-black leading-tight">
+                  Welcome back,
+                  <span className="block text-[#f1cf63]">Partner.</span>
+                </h2>
 
-        {/* FORM */}
+                <p className="mt-5 max-w-sm text-sm leading-6 text-white/55">
+                  Manage your SBC business account and connect with students through exclusive benefits.
+                </p>
+              </div>
 
-        <div className="space-y-4">
+              <div className="relative grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                  <p className="text-xl">🏪</p>
+                  <p className="mt-2 text-xs font-black">Business Portal</p>
+                </div>
 
-          {/* MOBILE */}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                  <p className="text-xl">🎁</p>
+                  <p className="mt-2 text-xs font-black">Student Benefits</p>
+                </div>
+              </div>
+            </div>
 
-          <input
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            placeholder="Mobile Number"
-            value={mobile}
-            onChange={(e) =>
-              setMobile(
-                e.target.value
-              )
-            }
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter"
-              ) {
-                loginBusiness();
-              }
-            }}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
-          />
+            {/* LOGIN PANEL */}
+            <div className="p-6 sm:p-9 lg:p-11">
 
-          {/* PASSWORD */}
+              <div className="mb-7 text-center lg:hidden">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#07111f] text-base font-black text-[#f1cf63] shadow-lg">
+                  SBC
+                </div>
+              </div>
 
-          <input
-            type="password"
-            autoComplete="current-password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) =>
-              setPassword(
-                e.target.value
-              )
-            }
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter"
-              ) {
-                loginBusiness();
-              }
-            }}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 text-base text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
-          />
+              <div className="text-center lg:text-left">
+                <div className="inline-flex items-center rounded-full border border-[#d4af37]/30 bg-[#fff8df] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#8a680c]">
+                  ✦ Business Login
+                </div>
 
-          {/* LOGIN */}
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
+                  Welcome Back
+                </h1>
 
-          <button
-            type="button"
-            onClick={
-              loginBusiness
-            }
-            disabled={loading}
-            className="w-full rounded-xl bg-green-600 py-3 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading
-              ? "Logging In..."
-              : "Login"}
-          </button>
+                <p className="mt-2 text-sm text-slate-500">
+                  Login to your SBC Business Account
+                </p>
 
-          {/* REGISTRATION */}
+                <p className="mt-1 text-xs font-semibold text-[#a37b0d]">
+                  Student Benefit Card Partner
+                </p>
+              </div>
 
-          <div className="text-center text-sm text-gray-600">
+              <div className="mt-8 space-y-5">
 
-            Don't have a business account?{" "}
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    Mobile Number
+                  </label>
 
-            <Link
-              href="/business/register"
-              className="font-semibold text-green-600 hover:underline"
-            >
-              Register
-            </Link>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">
+                      📱
+                    </span>
 
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="Enter mobile number"
+                      value={mobile}
+                      onChange={(e) =>
+                        setMobile(
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          loginBusiness();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] py-3.5 pl-12 pr-4 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    Password
+                  </label>
+
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">
+                      🔒
+                    </span>
+
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) =>
+                        setPassword(
+                          e.target.value
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          loginBusiness();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] py-3.5 pl-12 pr-4 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loginBusiness}
+                  disabled={loading}
+                  className="w-full rounded-2xl bg-[#07111f] py-4 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading
+                    ? "⏳ Logging In..."
+                    : "Login to Business Portal →"}
+                </button>
+
+                <div className="rounded-2xl border border-black/5 bg-[#fbfaf6] p-4 text-center text-sm text-slate-500">
+                  Don't have a business account?{" "}
+                  <Link
+                    href="/business/register"
+                    className="font-black text-[#a37b0d] hover:text-[#07111f] hover:underline"
+                  >
+                    Register
+                  </Link>
+                </div>
+              </div>
+
+              <div className="mt-7 flex items-center justify-between border-t border-black/5 pt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>Student Benefit Card</span>
+                <span className="text-[#a37b0d]">SBC • 2026</span>
+              </div>
+            </div>
           </div>
-
         </div>
-
       </div>
-
     </main>
   );
 }

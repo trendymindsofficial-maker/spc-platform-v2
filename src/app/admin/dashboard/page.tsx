@@ -433,7 +433,7 @@ export default function AdminDashboard() {
   return (
     <AdminProtected>
 
-      <main className="min-h-screen bg-gray-100 p-6 md:p-10">
+      <main className="min-h-screen bg-[#f5f3ed] p-4 md:p-8">
 
         <div className="mx-auto max-w-7xl">
 
@@ -441,15 +441,15 @@ export default function AdminDashboard() {
               HEADER
           =================================== */}
 
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="mb-8 flex flex-col gap-5 rounded-[2rem] bg-[#07111f] p-6 shadow-[0_20px_60px_rgba(7,17,31,0.16)] md:flex-row md:items-center md:justify-between md:p-7">
 
             <div>
 
-              <h1 className="text-4xl font-bold text-blue-700">
+              <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
                 👋 Welcome Super Admin
               </h1>
 
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-white/60">
                 SBC Administration Dashboard
               </p>
 
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
 
             <button
               onClick={logout}
-              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white transition hover:bg-red-700"
+              className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-6 py-3 font-black text-[#f1cf63] transition hover:bg-[#d4af37]/20"
             >
               Logout
             </button>
@@ -473,13 +473,13 @@ export default function AdminDashboard() {
 
             {/* STUDENTS */}
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
 
-              <p className="text-gray-500">
+              <p className="text-slate-500">
                 👨‍🎓 Total Students
               </p>
 
-              <h2 className="mt-4 text-5xl font-bold text-blue-700">
+              <h2 className="mt-4 text-5xl font-black text-[#b18a16]">
 
                 {loading
                   ? "..."
@@ -492,13 +492,13 @@ export default function AdminDashboard() {
 
             {/* BUSINESSES */}
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
 
-              <p className="text-gray-500">
+              <p className="text-slate-500">
                 🏪 Total Businesses
               </p>
 
-              <h2 className="mt-4 text-5xl font-bold text-green-700">
+              <h2 className="mt-4 text-5xl font-black text-[#8a680c]">
 
                 {loading
                   ? "..."
@@ -511,13 +511,13 @@ export default function AdminDashboard() {
 
             {/* OFFERS */}
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
 
-              <p className="text-gray-500">
+              <p className="text-slate-500">
                 🎁 Total Offers
               </p>
 
-              <h2 className="mt-4 text-5xl font-bold text-orange-600">
+              <h2 className="mt-4 text-5xl font-black text-[#b18a16]">
 
                 {loading
                   ? "..."
@@ -530,13 +530,13 @@ export default function AdminDashboard() {
 
             {/* REDEMPTIONS */}
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
 
-              <p className="text-gray-500">
+              <p className="text-slate-500">
                 🎉 Total Redemptions
               </p>
 
-              <h2 className="mt-4 text-5xl font-bold text-purple-700">
+              <h2 className="mt-4 text-5xl font-black text-[#8a680c]">
 
                 {loading
                   ? "..."
@@ -553,15 +553,15 @@ export default function AdminDashboard() {
               CATEGORY MANAGEMENT
           =================================== */}
 
-          <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
+          <div className="mt-10 rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] md:p-8">
 
             <div className="mb-6">
 
-              <h2 className="text-3xl font-bold text-indigo-700">
+              <h2 className="text-3xl font-bold text-[#8a680c]">
                 🏷️ Manage Categories
               </h2>
 
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-white/60">
                 Add or remove categories used
                 across Business Registration,
                 Offers and Student Offers.
@@ -572,9 +572,9 @@ export default function AdminDashboard() {
 
             {/* ADD CATEGORY */}
 
-            <div className="rounded-2xl bg-indigo-50 p-5">
+            <div className="rounded-2xl bg-[#fffaf0] p-5">
 
-              <label className="mb-2 block font-bold text-gray-700">
+              <label className="mb-2 block font-bold text-[#07111f]">
                 Add New Category
               </label>
 
@@ -592,7 +592,7 @@ export default function AdminDashboard() {
                     handleCategoryKeyDown
                   }
                   placeholder="Example: Bakery"
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                  className="flex-1 rounded-xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/15"
                   disabled={
                     addingCategory
                   }
@@ -605,7 +605,7 @@ export default function AdminDashboard() {
                   disabled={
                     addingCategory
                   }
-                  className="rounded-xl bg-indigo-600 px-7 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-[#07111f] px-7 py-3 font-bold text-white transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-60"
                 >
 
                   {addingCategory
@@ -625,11 +625,11 @@ export default function AdminDashboard() {
 
               <div className="mb-4 flex items-center justify-between">
 
-                <h3 className="text-xl font-bold text-gray-800">
+                <h3 className="text-xl font-bold text-[#07111f]">
                   Available Categories
                 </h3>
 
-                <span className="rounded-full bg-indigo-100 px-4 py-2 text-sm font-bold text-indigo-700">
+                <span className="rounded-full bg-[#fff8df] px-4 py-2 text-sm font-bold text-[#8a680c]">
                   {categories.length} Categories
                 </span>
 
@@ -638,9 +638,9 @@ export default function AdminDashboard() {
 
               {categoryLoading ? (
 
-                <div className="rounded-2xl bg-gray-50 p-6 text-center">
+                <div className="rounded-2xl bg-[#fbfaf6] p-6 text-center">
 
-                  <p className="font-semibold text-gray-500">
+                  <p className="font-semibold text-slate-500">
                     Loading categories...
                   </p>
 
@@ -648,13 +648,13 @@ export default function AdminDashboard() {
 
               ) : categories.length === 0 ? (
 
-                <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                <div className="rounded-2xl border-2 border-dashed border-black/10 bg-[#fbfaf6] p-8 text-center">
 
-                  <p className="text-lg font-bold text-gray-600">
+                  <p className="text-lg font-bold text-slate-600">
                     No categories added yet.
                   </p>
 
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className="mt-2 text-sm text-slate-500">
                     Add your first category above.
                   </p>
 
@@ -671,16 +671,16 @@ export default function AdminDashboard() {
                         key={
                           category.id
                         }
-                        className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                        className="flex items-center justify-between rounded-2xl border border-black/5 bg-[#fbfaf6] p-4"
                       >
 
                         <div className="flex min-w-0 items-center gap-3">
 
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-xl">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff8df] text-xl">
                             🏷️
                           </div>
 
-                          <span className="truncate font-bold text-gray-800">
+                          <span className="truncate font-bold text-[#07111f]">
                             {category.name}
                           </span>
 
@@ -696,7 +696,7 @@ export default function AdminDashboard() {
                             deletingCategory ===
                             category.id
                           }
-                          className="ml-3 shrink-0 rounded-lg bg-red-100 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          className="ml-3 shrink-0 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-[#07111f] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         >
 
                           {deletingCategory ===
@@ -730,18 +730,18 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/pending-approvals"
-              className="rounded-3xl border-2 border-yellow-200 bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:border-yellow-400 hover:shadow-2xl"
+              className="rounded-[2rem] border-2 border-[#d4af37]/30 bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-[#d4af37] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
               <div className="flex items-start justify-between gap-4">
 
                 <div>
 
-                  <h2 className="text-3xl font-bold text-yellow-700">
+                  <h2 className="text-3xl font-bold text-[#8a680c]">
                     ⏳ Pending Approvals
                   </h2>
 
-                  <p className="mt-3 text-gray-600">
+                  <p className="mt-3 text-slate-600">
                     Review and approve pending
                     student and business
                     registrations.
@@ -749,9 +749,9 @@ export default function AdminDashboard() {
 
                 </div>
 
-                <div className="shrink-0 rounded-2xl bg-yellow-100 px-5 py-3 text-center">
+                <div className="shrink-0 rounded-2xl bg-[#fff8df] px-5 py-3 text-center">
 
-                  <span className="block text-3xl font-extrabold text-yellow-700">
+                  <span className="block text-3xl font-extrabold text-[#8a680c]">
 
                     {loading
                       ? "..."
@@ -759,7 +759,7 @@ export default function AdminDashboard() {
 
                   </span>
 
-                  <span className="text-xs font-bold uppercase text-yellow-700">
+                  <span className="text-xs font-bold uppercase text-[#8a680c]">
                     Pending
                   </span>
 
@@ -770,13 +770,13 @@ export default function AdminDashboard() {
             </Link>
             <Link
   href="/admin/notifications"
-  className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+  className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
 >
-  <h2 className="text-3xl font-bold text-blue-700">
+  <h2 className="text-3xl font-bold text-[#b18a16]">
     🔔 Send Notifications
   </h2>
 
-  <p className="mt-3 text-gray-600">
+  <p className="mt-3 text-slate-600">
     Send web push notifications to all registered students.
   </p>
 </Link>
@@ -786,14 +786,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/businesses"
-              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-green-700">
+              <h2 className="text-3xl font-bold text-[#8a680c]">
                 🏪 Manage Businesses
               </h2>
 
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3 text-slate-600">
                 Approve, Reject and Manage Businesses
               </p>
 
@@ -804,14 +804,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/students"
-              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-blue-700">
+              <h2 className="text-3xl font-bold text-[#b18a16]">
                 👨‍🎓 Manage Students
               </h2>
 
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3 text-slate-600">
                 View all registered students
               </p>
 
@@ -822,14 +822,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/offers"
-              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-orange-600">
+              <h2 className="text-3xl font-bold text-[#b18a16]">
                 🎁 Manage Offers
               </h2>
 
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3 text-slate-600">
                 View and manage all offers
               </p>
 
@@ -840,14 +840,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/redemptions"
-              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
+              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-purple-700">
+              <h2 className="text-3xl font-bold text-[#8a680c]">
                 📊 Redemption Reports
               </h2>
 
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3 text-slate-600">
                 View all redemption history
               </p>
 
@@ -860,13 +860,13 @@ export default function AdminDashboard() {
               PORTAL INFORMATION
           =================================== */}
 
-          <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
+          <div className="mt-10 rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] md:p-8">
 
-            <h2 className="text-3xl font-bold text-blue-700">
+            <h2 className="text-3xl font-bold text-[#b18a16]">
               🚀 SBC Admin Portal
             </h2>
 
-            <p className="mt-4 text-lg text-gray-600">
+            <p className="mt-4 text-lg text-slate-600">
               Manage Students, Businesses,
               Offers, Categories and
               Redemptions from one central

@@ -175,116 +175,94 @@ export default function MyOffers() {
   if (loading) {
     return (
       <BusinessProtected>
-        <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-
-          <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
-
-            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
-
-            <h2 className="text-2xl font-bold text-green-700">
+        <main className="flex min-h-screen items-center justify-center bg-[#f5f3ed] p-6">
+          <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-white p-10 text-center shadow-[0_20px_70px_rgba(15,23,42,0.09)]">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#07111f] text-2xl text-[#f1cf63]">
+              ✦
+            </div>
+            <div className="mx-auto mb-5 h-9 w-9 animate-spin rounded-full border-4 border-slate-200 border-t-[#d4af37]" />
+            <h2 className="text-2xl font-black text-[#07111f]">
               Loading Offers...
             </h2>
-
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-sm text-slate-500">
               Please wait...
             </p>
-
           </div>
-
-        </div>
+        </main>
       </BusinessProtected>
     );
   }
 
   return (
     <BusinessProtected>
-      <main className="min-h-screen bg-slate-100 p-5 md:p-6">
+      <main className="min-h-screen bg-[#f5f3ed] py-8 text-slate-900 sm:py-10">
 
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-          {/* =====================================
-              HEADER
-          ===================================== */}
-
-          <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          {/* HEADER */}
+          <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
 
             <div>
-              <h1 className="text-3xl font-bold text-green-700 md:text-4xl">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b18a16]">
+                SBC Business Portal
+              </p>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
                 🎁 My Offers
               </h1>
 
-              <p className="mt-2 text-gray-600">
-                Manage all your business offers.
+              <p className="mt-2 text-sm text-slate-500">
+                Manage all your business offers in one place.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-
+            <div className="flex flex-wrap gap-2.5">
               <button
-                onClick={() =>
-                  router.push(
-                    "/business/dashboard"
-                  )
-                }
-                className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700"
+                onClick={() => router.push("/business/dashboard")}
+                className="rounded-full border border-[#d4af37]/40 bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63] shadow-lg transition hover:bg-[#101d2e]"
               >
                 🏠 Dashboard
               </button>
 
               <button
-                onClick={() =>
-                  router.push(
-                    "/business/add-offer"
-                  )
-                }
-                className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700"
+                onClick={() => router.push("/business/add-offer")}
+                className="rounded-full bg-[#d4af37] px-5 py-3 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63]"
               >
-                ➕ Add Offer
+                ＋ Add Offer
               </button>
 
               <button
                 onClick={logout}
-                className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700"
+                className="rounded-full border border-red-200 bg-white px-5 py-3 text-sm font-black text-red-600 transition hover:bg-red-50"
               >
-                🚪 Logout
+                Logout
               </button>
-
             </div>
 
           </div>
 
-
-          {/* =====================================
-              NO OFFERS
-          ===================================== */}
-
+          {/* NO OFFERS */}
           {offers.length === 0 ? (
 
-            <div className="rounded-3xl bg-white p-10 text-center shadow-xl md:p-14">
+            <div className="rounded-[2rem] border border-black/5 bg-white p-10 text-center shadow-[0_20px_70px_rgba(15,23,42,0.08)] md:p-14">
 
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-[#07111f] text-4xl text-[#f1cf63]">
                 🎁
               </div>
 
-              <h2 className="mt-6 text-3xl font-bold text-gray-800">
+              <h2 className="mt-6 text-3xl font-black text-[#07111f]">
                 No Offers Found
               </h2>
 
-              <p className="mx-auto mt-3 max-w-lg text-gray-500">
-                Create your first offer and
-                start giving exclusive
-                privileges to SBC students.
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
+                Create your first offer and start giving exclusive privileges to SBC students.
               </p>
 
               <button
-                onClick={() =>
-                  router.push(
-                    "/business/add-offer"
-                  )
-                }
-                className="mt-7 rounded-xl bg-green-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-green-700"
+                onClick={() => router.push("/business/add-offer")}
+                className="mt-7 rounded-xl bg-[#d4af37] px-8 py-3.5 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63]"
               >
-                ➕ Create First Offer
+                ＋ Create First Offer
               </button>
 
             </div>
@@ -292,141 +270,81 @@ export default function MyOffers() {
           ) : (
 
             <>
-              {/* =================================
-                  OFFERS GRID
-              ================================= */}
-
-              <div className="grid items-stretch gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {/* OFFERS GRID */}
+              <div className="grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
 
                 {offers.map((offer) => (
 
                   <div
                     key={offer.id}
-                    className="flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-lg transition duration-200 hover:-translate-y-1 hover:shadow-2xl"
+                    className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/40 hover:shadow-[0_20px_55px_rgba(15,23,42,0.12)]"
                   >
 
-                    {/* =============================
-                        IMAGE
-                    ============================== */}
-
-                    <div className="relative h-56 w-full shrink-0 overflow-hidden bg-gray-100">
+                    {/* IMAGE */}
+                    <div className="relative h-48 w-full shrink-0 overflow-hidden bg-[#07111f]">
 
                       {offer.image ? (
-
                         <img
                           src={offer.image}
                           alt={offer.title}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />
-
                       ) : (
-
-                        <div className="flex h-full w-full items-center justify-center bg-slate-200">
-
-                          <span className="text-5xl">
-                            🎁
-                          </span>
-
+                        <div className="flex h-full w-full items-center justify-center bg-[#07111f] text-5xl text-[#f1cf63]">
+                          🎁
                         </div>
-
                       )}
 
-                      {/* Status */}
-
-                      <div className="absolute right-4 top-4">
-
+                      {/* STATUS */}
+                      <div className="absolute right-3 top-3">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold shadow ${
-                            offer.status ===
-                            "active"
-                              ? "bg-green-600 text-white"
-                              : "bg-gray-600 text-white"
+                          className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-lg ${
+                            offer.status === "active"
+                              ? "bg-emerald-500 text-white"
+                              : "bg-slate-700 text-white"
                           }`}
                         >
-                          {offer.status ===
-                          "active"
+                          {offer.status === "active"
                             ? "ACTIVE"
                             : offer.status?.toUpperCase()}
                         </span>
-
                       </div>
 
                     </div>
 
+                    {/* CARD CONTENT */}
+                    <div className="flex flex-1 flex-col p-5">
 
-                    {/* =============================
-                        CARD CONTENT
-                    ============================== */}
-
-                    <div className="flex flex-1 flex-col p-6">
-
-                      {/* Category */}
-
-                      <div className="h-7">
-
-                        <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                          {offer.category ||
-                            "Other"}
+                      <div>
+                        <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                          {offer.category || "Other"}
                         </span>
-
                       </div>
 
+                      <h2 className="mt-4 line-clamp-2 min-h-[52px] text-xl font-black leading-tight text-[#07111f]">
+                        {offer.title}
+                      </h2>
 
-                      {/* Title */}
+                      <p className="mt-2 line-clamp-1 text-2xl font-black text-[#b18a16]">
+                        {offer.discount}
+                      </p>
 
-                      <div className="mt-4 min-h-[68px]">
-
-                        <h2 className="line-clamp-2 text-2xl font-bold leading-tight text-gray-900">
-                          {offer.title}
-                        </h2>
-
-                      </div>
-
-
-                      {/* Discount */}
-
-                      <div className="mt-2 h-12">
-
-                        <p className="text-3xl font-bold text-green-600">
-                          {offer.discount}
-                        </p>
-
-                      </div>
-
-
-                      {/* Description */}
-
-                      <div className="mt-4 h-[96px] overflow-hidden">
-
-                        <p className="line-clamp-4 text-sm leading-6 text-gray-600">
-                          {offer.description ||
-                            "No description available."}
-                        </p>
-
-                      </div>
-
-
-                      {/* Spacer */}
+                      <p className="mt-3 line-clamp-3 min-h-[60px] text-sm leading-5 text-slate-500">
+                        {offer.description || "No description available."}
+                      </p>
 
                       <div className="flex-1" />
 
+                      <div className="my-5 border-t border-black/5" />
 
-                      {/* Divider */}
-
-                      <div className="my-5 border-t border-gray-100" />
-
-
-                      {/* Buttons */}
-
-                      <div className="grid grid-cols-2 gap-3">
-
+                      <div className="grid grid-cols-2 gap-2.5">
                         <button
                           onClick={() =>
                             router.push(
                               `/business/edit-offer/${offer.id}`
                             )
                           }
-                          className="rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-700"
+                          className="rounded-xl border border-[#07111f]/10 bg-[#07111f] py-3 text-xs font-black text-white transition hover:bg-[#101d2e]"
                         >
                           ✏️ Edit
                         </button>
@@ -438,11 +356,10 @@ export default function MyOffers() {
                               offer.title
                             )
                           }
-                          className="rounded-xl bg-red-600 py-3 font-bold text-white transition hover:bg-red-700"
+                          className="rounded-xl border border-red-100 bg-red-50 py-3 text-xs font-black text-red-600 transition hover:bg-red-100"
                         >
                           🗑 Delete
                         </button>
-
                       </div>
 
                     </div>
@@ -453,49 +370,39 @@ export default function MyOffers() {
 
               </div>
 
-
-              {/* =================================
-                  TOTAL OFFERS
-              ================================= */}
-
-              <div className="mt-10 rounded-3xl bg-white p-6 shadow-xl">
+              {/* TOTAL OFFERS */}
+              <div className="mt-8 overflow-hidden rounded-[2rem] bg-[#07111f] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.15)] sm:p-7">
 
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
                   <div>
-
-                    <h2 className="text-xl font-bold text-gray-800">
-                      Total Offers
-                    </h2>
-
-                    <p className="mt-1 text-gray-500">
-                      You currently have{" "}
-                      {offers.length}{" "}
-                      {offers.length === 1
-                        ? "offer"
-                        : "offers"}.
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d4af37]">
+                      Offer Overview
                     </p>
 
+                    <h2 className="mt-1 text-2xl font-black">
+                      Total Active Offers
+                    </h2>
+
+                    <p className="mt-1 text-sm text-white/50">
+                      You currently have {offers.length}{" "}
+                      {offers.length === 1 ? "offer" : "offers"}.
+                    </p>
                   </div>
 
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100">
-
-                    <span className="text-2xl font-bold text-green-700">
+                  <div className="flex h-16 min-w-16 items-center justify-center rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-5">
+                    <span className="text-3xl font-black text-[#f1cf63]">
                       {offers.length}
                     </span>
-
                   </div>
 
                 </div>
 
               </div>
-
             </>
-
           )}
 
         </div>
-
       </main>
     </BusinessProtected>
   );

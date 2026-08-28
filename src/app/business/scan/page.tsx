@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
-import BusinessProtected from "@/components/BusinessProtected";
 
 import { auth, db } from "@/lib/firebase";
 
@@ -15,261 +13,439 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
-  runTransaction,
   serverTimestamp,
   where,
 } from "firebase/firestore";
 
-interface Student {
-  id: string;
-  uid?: string;
-  fullName: string;
-  college?: string;
-  mobile?: string;
-  email?: string;
-  cardNumber?: string;
-  course?: string;
-  year?: string;
-  status?: string;
-}
+import { Html5Qrcode } from "html5-qrcode";
 
 interface Offer {
   id: string;
-  title: string;
-  discount: string;
-  businessId: string;
+  title?: string;
+  discount?: string;
+  description?: string;
+  category?: string;
+  image?: string;
+
+  businessId?: string;
+  businessName?: string;
+  businessMobile?: string;
+  businessAddress?: string;
+
   status?: string;
+}
+
+interface BusinessInfo {
+  businessId: string;
+  businessName: string;
 }
 
 const MAX_REDEMPTIONS = 4;
 
-export default function RedeemStudentOffer() {
+export default function StudentOffers() {
   const router = useRouter();
-
-  const scannerRef = useRef<any>(null);
-  const mountedRef = useRef(true);
-  const startingScannerRef = useRef(false);
-
-  const [student, setStudent] =
-    useState<Student | null>(null);
 
   const [offers, setOffers] =
     useState<Offer[]>([]);
 
-  const [offer, setOffer] =
+  const [categories, setCategories] =
+    useState<string[]>([]);
+
+  const [usageCounts, setUsageCounts] =
+    useState<Record<string, number>>({});
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("All");
+
+  /*
+   * ==========================================
+   * REDEMPTION STATES
+   * ==========================================
+   */
+
+  const [selectedOffer, setSelectedOffer] =
     useState<Offer | null>(null);
 
-  const [usedCount, setUsedCount] =
+  const [pendingOffer, setPendingOffer] =
+    useState<Offer | null>(null);
+
+  const [approvedOffer, setApprovedOffer] =
+    useState<Offer | null>(null);
+
+  const [approvedPoints, setApprovedPoints] =
     useState(0);
 
-  const [businessReady, setBusinessReady] =
+  const [approvedTotalPoints, setApprovedTotalPoints] =
+    useState(0);
+
+  const [rejectedOffer, setRejectedOffer] =
+    useState<Offer | null>(null);
+
+  const [pendingRequestId, setPendingRequestId] =
+    useState<string | null>(null);
+
+  const [redeemLoading, setRedeemLoading] =
     useState(false);
 
-  const [scannerLoading, setScannerLoading] =
+  /*
+   * ==========================================
+   * BUSINESS VERIFICATION
+   * ==========================================
+   */
+
+  const [showVerificationModal, setShowVerificationModal] =
     useState(false);
+
+  const [scannerOpen, setScannerOpen] =
+    useState(false);
+
+  const [businessIdInput, setBusinessIdInput] =
+    useState("");
+
+  const [verifiedBusiness, setVerifiedBusiness] =
+    useState<BusinessInfo | null>(null);
+
+  const [verificationLoading, setVerificationLoading] =
+    useState(false);
+
+  const [verificationError, setVerificationError] =
+    useState("");
 
   const [scannerError, setScannerError] =
     useState("");
 
-  const [cameraStarted, setCameraStarted] =
-    useState(false);
-
-  const [processing, setProcessing] =
-    useState(false);
-
-  const [cardNumber, setCardNumber] =
-    useState("");
-
-  const [searchingCard, setSearchingCard] =
-    useState(false);
-
   /*
    * ==========================================
-   * LOAD ACTIVE OFFERS
+   * AUTH + LOAD DATA
    * ==========================================
    */
 
-  const loadOffers = async (businessId: string) => {
-    try {
-      const offerQuery = query(
-        collection(db, "offers"),
-        where("businessId", "==", businessId),
-        where("status", "==", "active")
+  useEffect(() => {
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        async (user) => {
+          if (!user) {
+            router.replace(
+              "/student/login"
+            );
+
+            return;
+          }
+
+          try {
+            await Promise.all([
+              loadOffers(),
+              loadCategories(),
+            ]);
+
+            await loadBusinessUsage(
+              user.uid
+            );
+          } catch (error) {
+            console.error(
+              "Student offers loading error:",
+              error
+            );
+          } finally {
+            setLoading(false);
+          }
+        }
       );
 
-      const offerSnap =
-        await getDocs(offerQuery);
+    return () =>
+      unsubscribe();
+  }, [router]);
 
-      const activeOffers: Offer[] =
-        offerSnap.docs.map((offerDoc) => {
-          const data = offerDoc.data();
+  /*
+   * ==========================================
+   * REAL-TIME REDEMPTION STATUS
+   * ==========================================
+   *
+   * When student creates a request:
+   *
+   * pendingRequestId = document ID
+   *
+   * Student listens to:
+   *
+   * redemptionRequests/{pendingRequestId}
+   *
+   * Business Approve:
+   *
+   * pending -> approved
+   *
+   * Student immediately sees Approved.
+   * ==========================================
+   */
 
-          return {
-            id: offerDoc.id,
-            title: data.title || "",
-            discount: data.discount || "",
-            businessId:
-              data.businessId || businessId,
-            status: data.status || "active",
-          };
-        });
-
-      setOffers(activeOffers);
-
-      if (activeOffers.length > 0) {
-        setOffer(activeOffers[0]);
-      } else {
-        setOffer(null);
-      }
-    } catch (error) {
-      console.error(
-        "Offer loading error:",
-        error
-      );
-
-      setOffers([]);
-      setOffer(null);
+  useEffect(() => {
+    if (
+      !pendingRequestId
+    ) {
+      return;
     }
-  };
 
-  /*
-   * ==========================================
-   * GET BUSINESS-WISE REDEMPTION COUNT
-   * ==========================================
-   *
-   * IMPORTANT:
-   *
-   * studentId + businessId
-   *
-   * offerId is NOT used for counting.
-   *
-   * Maximum = 4 per business.
-   */
-
-  const getBusinessUsage = async (
-    studentId: string,
-    businessId: string
-  ) => {
-    const redemptionQuery = query(
-      collection(db, "redemptions"),
-      where("studentId", "==", studentId),
-      where("businessId", "==", businessId)
-    );
-
-    const redemptionSnap =
-      await getDocs(redemptionQuery);
-
-    return redemptionSnap.size;
-  };
-
-  /*
-   * ==========================================
-   * VERIFY STUDENT
-   * ==========================================
-   */
-
-  const verifyStudent = async (
-    studentId: string
-  ) => {
-    try {
-      const studentRef = doc(
+    const requestRef =
+      doc(
         db,
-        "students",
-        studentId
+        "redemptionRequests",
+        pendingRequestId
       );
 
-      const studentSnap =
-        await getDoc(studentRef);
+    const unsubscribe =
+      onSnapshot(
+        requestRef,
+        (snapshot) => {
+          if (
+            !snapshot.exists()
+          ) {
+            return;
+          }
 
-      if (!studentSnap.exists()) {
-        alert("❌ Student Not Found");
-        return;
-      }
+          const data =
+            snapshot.data();
 
-      const data =
-        studentSnap.data();
+          const status =
+            String(
+              data.status ||
+              "pending"
+            );
 
-      const studentInfo: Student = {
-        id: studentSnap.id,
+          /*
+           * ======================================
+           * APPROVED
+           * ======================================
+           */
 
-        uid:
-          data.uid ||
-          studentSnap.id,
+          if (
+            status ===
+            "approved"
+          ) {
 
-        fullName:
-          data.fullName || "",
+            const approvedBusinessName =
+              data.businessName ||
+              pendingOffer?.businessName ||
+              "SBC Partner Business";
 
-        college:
-          data.college || "",
+            const approvedOfferData: Offer =
+              pendingOffer || {
+                id:
+                  data.offerId ||
+                  "",
+                title:
+                  data.offerTitle ||
+                  "SBC Offer",
+                discount:
+                  data.offerDiscount ||
+                  "",
+                businessId:
+                  data.businessId ||
+                  "",
+                businessName:
+                  approvedBusinessName,
+              };
 
-        mobile:
-          data.mobile || "",
+            setApprovedOffer(
+              approvedOfferData
+            );
 
-        email:
-          data.email || "",
+            setApprovedPoints(
+              Number(data.pointsAwarded || 0)
+            );
 
-        cardNumber:
-          data.cardNumber || "",
+            setApprovedTotalPoints(
+              Number(data.totalPoints || 0)
+            );
 
-        course:
-          data.course || "",
+            setPendingOffer(
+              null
+            );
 
-        year:
-          data.year || "",
+            setPendingRequestId(
+              null
+            );
 
-        status:
-          data.status || "",
-      };
+            /*
+             * Reload usage.
+             *
+             * NOTE:
+             * Actual usage document creation
+             * will be handled in the next step.
+             */
 
-      const user =
-        auth.currentUser;
+            if (
+              auth.currentUser
+            ) {
+              loadBusinessUsage(
+                auth.currentUser.uid
+              );
+            }
 
-      if (!user) {
-        alert(
-          "❌ Business login required"
+            return;
+          }
+
+          /*
+           * ======================================
+           * REJECTED
+           * ======================================
+           */
+
+          if (
+            status ===
+            "rejected"
+          ) {
+
+            const rejectedOfferData: Offer =
+              pendingOffer || {
+                id:
+                  data.offerId ||
+                  "",
+                title:
+                  data.offerTitle ||
+                  "SBC Offer",
+                discount:
+                  data.offerDiscount ||
+                  "",
+                businessId:
+                  data.businessId ||
+                  "",
+                businessName:
+                  data.businessName ||
+                  "SBC Partner Business",
+              };
+
+            setRejectedOffer(
+              rejectedOfferData
+            );
+
+            setPendingOffer(
+              null
+            );
+
+            setPendingRequestId(
+              null
+            );
+
+            return;
+          }
+        },
+        (error) => {
+          console.error(
+            "Redemption realtime listener error:",
+            error
+          );
+        }
+      );
+
+    return () =>
+      unsubscribe();
+  }, [
+    pendingRequestId,
+    pendingOffer,
+  ]);
+
+  /*
+   * ==========================================
+   * LOAD OFFERS
+   * ==========================================
+   */
+
+  const loadOffers = async () => {
+    try {
+      const offerQuery =
+        query(
+          collection(
+            db,
+            "offers"
+          ),
+          where(
+            "status",
+            "==",
+            "active"
+          )
         );
-        return;
-      }
-
-      /*
-       * ========================================
-       * CHECK BUSINESS OFFERS
-       * ========================================
-       */
-
-      const offerQuery = query(
-        collection(db, "offers"),
-        where(
-          "businessId",
-          "==",
-          user.uid
-        ),
-        where(
-          "status",
-          "==",
-          "active"
-        )
-      );
 
       const offerSnap =
-        await getDocs(offerQuery);
-
-      if (offerSnap.empty) {
-        alert(
-          "❌ No Active Offer Found"
+        await getDocs(
+          offerQuery
         );
-        return;
-      }
 
-      const activeOffers: Offer[] =
+      const businessSnap =
+        await getDocs(
+          collection(
+            db,
+            "businesses"
+          )
+        );
+
+      const businessMap =
+        new Map<
+          string,
+          {
+            name: string;
+            mobile: string;
+            address: string;
+          }
+        >();
+
+      businessSnap.docs.forEach(
+        (businessDoc) => {
+          const data =
+            businessDoc.data();
+
+          businessMap.set(
+            businessDoc.id,
+            {
+              name:
+                data.businessName ||
+                "",
+
+              mobile:
+                data.mobile ||
+                data.phone ||
+                data.businessMobile ||
+                data.ownerMobile ||
+                "",
+
+              address:
+                data.address ||
+                data.businessAddress ||
+                data.location ||
+                data.fullAddress ||
+                "",
+            }
+          );
+        }
+      );
+
+      const data: Offer[] =
         offerSnap.docs.map(
-          (offerDoc) => {
+          (item) => {
             const offerData =
-              offerDoc.data();
+              item.data();
+
+            const businessId =
+              String(
+                offerData.businessId ||
+                ""
+              );
+
+            const business =
+              businessMap.get(
+                businessId
+              );
 
             return {
-              id: offerDoc.id,
+              id:
+                item.id,
 
               title:
                 offerData.title ||
@@ -279,9 +455,36 @@ export default function RedeemStudentOffer() {
                 offerData.discount ||
                 "",
 
-              businessId:
-                offerData.businessId ||
-                user.uid,
+              description:
+                offerData.description ||
+                "",
+
+              category:
+                offerData.category ||
+                "Other",
+
+              image:
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+
+              businessId,
+
+              businessName:
+                offerData.businessName ||
+                business?.name ||
+                "SBC Partner Business",
+
+              businessMobile:
+                offerData.businessMobile ||
+                business?.mobile ||
+                "",
+
+              businessAddress:
+                offerData.businessAddress ||
+                offerData.address ||
+                business?.address ||
+                "",
 
               status:
                 offerData.status ||
@@ -291,119 +494,76 @@ export default function RedeemStudentOffer() {
         );
 
       setOffers(
-        activeOffers
+        data
       );
-
-      /*
-       * If no selected offer,
-       * automatically select first one.
-       */
-
-      setOffer((current) => {
-        if (
-          current &&
-          activeOffers.some(
-            (item) =>
-              item.id ===
-              current.id
-          )
-        ) {
-          return current;
-        }
-
-        return activeOffers[0];
-      });
-
-      /*
-       * ========================================
-       * BUSINESS-WISE USAGE CHECK
-       * ========================================
-       */
-
-      const businessUsage =
-        await getBusinessUsage(
-          studentSnap.id,
-          user.uid
-        );
-
-      setUsedCount(
-        businessUsage
-      );
-
-      console.log(
-        "BUSINESS USAGE CHECK:",
-        {
-          studentId:
-            studentSnap.id,
-
-          businessId:
-            user.uid,
-
-          usedCount:
-            businessUsage,
-
-          maximum:
-            MAX_REDEMPTIONS,
-
-          activeOffers:
-            activeOffers.length,
-        }
-      );
-
-      setStudent(
-        studentInfo
-      );
-
-      await stopScanner();
 
     } catch (error) {
       console.error(
-        "Student verification error:",
+        "Offer loading error:",
         error
       );
 
-      alert(
-        "❌ Student verification failed"
-      );
+      setOffers([]);
     }
   };
 
   /*
    * ==========================================
-   * SEARCH BY SBC CARD NUMBER
+   * FIND STUDENT IDS
    * ==========================================
    */
 
-  const searchByCardNumber =
-    async () => {
-      const number =
-        cardNumber
-          .trim()
-          .toUpperCase();
+  const findStudentIds =
+    async (
+      studentUid: string
+    ) => {
 
-      if (!number) {
-        alert(
-          "Please enter SBC Card Number"
+      const studentIds =
+        new Set<string>();
+
+      studentIds.add(
+        studentUid
+      );
+
+      try {
+        const studentRef =
+          doc(
+            db,
+            "students",
+            studentUid
+          );
+
+        const studentSnap =
+          await getDoc(
+            studentRef
+          );
+
+        if (
+          studentSnap.exists()
+        ) {
+          studentIds.add(
+            studentSnap.id
+          );
+        }
+
+      } catch (error) {
+        console.error(
+          "Student document lookup error:",
+          error
         );
-        return;
       }
 
       try {
-        setSearchingCard(
-          true
-        );
-
-        setStudent(null);
-
-        setUsedCount(0);
-
         const studentQuery =
           query(
-            collection(db, "students"),
+            collection(
+              db,
+              "students"
+            ),
             where(
-              "cardNumber",
+              "uid",
               "==",
-              number
+              studentUid
             )
           );
 
@@ -412,796 +572,1134 @@ export default function RedeemStudentOffer() {
             studentQuery
           );
 
-        if (
-          studentSnap.empty
-        ) {
-          alert(
-            "❌ SBC Card Number Not Found"
-          );
-          return;
-        }
-
-        const studentDoc =
-          studentSnap.docs[0];
-
-        await verifyStudent(
-          studentDoc.id
-        );
-
-      } catch (error) {
-        console.error(
-          "Card search error:",
-          error
-        );
-
-        alert(
-          "❌ Unable to search card number"
-        );
-      } finally {
-        setSearchingCard(
-          false
-        );
-      }
-    };
-
-  /*
-   * ==========================================
-   * PROCESS QR
-   * ==========================================
-   */
-
-  const processQRCode =
-    async (
-      decodedText: string
-    ) => {
-      if (processing) {
-        return;
-      }
-
-      try {
-        setProcessing(
-          true
-        );
-
-        let qrData: any;
-
-        try {
-          qrData =
-            JSON.parse(
-              decodedText
+        studentSnap.docs.forEach(
+          (studentDoc) => {
+            studentIds.add(
+              studentDoc.id
             );
-        } catch {
-          alert(
-            "❌ Invalid SBC QR Code"
-          );
-          return;
-        }
-
-        if (
-          !qrData ||
-          qrData.type !==
-            "student" ||
-          !qrData.studentId
-        ) {
-          alert(
-            "❌ Invalid SBC Student QR"
-          );
-          return;
-        }
-
-        await verifyStudent(
-          qrData.studentId
+          }
         );
 
       } catch (error) {
         console.error(
-          "QR processing error:",
+          "Student UID query error:",
           error
         );
-
-        alert(
-          "❌ Unable to process QR Code"
-        );
-      } finally {
-        setProcessing(
-          false
-        );
       }
+
+      return Array.from(
+        studentIds
+      );
     };
 
   /*
    * ==========================================
-   * STOP SCANNER
+   * LOAD BUSINESS USAGE
    * ==========================================
    */
 
-  const stopScanner =
-    async () => {
-      const scanner =
-        scannerRef.current;
-
-      if (!scanner) {
-        setCameraStarted(
-          false
-        );
-        return;
-      }
+  const loadBusinessUsage =
+    async (
+      studentUid: string
+    ) => {
 
       try {
-        await scanner.stop();
-      } catch {}
 
-      try {
-        await scanner.clear();
-      } catch {}
-
-      scannerRef.current =
-        null;
-
-      if (
-        mountedRef.current
-      ) {
-        setCameraStarted(
-          false
-        );
-
-        setScannerLoading(
-          false
-        );
-      }
-    };
-
-  /*
-   * ==========================================
-   * START CAMERA
-   * ==========================================
-   */
-
-  const startScanner =
-    async () => {
-      if (
-        startingScannerRef.current
-      ) {
-        return;
-      }
-
-      startingScannerRef.current =
-        true;
-
-      try {
-        setScannerError(
-          ""
-        );
-
-        setScannerLoading(
-          true
-        );
-
-        await stopScanner();
-
-        const module =
-          await import(
-            "html5-qrcode"
+        const studentIds =
+          await findStudentIds(
+            studentUid
           );
 
-        if (
-          !mountedRef.current
-        ) {
-          return;
-        }
-
-        const Html5Qrcode =
-          module.Html5Qrcode;
-
-        const reader =
-          document.getElementById(
-            "reader"
+        const offerQuery =
+          query(
+            collection(
+              db,
+              "offers"
+            ),
+            where(
+              "status",
+              "==",
+              "active"
+            )
           );
 
-        if (!reader) {
-          throw new Error(
-            "Scanner area not ready"
-          );
-        }
-
-        reader.innerHTML =
-          "";
-
-        if (
-          !navigator.mediaDevices ||
-          !navigator
-            .mediaDevices
-            .getUserMedia
-        ) {
-          throw new Error(
-            "Camera is not supported by this browser."
-          );
-        }
-
-        let cameras: any[] =
-          [];
-
-        try {
-          cameras =
-            await Html5Qrcode.getCameras();
-
-        } catch (
-          cameraError
-        ) {
-          console.error(
-            "Camera detection error:",
-            cameraError
+        const offerSnap =
+          await getDocs(
+            offerQuery
           );
 
-          try {
-            const stream =
-              await navigator
-                .mediaDevices
-                .getUserMedia({
-                  video: true,
-                });
+        const businessIds =
+          new Set<string>();
 
-            stream
-              .getTracks()
-              .forEach(
-                (track) =>
-                  track.stop()
+        offerSnap.docs.forEach(
+          (offerDoc) => {
+
+            const data =
+              offerDoc.data();
+
+            const businessId =
+              String(
+                data.businessId ||
+                ""
               );
 
-            cameras =
-              await Html5Qrcode.getCameras();
+            if (
+              businessId
+            ) {
+              businessIds.add(
+                businessId
+              );
+            }
 
-          } catch (
-            permissionError
-          ) {
-            console.error(
-              "Camera permission error:",
-              permissionError
-            );
-
-            throw new Error(
-              "Camera permission denied or no camera is available on this device."
-            );
           }
-        }
-
-        if (
-          !cameras.length
-        ) {
-          throw new Error(
-            "No camera found on this device. Please use SBC Card Number search or open this page on a phone/tablet with a camera."
-          );
-        }
-
-        const rearCamera =
-          cameras.find(
-            (camera: any) =>
-              /back|rear|environment/i.test(
-                camera.label ||
-                  ""
-              )
-          );
-
-        const cameraId =
-          rearCamera?.id ||
-          cameras[0].id;
-
-        const scanner =
-          new Html5Qrcode(
-            "reader"
-          );
-
-        scannerRef.current =
-          scanner;
-
-        await scanner.start(
-          cameraId,
-          {
-            fps: 10,
-
-            qrbox: {
-              width: 250,
-              height: 250,
-            },
-
-            aspectRatio: 1,
-          },
-
-          async (
-            decodedText: string
-          ) => {
-            await processQRCode(
-              decodedText
-            );
-          },
-
-          () => {}
         );
 
-        if (
-          mountedRef.current
+        const counts: Record<
+          string,
+          number
+        > = {};
+
+        for (
+          const businessId of businessIds
         ) {
-          setScannerLoading(
-            false
-          );
 
-          setCameraStarted(
-            true
-          );
+          let highestCount =
+            0;
 
-          setScannerError(
-            ""
-          );
+          for (
+            const studentId of studentIds
+          ) {
+
+            try {
+
+              const usageRef =
+                doc(
+                  db,
+                  "businessStudentUsage",
+                  `${businessId}_${studentId}`
+                );
+
+              const usageSnap =
+                await getDoc(
+                  usageRef
+                );
+
+              if (
+                usageSnap.exists()
+              ) {
+
+                const data =
+                  usageSnap.data();
+
+                const count =
+                  Number(
+                    data.count ||
+                    0
+                  );
+
+                if (
+                  count >
+                  highestCount
+                ) {
+                  highestCount =
+                    count;
+                }
+
+              }
+
+            } catch (error) {
+
+              console.error(
+                "Business usage document error:",
+                {
+                  businessId,
+                  studentId,
+                  error,
+                }
+              );
+
+            }
+
+          }
+
+          if (
+            highestCount >
+            0
+          ) {
+
+            counts[
+              businessId
+            ] =
+              Math.min(
+                highestCount,
+                MAX_REDEMPTIONS
+              );
+
+          }
+
         }
 
-      } catch (error: any) {
+        /*
+         * Legacy redemption fallback
+         */
+
+        const legacyCounts: Record<
+          string,
+          number
+        > = {};
+
+        const redemptionDocs =
+          new Map<
+            string,
+            any
+          >();
+
+        for (
+          const studentId of studentIds
+        ) {
+
+          try {
+
+            const redemptionQuery =
+              query(
+                collection(
+                  db,
+                  "redemptions"
+                ),
+                where(
+                  "studentId",
+                  "==",
+                  studentId
+                )
+              );
+
+            const redemptionSnap =
+              await getDocs(
+                redemptionQuery
+              );
+
+            redemptionSnap.docs.forEach(
+              (redemptionDoc) => {
+
+                redemptionDocs.set(
+                  redemptionDoc.id,
+                  redemptionDoc.data()
+                );
+
+              }
+            );
+
+          } catch (error) {
+
+            console.error(
+              "Legacy redemption query error:",
+              error
+            );
+
+          }
+
+        }
+
+        redemptionDocs.forEach(
+          (data) => {
+
+            const businessId =
+              String(
+                data.businessId ||
+                ""
+              );
+
+            if (
+              !businessId
+            ) {
+              return;
+            }
+
+            legacyCounts[
+              businessId
+            ] =
+              (
+                legacyCounts[
+                  businessId
+                ] ||
+                0
+              ) + 1;
+
+          }
+        );
+
+        Object.keys(
+          legacyCounts
+        ).forEach(
+          (businessId) => {
+
+            if (
+              counts[
+                businessId
+              ] === undefined
+            ) {
+
+              counts[
+                businessId
+              ] =
+                Math.min(
+                  legacyCounts[
+                    businessId
+                  ],
+                  MAX_REDEMPTIONS
+                );
+
+            }
+
+          }
+        );
+
+        setUsageCounts(
+          counts
+        );
+
+      } catch (error) {
+
         console.error(
-          "QR scanner initialization failed:",
+          "Business usage loading error:",
           error
         );
 
-        if (
-          mountedRef.current
-        ) {
-          setScannerLoading(
-            false
-          );
+        setUsageCounts(
+          {}
+        );
 
-          setCameraStarted(
-            false
-          );
-
-          setScannerError(
-            error?.message ||
-              error?.name ||
-              "Unable to start camera."
-          );
-        }
-
-      } finally {
-        startingScannerRef.current =
-          false;
       }
+
     };
 
   /*
    * ==========================================
-   * RESET STUDENT
+   * LOAD CATEGORIES
    * ==========================================
    */
 
-  const resetStudent =
+  const loadCategories =
     async () => {
-      setStudent(null);
 
-      setUsedCount(0);
+      try {
 
-      setCardNumber("");
-
-      setScannerError("");
-
-      await stopScanner();
-
-      setTimeout(() => {
-        if (
-          mountedRef.current
-        ) {
-          startScanner();
-        }
-      }, 300);
-    };
-
-  /*
-   * ==========================================
-   * AUTH
-   * ==========================================
-   */
-
-  useEffect(() => {
-    mountedRef.current =
-      true;
-
-    const unsubscribe =
-      onAuthStateChanged(
-        auth,
-        async (user) => {
-          if (!user) {
-            router.replace(
-              "/business/login"
-            );
-
-            return;
-          }
-
-          await loadOffers(
-            user.uid
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
           );
 
-          if (
-            mountedRef.current
-          ) {
-            setBusinessReady(
-              true
-            );
-          }
-        }
-      );
+        const data =
+          snap.docs
+            .map(
+              (item) =>
+                item.data()
+            )
+            .filter(
+              (item: any) =>
+                item.status !==
+                "inactive"
+            )
+            .map(
+              (item: any) =>
+                item.name
+            )
+            .filter(Boolean);
 
-    return () => {
-      mountedRef.current =
-        false;
+        setCategories(
+          Array.from(
+            new Set(data)
+          ) as string[]
+        );
 
-      unsubscribe();
+      } catch (error) {
 
-      stopScanner();
+        console.error(
+          "Category loading error:",
+          error
+        );
+
+      }
+
     };
-  }, [router]);
 
   /*
    * ==========================================
-   * START SCANNER AFTER PAGE READY
+   * FILTER OFFERS
    * ==========================================
    */
 
-  useEffect(() => {
-    if (
-      !businessReady
-    ) {
-      return;
-    }
+  const filteredOffers =
+    useMemo(() => {
 
-    const timer =
-      window.setTimeout(
-        () => {
-          startScanner();
-        },
-        500
-      );
+      let list =
+        [...offers];
 
-    return () => {
-      window.clearTimeout(
-        timer
-      );
-    };
-  }, [businessReady]);
-
-  /*
-   * ==========================================
-   * REDEEM OFFER
-   * ==========================================
-   *
-   * IMPORTANT:
-   *
-   * 4 LIMIT IS BUSINESS-WISE.
-   *
-   * studentId + businessId
-   *
-   * NOT:
-   * studentId + businessId + offerId
-   *
-   * Therefore:
-   *
-   * Offer A = 2
-   * Offer B = 1
-   * Offer C = 1
-   * Total = 4/4
-   *
-   * New offer cannot reset the limit.
-   */
-
-  const redeemOffer =
-    async () => {
       if (
-        !student ||
-        !offer
+        category !==
+        "All"
       ) {
+
+        list =
+          list.filter(
+            (offer) =>
+              offer.category ===
+              category
+          );
+
+      }
+
+      const searchText =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (
+        searchText
+      ) {
+
+        list =
+          list.filter(
+            (offer) =>
+              offer.title
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.businessName
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.category
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                )
+          );
+
+      }
+
+      return list;
+
+    }, [
+      offers,
+      search,
+      category,
+    ]);
+
+  /*
+   * ==========================================
+   * CALL BUSINESS
+   * ==========================================
+   */
+
+  const callBusiness =
+    (
+      offer: Offer
+    ) => {
+
+      const phone =
+        offer.businessMobile ||
+        "";
+
+      if (!phone) {
+
         alert(
-          "❌ Student or Offer not found"
+          "📞 Business phone number is not available."
         );
 
         return;
       }
 
-      const user =
-        auth.currentUser;
+      window.location.href =
+        `tel:${phone}`;
 
-      if (!user) {
+    };
+
+  /*
+   * ==========================================
+   * GET USAGE
+   * ==========================================
+   */
+
+  const getUsageCount =
+    (
+      businessId?: string
+    ) => {
+
+      if (
+        !businessId
+      ) {
+        return 0;
+      }
+
+      return Math.min(
+        usageCounts[
+          businessId
+        ] || 0,
+        MAX_REDEMPTIONS
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * OPEN REDEEM
+   * ==========================================
+   */
+
+  const openRedeemVerification =
+    (
+      offer: Offer
+    ) => {
+
+      if (
+        !offer.businessId
+      ) {
+
         alert(
-          "❌ Business login required"
+          "❌ Business information is missing for this offer."
         );
 
         return;
       }
+
+      const usedCount =
+        getUsageCount(
+          offer.businessId
+        );
 
       if (
         usedCount >=
         MAX_REDEMPTIONS
       ) {
+
         alert(
-          `❌ Limit Reached\n\nThis student has already used the SBC benefit ${MAX_REDEMPTIONS}/${MAX_REDEMPTIONS} times at this business.`
+          "🚫 You have reached the maximum 4 redemptions for this business."
+        );
+
+        return;
+      }
+
+      setSelectedOffer(
+        offer
+      );
+
+      setVerifiedBusiness(
+        null
+      );
+
+      setBusinessIdInput(
+        ""
+      );
+
+      setVerificationError(
+        ""
+      );
+
+      setScannerError(
+        ""
+      );
+
+      setShowVerificationModal(
+        true
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * EXTRACT BUSINESS ID FROM QR
+   * ==========================================
+   */
+
+  const extractBusinessIdFromQr =
+    (
+      decodedText: string
+    ) => {
+
+      const value =
+        decodedText.trim();
+
+      try {
+
+        const parsed =
+          JSON.parse(
+            value
+          );
+
+        if (
+          parsed?.type ===
+            "SBC_BUSINESS" &&
+          parsed?.businessId
+        ) {
+
+          return String(
+            parsed.businessId
+          ).trim();
+
+        }
+
+      } catch {
+        /*
+         * Plain text QR fallback.
+         */
+      }
+
+      if (
+        value
+          .toUpperCase()
+          .startsWith(
+            "SBC-BIZ-"
+          )
+      ) {
+        return value;
+      }
+
+      return "";
+
+    };
+
+  /*
+   * ==========================================
+   * VERIFY BUSINESS ID
+   * ==========================================
+   */
+
+  const verifyBusinessId =
+    async (
+      enteredBusinessId: string
+    ) => {
+
+      if (
+        !selectedOffer
+      ) {
+        return;
+      }
+
+      const cleanBusinessId =
+        enteredBusinessId
+          .trim();
+
+      if (
+        !cleanBusinessId
+      ) {
+
+        setVerificationError(
+          "Please enter a Business ID."
+        );
+
+        return;
+      }
+
+      if (
+        !selectedOffer.businessId
+      ) {
+
+        setVerificationError(
+          "Offer business information is missing."
         );
 
         return;
       }
 
       try {
-        setProcessing(
+
+        setVerificationLoading(
           true
         );
 
-        /*
-         * ========================================
-         * BUSINESS + STUDENT USAGE DOCUMENT
-         * ========================================
-         *
-         * One fixed document per:
-         *
-         * business + student
-         *
-         * This makes the 4-use counter atomic.
-         */
+        setVerificationError(
+          ""
+        );
 
-        const usageDocId =
-          `${user.uid}_${student.id}`;
-
-        const usageRef =
-          doc(
-            db,
-            "businessStudentUsage",
-            usageDocId
-          );
-
-        /*
-         * We need the existing redemption
-         * count only when this is the first
-         * time the new counter document is
-         * created.
-         */
-
-        const existingRedemptionQuery =
+        const businessQuery =
           query(
             collection(
               db,
-              "redemptions"
-            ),
-            where(
-              "studentId",
-              "==",
-              student.id
+              "businesses"
             ),
             where(
               "businessId",
               "==",
-              user.uid
+              cleanBusinessId
             )
           );
 
-        const existingRedemptionSnap =
+        const businessSnap =
           await getDocs(
-            existingRedemptionQuery
+            businessQuery
           );
-
-        const existingCount =
-          existingRedemptionSnap.size;
-
-        /*
-         * ========================================
-         * ATOMIC TRANSACTION
-         * ========================================
-         */
-
-        let newCount =
-          existingCount + 1;
-
-        await runTransaction(
-          db,
-          async (
-            transaction
-          ) => {
-            const usageSnap =
-              await transaction.get(
-                usageRef
-              );
-
-            let currentCount =
-              existingCount;
-
-            if (
-              usageSnap.exists()
-            ) {
-              const usageData =
-                usageSnap.data();
-
-              currentCount =
-                Number(
-                  usageData.count ||
-                    0
-                );
-            }
-
-            /*
-             * HARD LIMIT
-             */
-
-            if (
-              currentCount >=
-              MAX_REDEMPTIONS
-            ) {
-              throw new Error(
-                "LIMIT_REACHED"
-              );
-            }
-
-            newCount =
-              currentCount + 1;
-
-            /*
-             * UPDATE BUSINESS-STUDENT COUNTER
-             */
-
-            transaction.set(
-              usageRef,
-              {
-                studentId:
-                  student.id,
-
-                businessId:
-                  user.uid,
-
-                count:
-                  newCount,
-
-                maxAllowed:
-                  MAX_REDEMPTIONS,
-
-                updatedAt:
-                  serverTimestamp(),
-              },
-              {
-                merge: true,
-              }
-            );
-
-            /*
-             * CREATE REDEMPTION
-             */
-
-            const redemptionRef =
-              doc(
-                collection(
-                  db,
-                  "redemptions"
-                )
-              );
-
-            transaction.set(
-              redemptionRef,
-              {
-                studentId:
-                  student.id,
-
-                studentName:
-                  student.fullName,
-
-                studentMobile:
-                  student.mobile ||
-                  "",
-
-                studentCardNumber:
-                  student.cardNumber ||
-                  "",
-
-                businessId:
-                  user.uid,
-
-                offerId:
-                  offer.id,
-
-                offerTitle:
-                  offer.title,
-
-                discount:
-                  offer.discount,
-
-                redeemedAt:
-                  serverTimestamp(),
-
-                status:
-                  "redeemed",
-              }
-            );
-          }
-        );
-
-        /*
-         * Update UI
-         */
-
-        setUsedCount(
-          newCount
-        );
-
-        /*
-         * SUCCESS MESSAGES
-         */
 
         if (
-          newCount === 1
+          businessSnap.empty
         ) {
-          alert(
-            "🌟 First Time Use\n\nOffer redeemed successfully!\n\nUsed: 1/4"
+
+          setVerifiedBusiness(
+            null
           );
 
-        } else if (
-          newCount ===
-          MAX_REDEMPTIONS
-        ) {
-          alert(
-            "🏆 Final Use (4/4)\n\nOffer redeemed successfully!\n\nThis student has reached the maximum 4 uses at this business."
+          setVerificationError(
+            "❌ Invalid Business ID. Please check the ID and try again."
           );
 
-        } else {
-          alert(
-            `✅ Offer Redeemed Successfully!\n\nUsed: ${newCount}/4\n\nRemaining: ${
-              MAX_REDEMPTIONS -
-              newCount
-            }`
-          );
+          return;
         }
 
-        /*
-         * RESET FOR NEXT STUDENT
-         */
+        const businessDoc =
+          businessSnap.docs[0];
 
-        setStudent(null);
+        const businessData =
+          businessDoc.data();
 
-        setUsedCount(0);
+        const actualBusinessId =
+          businessDoc.id;
 
-        setCardNumber("");
+        if (
+          actualBusinessId !==
+          selectedOffer.businessId
+        ) {
 
-        await stopScanner();
+          setVerifiedBusiness(
+            null
+          );
 
-        setTimeout(() => {
-          if (
-            mountedRef.current
-          ) {
-            startScanner();
-          }
-        }, 500);
+          setVerificationError(
+            `❌ This Business QR/ID belongs to "${businessData.businessName || "another business"}", not "${selectedOffer.businessName || "this offer's business"}".`
+          );
 
-      } catch (error: any) {
+          return;
+        }
+
+        setVerifiedBusiness({
+          businessId:
+            actualBusinessId,
+
+          businessName:
+            businessData.businessName ||
+            selectedOffer.businessName ||
+            "SBC Partner Business",
+        });
+
+      } catch (error) {
+
         console.error(
-          "Redemption error:",
+          "Business verification error:",
           error
         );
 
-        if (
-          error?.message ===
-          "LIMIT_REACHED"
-        ) {
-          setUsedCount(
-            MAX_REDEMPTIONS
-          );
-
-          alert(
-            "❌ Limit Reached\n\nThis student has already used the SBC benefit 4/4 times at this business."
-          );
-
-        } else {
-          alert(
-            "❌ Redemption failed. Please try again."
-          );
-        }
+        setVerificationError(
+          "❌ Unable to verify business. Please try again."
+        );
 
       } finally {
-        if (
-          mountedRef.current
-        ) {
-          setProcessing(
-            false
-          );
-        }
+
+        setVerificationLoading(
+          false
+        );
+
       }
+
+    };
+
+  /*
+   * ==========================================
+   * START QR SCANNER
+   * ==========================================
+   */
+
+  const startScanner =
+    async () => {
+
+      setScannerError(
+        ""
+      );
+
+      setScannerOpen(
+        true
+      );
+
+      setTimeout(
+        async () => {
+
+          try {
+
+            const scanner =
+              new Html5Qrcode(
+                "sbc-business-qr-reader"
+              );
+
+            await scanner.start(
+              {
+                facingMode:
+                  "environment",
+              },
+              {
+                fps: 10,
+                qrbox: {
+                  width: 250,
+                  height: 250,
+                },
+                aspectRatio: 1,
+              },
+              async (
+                decodedText
+              ) => {
+
+                try {
+
+                  await scanner.stop();
+
+                } catch {}
+
+                try {
+
+                  scanner.clear();
+
+                } catch {}
+
+                setScannerOpen(
+                  false
+                );
+
+                const businessId =
+                  extractBusinessIdFromQr(
+                    decodedText
+                  );
+
+                if (
+                  !businessId
+                ) {
+
+                  setScannerError(
+                    "❌ This is not a valid SBC Business QR."
+                  );
+
+                  return;
+                }
+
+                await verifyBusinessId(
+                  businessId
+                );
+
+              },
+              () => {}
+            );
+
+          } catch (error) {
+
+            console.error(
+              "QR scanner error:",
+              error
+            );
+
+            setScannerError(
+              "❌ Camera could not be opened. Please allow camera permission or use Business ID."
+            );
+
+          }
+
+        },
+        300
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE SCANNER
+   * ==========================================
+   */
+
+  const closeScanner =
+    () => {
+      setScannerOpen(
+        false
+      );
+    };
+
+  /*
+   * ==========================================
+   * REDEEM MY BENEFIT
+   * ==========================================
+   */
+
+  const redeemMyBenefit =
+    async () => {
+
+      if (
+        !auth.currentUser
+      ) {
+
+        alert(
+          "Please login again."
+        );
+
+        router.replace(
+          "/student/login"
+        );
+
+        return;
+      }
+
+      if (
+        !selectedOffer
+      ) {
+        return;
+      }
+
+      if (
+        !verifiedBusiness
+      ) {
+
+        alert(
+          "Please verify the business first."
+        );
+
+        return;
+      }
+
+      if (
+        verifiedBusiness.businessId !==
+        selectedOffer.businessId
+      ) {
+
+        alert(
+          "❌ Business verification does not match this offer."
+        );
+
+        return;
+      }
+
+      const usedCount =
+        getUsageCount(
+          selectedOffer.businessId
+        );
+
+      if (
+        usedCount >=
+        MAX_REDEMPTIONS
+      ) {
+
+        alert(
+          "🚫 You have reached the maximum 4 redemptions for this business."
+        );
+
+        return;
+      }
+
+      try {
+
+        setRedeemLoading(
+          true
+        );
+
+        const studentUid =
+          auth.currentUser.uid;
+
+        /*
+         * LOAD STUDENT
+         */
+
+        let studentName =
+          "SBC Student";
+
+        let studentCardNumber =
+          "";
+
+        try {
+
+          const studentRef =
+            doc(
+              db,
+              "students",
+              studentUid
+            );
+
+          const studentSnap =
+            await getDoc(
+              studentRef
+            );
+
+          if (
+            studentSnap.exists()
+          ) {
+
+            const studentData =
+              studentSnap.data();
+
+            studentName =
+              studentData.name ||
+              studentData.fullName ||
+              studentData.studentName ||
+              "SBC Student";
+
+            studentCardNumber =
+              studentData.cardNumber ||
+              studentData.studentCardNumber ||
+              "";
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Student profile loading error:",
+            error
+          );
+
+        }
+
+        /*
+         * ========================================
+         * CREATE PENDING REQUEST
+         * ========================================
+         *
+         * IMPORTANT:
+         *
+         * addDoc returns the request ID.
+         *
+         * We save it in pendingRequestId
+         * so Student can listen in real-time.
+         * ========================================
+         */
+
+        const requestRef =
+          await addDoc(
+            collection(
+              db,
+              "redemptionRequests"
+            ),
+            {
+
+              studentId:
+                studentUid,
+
+              studentName,
+
+              studentCardNumber,
+
+              businessId:
+                selectedOffer.businessId,
+
+              businessName:
+                verifiedBusiness.businessName,
+
+              businessVerificationId:
+                verifiedBusiness.businessId,
+
+              offerId:
+                selectedOffer.id,
+
+              offerTitle:
+                selectedOffer.title ||
+                "SBC Offer",
+
+              offerDiscount:
+                selectedOffer.discount ||
+                "",
+
+              status:
+                "pending",
+
+              createdAt:
+                serverTimestamp(),
+
+            }
+          );
+
+        /*
+         * Save request ID BEFORE
+         * closing the verification modal.
+         */
+
+        setPendingRequestId(
+          requestRef.id
+        );
+
+        /*
+         * Save offer for waiting screen.
+         */
+
+        setPendingOffer(
+          selectedOffer
+        );
+
+        /*
+         * Close verification.
+         */
+
+        setShowVerificationModal(
+          false
+        );
+
+        setSelectedOffer(
+          null
+        );
+
+        setVerifiedBusiness(
+          null
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Create redemption request error:",
+          error
+        );
+
+        alert(
+          "❌ Unable to send redemption request. Please try again."
+        );
+
+      } finally {
+
+        setRedeemLoading(
+          false
+        );
+
+      }
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE APPROVED
+   * ==========================================
+   */
+
+  const closeApproved =
+    () => {
+
+      setApprovedOffer(
+        null
+      );
+
+      setApprovedPoints(0);
+
+      setApprovedTotalPoints(0);
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE REJECTED
+   * ==========================================
+   */
+
+  const closeRejected =
+    () => {
+
+      setRejectedOffer(
+        null
+      );
+
     };
 
   /*
@@ -1211,540 +1709,662 @@ export default function RedeemStudentOffer() {
    */
 
   return (
-    <BusinessProtected>
-      <main className="min-h-screen bg-slate-100 p-6">
+    <main className="min-h-screen bg-[#050607] text-white">
+      <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-8">
 
-        <div className="mx-auto max-w-5xl">
+        {/* COMPACT HEADER */}
+        <header className="mb-5 flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-[#f4c52b] sm:text-4xl">
+              STUDENT PRIVILEGE CARD
+            </h1>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+              Exclusive student offers &amp; benefits
+            </p>
+          </div>
 
-          {/* HEADER */}
+          <button
+            onClick={() => router.push("/student/dashboard")}
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-bold text-[#f4c52b] transition hover:border-[#f4c52b]/40 hover:bg-[#f4c52b]/10"
+          >
+            ← Dashboard
+          </button>
+        </header>
 
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* CATEGORIES + SEARCH */}
+        <section className="mb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-[0.16em] text-white/55">
+              Browse Categories
+            </h2>
+            <span className="text-xs font-bold text-[#f4c52b]">
+              {filteredOffers.length} Offers Available
+            </span>
+          </div>
 
-            <div>
+          <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              onClick={() => setCategory("All")}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${
+                category === "All"
+                  ? "border-[#f4c52b] bg-[#f4c52b] text-black"
+                  : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/25 hover:text-white"
+              }`}
+            >
+              All Offers
+            </button>
+            {categories.map((item) => (
+              <button
+                key={item}
+                onClick={() => setCategory(item)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${
+                  category === item
+                    ? "border-[#f4c52b] bg-[#f4c52b] text-black"
+                    : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/25 hover:text-white"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
 
-              <h1 className="text-3xl font-bold text-purple-700 md:text-4xl">
-                🎟️ Redeem Student Offer
-              </h1>
+          <div className="mt-3">
+            <input
+              type="text"
+              placeholder="Search offers, businesses or categories..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-[#f4c52b]/50 focus:bg-white/[0.055]"
+            />
+          </div>
+        </section>
 
-              <p className="mt-2 text-gray-600">
-                Scan QR or enter SBC Card Number
-                to verify the student.
+        {/* LOADING */}
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-14 text-center">
+            <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-white/10 border-t-[#f4c52b]" />
+            <h2 className="text-lg font-bold">Loading Offers...</h2>
+          </div>
+        ) : filteredOffers.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-14 text-center">
+            <div className="text-5xl">🎁</div>
+            <h2 className="mt-3 text-2xl font-black text-[#f4c52b]">No Offers Found</h2>
+            <p className="mt-2 text-sm text-white/40">No active offers available.</p>
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredOffers.map((offer) => {
+              const usedCount = getUsageCount(offer.businessId);
+              const limitReached = usedCount >= MAX_REDEMPTIONS;
+
+              return (
+                <article
+                  key={offer.id}
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-[#090a0c] transition duration-300 hover:-translate-y-1 hover:border-[#f4c52b]/35 hover:shadow-[0_18px_45px_rgba(0,0,0,0.35)]"
+                >
+                  {/* COMPACT IMAGE */}
+                  <div className="relative h-32 overflow-hidden bg-[#111318] sm:h-36">
+                    {offer.image ? (
+                      <img
+                        src={offer.image}
+                        alt={offer.title || "Offer"}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-[#111318] text-5xl">🎁</div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/90 to-transparent" />
+
+                    <span className="absolute left-3 top-3 rounded-full bg-[#f4c52b] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-black">
+                      {offer.discount || "SBC OFFER"}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => openRedeemVerification(offer)}
+                      disabled={limitReached}
+                      className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-black/20 bg-black/55 text-sm text-[#f4c52b] backdrop-blur transition hover:bg-[#f4c52b] hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
+                      title={limitReached ? "Usage limit reached" : "Redeem offer"}
+                    >
+                      🔖
+                    </button>
+                  </div>
+
+                  {/* SHORT & SWEET OFFER CONTENT */}
+                  <div className="p-4 sm:p-5">
+
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="rounded-full border border-[#f4c52b]/25 bg-[#f4c52b]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#f4c52b]">
+                        {offer.category || "Other"}
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/35">🔥 SBC Exclusive</span>
+                    </div>
+
+                    <p className="mt-3 truncate text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                      🏢 {offer.businessName || "SBC Partner Business"}
+                    </p>
+
+                    <h2 className="mt-1.5 line-clamp-2 text-xl font-black leading-tight text-white">
+                      {offer.title || "Special Offer"}
+                    </h2>
+
+                    <p className="mt-1.5 line-clamp-1 text-xs text-white/45">
+                      {offer.description || "Exclusive benefit for SBC students."}
+                    </p>
+
+                    {/* USAGE — KEEP EXISTING LOGIC */}
+                    <div className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
+                      limitReached
+                        ? "border-red-500/25 bg-red-500/10"
+                        : "border-white/8 bg-white/[0.025]"
+                    }`}>
+                      <span className={`text-[11px] font-bold ${
+                        limitReached ? "text-red-400" : "text-white/55"
+                      }`}>
+                        {limitReached ? "🚫 Limit reached" : `Used ${usedCount}/${MAX_REDEMPTIONS} times`}
+                      </span>
+                      {!limitReached && (
+                        <span className="text-[11px] font-black text-[#f4c52b]">
+                          {MAX_REDEMPTIONS - usedCount} left
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => callBusiness(offer)}
+                        className="rounded-lg border border-white/10 bg-white/[0.04] py-2.5 text-xs font-bold text-white/75 transition hover:bg-white/[0.08] hover:text-white"
+                      >
+                        📞 Call
+                      </button>
+                      <button
+                        onClick={() => openRedeemVerification(offer)}
+                        disabled={limitReached}
+                        className={`rounded-lg py-2.5 text-xs font-black transition ${
+                          limitReached
+                            ? "cursor-not-allowed bg-white/10 text-white/25"
+                            : "bg-[#f4c52b] text-black hover:bg-[#ffd84d]"
+                        }`}
+                      >
+                        🎁 Redeem
+                      </button>
+                    </div>
+
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ==========================================
+          BUSINESS VERIFICATION MODAL
+      =========================================== */}
+
+      {showVerificationModal &&
+        selectedOffer && (
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm">
+
+            <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
+              <div className="border-b p-6">
+
+                <div className="flex items-center justify-between">
+
+                  <div>
+
+                    <h2 className="text-2xl font-extrabold text-green-700">
+                      🎁 Redeem Benefit
+                    </h2>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Verify the business first
+                    </p>
+
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowVerificationModal(
+                        false
+                      );
+
+                      setSelectedOffer(
+                        null
+                      );
+
+                      setVerifiedBusiness(
+                        null
+                      );
+
+                      setScannerOpen(
+                        false
+                      );
+                    }}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    ✕
+                  </button>
+
+                </div>
+
+              </div>
+
+              <div className="space-y-5 p-6">
+
+                {/* SELECTED OFFER */}
+
+                <div className="rounded-2xl bg-slate-100 p-5">
+
+                  <p className="text-xs font-bold uppercase text-gray-500">
+                    Selected Offer
+                  </p>
+
+                  <h3 className="mt-2 text-xl font-extrabold text-green-700">
+                    {selectedOffer.title}
+                  </h3>
+
+                  <p className="mt-1 font-bold text-yellow-500">
+                    {selectedOffer.discount}
+                  </p>
+
+                  <p className="mt-2 text-sm text-gray-600">
+                    🏢{" "}
+                    {selectedOffer.businessName}
+                  </p>
+
+                </div>
+
+                {verifiedBusiness ? (
+
+                  <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+
+                    <p className="text-sm font-bold text-green-700">
+                      ✅ Business Verified
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-extrabold text-green-800">
+                      {verifiedBusiness.businessName}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-green-700">
+                      Business ID:{" "}
+                      {verifiedBusiness.businessId}
+                    </p>
+
+                  </div>
+
+                ) : (
+
+                  <>
+
+                    {/* QR */}
+
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+
+                      <h3 className="text-lg font-extrabold text-gray-800">
+                        📷 Scan Business QR
+                      </h3>
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Scan the SBC Business QR displayed at the business counter.
+                      </p>
+
+                      {!scannerOpen && (
+
+                        <button
+                          onClick={
+                            startScanner
+                          }
+                          className="mt-4 w-full rounded-xl bg-blue-600 py-4 font-bold text-white hover:bg-blue-700"
+                        >
+                          📷 Open QR Scanner
+                        </button>
+
+                      )}
+
+                      {scannerOpen && (
+
+                        <div className="mt-4">
+
+                          <div
+                            id="sbc-business-qr-reader"
+                            className="overflow-hidden rounded-2xl border-2 border-blue-300"
+                          />
+
+                          <button
+                            onClick={
+                              closeScanner
+                            }
+                            className="mt-3 w-full rounded-xl bg-slate-800 py-3 font-black text-white transition hover:bg-slate-700"
+                          >
+                            ✕ Close Scanner
+                          </button>
+
+                        </div>
+
+                      )}
+
+                      {scannerError && (
+
+                        <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600">
+                          {scannerError}
+                        </p>
+
+                      )}
+
+                    </div>
+
+                    {/* OR */}
+
+                    <div className="flex items-center gap-3">
+
+                      <div className="h-px flex-1 bg-gray-200" />
+
+                      <span className="text-sm font-bold text-gray-400">
+                        OR
+                      </span>
+
+                      <div className="h-px flex-1 bg-gray-200" />
+
+                    </div>
+
+                    {/* BUSINESS ID */}
+
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+
+                      <h3 className="text-lg font-extrabold text-gray-800">
+                        🔢 Enter Business ID
+                      </h3>
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Use the Business ID printed below the QR.
+                      </p>
+
+                      <input
+                        type="text"
+                        value={
+                          businessIdInput
+                        }
+                        onChange={(e) =>
+                          setBusinessIdInput(
+                            e.target.value
+                          )
+                        }
+                        onKeyDown={(e) => {
+
+                          if (
+                            e.key ===
+                            "Enter"
+                          ) {
+
+                            verifyBusinessId(
+                              businessIdInput
+                            );
+
+                          }
+
+                        }}
+                        placeholder="Example: SBC-BIZ-10482"
+                        className="mt-4 w-full rounded-xl border border-gray-300 p-4 font-bold uppercase outline-none focus:border-green-600"
+                      />
+
+                      <button
+                        onClick={() =>
+                          verifyBusinessId(
+                            businessIdInput
+                          )
+                        }
+                        disabled={
+                          verificationLoading
+                        }
+                        className="mt-3 w-full rounded-xl bg-[#07111f] py-4 font-black text-white transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:bg-gray-400"
+                      >
+                        {verificationLoading
+                          ? "⏳ Verifying..."
+                          : "✓ Verify Business"}
+                      </button>
+
+                    </div>
+
+                  </>
+
+                )}
+
+                {/* ERROR */}
+
+                {verificationError && (
+
+                  <div className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600">
+                    {verificationError}
+                  </div>
+
+                )}
+
+                {/* REDEEM */}
+
+                {verifiedBusiness && (
+
+                  <div className="rounded-2xl border border-[#d4af37]/30 bg-[#fffaf0] p-5">
+
+                    <p className="text-sm font-bold text-yellow-700">
+                      ⚠️ Ready to Redeem
+                    </p>
+
+                    <p className="mt-2 text-sm text-gray-700">
+                      Your request will be sent to the business for approval.
+                    </p>
+
+                    <button
+                      onClick={
+                        redeemMyBenefit
+                      }
+                      disabled={
+                        redeemLoading
+                      }
+                      className="mt-4 w-full rounded-2xl bg-[#d4af37] py-5 text-lg font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:bg-gray-400"
+                    >
+                      {redeemLoading
+                        ? "⏳ Sending Request..."
+                        : "🎁 REDEEM MY BENEFIT"}
+                    </button>
+
+                  </div>
+
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
+      {/* ==========================================
+          WAITING MODAL
+      =========================================== */}
+
+      {pendingOffer && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm">
+
+          <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 text-4xl">
+              ⏳
+            </div>
+
+            <h2 className="mt-6 text-3xl font-extrabold text-green-700">
+              Waiting for Approval
+            </h2>
+
+            <p className="mt-3 text-lg font-bold text-gray-700">
+              {pendingOffer.businessName}
+            </p>
+
+            <p className="mt-4 text-gray-600">
+              Your redemption request has been sent to the business.
+            </p>
+
+            <p className="mt-3 font-bold text-yellow-600">
+              🎁 Your rewards are also waiting!
+            </p>
+
+            <div className="mt-6 rounded-2xl bg-slate-100 p-4">
+
+              <p className="text-sm text-gray-500">
+                Offer
+              </p>
+
+              <p className="mt-1 text-lg font-extrabold text-green-700">
+                {pendingOffer.title}
               </p>
 
             </div>
 
+            <p className="mt-6 text-sm text-gray-500">
+              Please wait while the business confirms your redemption.
+            </p>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ==========================================
+          APPROVED MODAL
+      =========================================== */}
+
+      {approvedOffer && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-3">
+
+          <div className="relative w-full max-w-sm rounded-2xl border border-black/5 bg-white px-4 py-4 text-center shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
             <button
-              onClick={() =>
-                router.push(
-                  "/business/dashboard"
-                )
-              }
-              className="rounded-xl bg-gray-700 px-6 py-3 font-bold text-white hover:bg-gray-800"
+              type="button"
+              onClick={closeApproved}
+              aria-label="Close"
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xl font-bold leading-none text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
             >
-              ← Dashboard
+              ×
+            </button>
+
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-xl">
+              ✓
+            </div>
+
+            <h2 className="mt-2 text-xl font-black text-[#b18a16]">
+              Approved!
+            </h2>
+
+            <p className="mt-0.5 text-sm font-bold text-gray-800">
+              {approvedOffer.businessName}
+            </p>
+
+            <div className="mt-2 rounded-lg bg-emerald-50 px-3 py-2">
+              <p className="text-sm font-extrabold leading-5 text-green-700">
+                {approvedOffer.title}
+              </p>
+
+              {approvedOffer.discount && (
+                <p className="mt-0.5 text-xs font-bold text-yellow-600">
+                  {approvedOffer.discount}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-2 rounded-lg border border-[#d4af37]/30 bg-[#fffaf0] px-3 py-2">
+              <p className="text-xs font-extrabold text-yellow-700">
+                🎉 Redemption Successful
+              </p>
+            </div>
+
+            <div className="mt-2 rounded-lg border border-purple-300 bg-purple-50 px-3 py-2">
+              <p className="text-[11px] font-bold text-purple-600">
+                ⭐ SBC Reward Points
+              </p>
+
+              <p className="mt-0.5 text-2xl font-black leading-7 text-purple-700">
+                +{approvedPoints} Points
+              </p>
+
+              <p className="mt-0.5 text-[10px] font-semibold text-gray-600">
+                Total points: {approvedTotalPoints}
+              </p>
+            </div>
+
+            <button
+              onClick={closeApproved}
+              className="mt-3 w-full rounded-lg bg-[#07111f] py-2 text-sm font-black text-white transition hover:bg-[#101d2e]"
+            >
+              ✓ Done
             </button>
 
           </div>
 
-          {/* ACTIVE OFFERS */}
+        </div>
 
-          {offers.length > 0 && (
-            <div className="mb-6 rounded-3xl bg-white p-6 shadow-xl">
+      )}
 
-              <div className="mb-4">
+      {/* ==========================================
+          REJECTED MODAL
+      =========================================== */}
 
-                <p className="text-sm font-semibold text-gray-500">
-                  Active Offers
-                </p>
+      {rejectedOffer && (
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Select the offer the student wants
-                  to redeem.
-                </p>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
 
-              </div>
+          <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
 
-              <div className="grid gap-3 md:grid-cols-2">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-4xl">
+              ✕
+            </div>
 
-                {offers.map(
-                  (item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() =>
-                        setOffer(item)
-                      }
-                      className={`rounded-2xl border-2 p-4 text-left transition ${
-                        offer?.id ===
-                        item.id
-                          ? "border-blue-600 bg-blue-50"
-                          : "border-gray-200 bg-white hover:border-blue-300"
-                      }`}
-                    >
+            <h2 className="mt-6 text-3xl font-extrabold text-red-600">
+              Request Rejected
+            </h2>
 
-                      <div className="flex items-start justify-between gap-4">
+            <p className="mt-3 text-lg font-bold text-gray-800">
+              {rejectedOffer.businessName}
+            </p>
 
-                        <div>
+            <div className="mt-5 rounded-2xl bg-red-50 p-5">
 
-                          <p className="font-bold text-gray-900">
-                            {item.title}
-                          </p>
+              <p className="text-sm text-gray-500">
+                Offer
+              </p>
 
-                          <p className="mt-1 text-sm font-semibold text-green-600">
-                            {item.discount}
-                          </p>
-
-                        </div>
-
-                        {offer?.id ===
-                          item.id && (
-                          <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">
-                            Selected
-                          </span>
-                        )}
-
-                      </div>
-
-                    </button>
-                  )
-                )}
-
-              </div>
+              <p className="mt-2 text-xl font-extrabold text-red-700">
+                {rejectedOffer.title}
+              </p>
 
             </div>
-          )}
 
-          {/* SEARCH OPTIONS */}
-
-          {!student && (
-            <div className="grid gap-6 lg:grid-cols-2">
-
-              {/* QR */}
-
-              <div className="rounded-3xl bg-white p-6 shadow-xl">
-
-                <div className="mb-5 text-center">
-
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-3xl">
-                    📷
-                  </div>
-
-                  <h2 className="mt-4 text-2xl font-bold text-purple-700">
-                    Scan Student QR
-                  </h2>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    Scan the student's SBC QR code.
-                  </p>
-
-                </div>
-
-                {scannerLoading && (
-                  <div className="mb-4 rounded-2xl bg-blue-50 p-5 text-center">
-
-                    <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-
-                    <p className="font-bold text-blue-700">
-                      Starting Camera...
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      Please allow camera permission.
-                    </p>
-
-                  </div>
-                )}
-
-                {scannerError && (
-                  <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
-
-                    <p className="font-bold text-red-700">
-                      ❌ Camera Error
-                    </p>
-
-                    <p className="mt-3 break-words text-sm text-gray-700">
-                      {scannerError}
-                    </p>
-
-                    <button
-                      onClick={
-                        startScanner
-                      }
-                      disabled={
-                        scannerLoading
-                      }
-                      className="mt-4 rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      🔄 Try Again
-                    </button>
-
-                  </div>
-                )}
-
-                <div
-                  id="reader"
-                  className="mx-auto w-full max-w-md overflow-hidden rounded-2xl"
-                />
-
-                {!cameraStarted &&
-                  !scannerLoading && (
-                    <button
-                      onClick={
-                        startScanner
-                      }
-                      className="mt-4 w-full rounded-xl bg-purple-600 py-4 font-bold text-white hover:bg-purple-700"
-                    >
-                      📷 Start Camera
-                    </button>
-                  )}
-
-                {cameraStarted && (
-                  <button
-                    onClick={
-                      stopScanner
-                    }
-                    className="mt-4 w-full rounded-xl bg-gray-200 py-3 font-bold text-gray-700 hover:bg-gray-300"
-                  >
-                    ⏹ Stop Camera
-                  </button>
-                )}
-
-              </div>
-
-              {/* CARD NUMBER */}
-
-              <div className="rounded-3xl bg-white p-6 shadow-xl">
-
-                <div className="mb-5 text-center">
-
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 text-3xl">
-                    🎫
-                  </div>
-
-                  <h2 className="mt-4 text-2xl font-bold text-green-700">
-                    Enter SBC Card Number
-                  </h2>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    Enter the student's SBC card
-                    number manually.
-                  </p>
-
-                </div>
-
-                <div className="mt-8">
-
-                  <label className="mb-2 block font-semibold text-gray-700">
-                    SBC Card Number
-                  </label>
-
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={(e) =>
-                      setCardNumber(
-                        e.target.value
-                          .toUpperCase()
-                          .replace(
-                            /\s/g,
-                            ""
-                          )
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (
-                        e.key ===
-                        "Enter"
-                      ) {
-                        searchByCardNumber();
-                      }
-                    }}
-                    placeholder="EXAMPLE: SBC123456"
-                    className="w-full rounded-2xl border-2 border-gray-300 p-5 text-center text-2xl font-bold uppercase tracking-wider outline-none transition focus:border-green-600"
-                  />
-
-                  <button
-                    onClick={
-                      searchByCardNumber
-                    }
-                    disabled={
-                      searchingCard
-                    }
-                    className="mt-5 w-full rounded-2xl bg-green-600 py-5 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {searchingCard
-                      ? "🔍 Searching..."
-                      : "🔍 Search Student"}
-                  </button>
-
-                </div>
-
-                <div className="mt-8 rounded-2xl bg-yellow-50 p-5 text-center">
-
-                  <p className="font-semibold text-yellow-800">
-                    💡 Tip
-                  </p>
-
-                  <p className="mt-1 text-sm text-yellow-700">
-                    Student card number is printed
-                    on their SBC card.
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-          )}
-
-          {/* STUDENT VERIFIED */}
-
-          {student && (
-            <div className="rounded-3xl bg-white p-6 shadow-xl md:p-8">
-
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-                <div>
-
-                  <h2 className="text-3xl font-bold text-green-600">
-                    ✅ Student Verified
-                  </h2>
-
-                  <p className="mt-1 text-gray-500">
-                    Student successfully verified.
-                  </p>
-
-                </div>
-
-                <button
-                  onClick={
-                    resetStudent
-                  }
-                  disabled={
-                    processing
-                  }
-                  className="rounded-xl bg-gray-700 px-5 py-3 font-bold text-white hover:bg-gray-800 disabled:opacity-50"
-                >
-                  🔄 Scan / Search Another
-                </button>
-
-              </div>
-
-              {/* DETAILS */}
-
-              <div className="mt-8 grid gap-5 md:grid-cols-2">
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    👤 Student Name
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold">
-                    {student.fullName ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    🎫 SBC Card Number
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold text-purple-700">
-                    {student.cardNumber ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    🏫 College
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold">
-                    {student.college ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    📚 Course
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold">
-                    {student.course ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    📅 Year
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold">
-                    {student.year ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-                <div className="rounded-2xl bg-slate-100 p-5">
-
-                  <p className="text-sm text-gray-500">
-                    📱 Mobile
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold">
-                    {student.mobile ||
-                      "-"}
-                  </h3>
-
-                </div>
-
-              </div>
-
-              {/* BUSINESS USAGE */}
-
-              <div className="mt-8 rounded-2xl border border-gray-200 p-6">
-
-                {usedCount ===
-                  0 && (
-                  <div className="rounded-2xl bg-green-50 p-5">
-
-                    <p className="text-sm font-semibold text-green-600">
-                      Business Usage
-                    </p>
-
-                    <h2 className="mt-1 text-2xl font-bold text-green-700">
-                      🌟 First Time Use
-                    </h2>
-
-                    <p className="mt-1 text-gray-600">
-                      This student has not used any
-                      SBC benefit at this business yet.
-                    </p>
-
-                  </div>
-                )}
-
-                {usedCount > 0 &&
-                  usedCount <
-                    MAX_REDEMPTIONS && (
-                    <div className="rounded-2xl bg-blue-50 p-5">
-
-                      <p className="text-sm font-semibold text-blue-600">
-                        Business Usage
-                      </p>
-
-                      <h2 className="mt-1 text-2xl font-bold text-blue-700">
-                        ✅ Used:{" "}
-                        {usedCount}/
-                        {MAX_REDEMPTIONS}
-                      </h2>
-
-                      <p className="mt-1 text-gray-600">
-                        Remaining uses:{" "}
-                        {MAX_REDEMPTIONS -
-                          usedCount}
-                      </p>
-
-                    </div>
-                  )}
-
-                {usedCount >=
-                  MAX_REDEMPTIONS && (
-                  <div className="rounded-2xl bg-red-50 p-5">
-
-                    <p className="text-sm font-semibold text-red-600">
-                      Business Usage
-                    </p>
-
-                    <h2 className="mt-1 text-2xl font-bold text-red-700">
-                      ❌ Limit Reached
-                    </h2>
-
-                    <p className="mt-1 font-semibold text-red-600">
-                      Used{" "}
-                      {MAX_REDEMPTIONS}/
-                      {MAX_REDEMPTIONS}
-                      times.
-                      No more redemptions allowed
-                      at this business.
-                    </p>
-
-                  </div>
-                )}
-
-              </div>
-
-              {/* SELECTED OFFER */}
-
-              {offer && (
-                <div className="mt-6 rounded-2xl bg-blue-50 p-6">
-
-                  <p className="text-sm font-semibold text-gray-500">
-                    Selected Offer
-                  </p>
-
-                  <h3 className="mt-2 text-2xl font-bold text-blue-700">
-                    {offer.title}
-                  </h3>
-
-                  <p className="mt-2 text-2xl font-bold text-green-600">
-                    {offer.discount}
-                  </p>
-
-                </div>
-              )}
-
-              {/* REDEEM */}
-
-              <button
-                disabled={
-                  usedCount >=
-                    MAX_REDEMPTIONS ||
-                  processing ||
-                  !offer
-                }
-                onClick={
-                  redeemOffer
-                }
-                className={`mt-8 w-full rounded-2xl py-5 text-xl font-bold text-white transition ${
-                  usedCount >=
-                  MAX_REDEMPTIONS
-                    ? "cursor-not-allowed bg-gray-400"
-                    : !offer
-                    ? "cursor-not-allowed bg-gray-400"
-                    : "bg-gradient-to-r from-green-600 to-emerald-600 hover:scale-[1.01] hover:shadow-xl"
-                }`}
-              >
-                {processing
-                  ? "⏳ Processing..."
-                  : usedCount >=
-                    MAX_REDEMPTIONS
-                  ? "❌ Limit Reached (4/4)"
-                  : !offer
-                  ? "❌ Select an Offer"
-                  : "🎉 Redeem Selected Offer"}
-              </button>
-
-            </div>
-          )}
+            <p className="mt-5 text-sm text-gray-600">
+              The business did not approve this redemption request.
+            </p>
+
+            <button
+              onClick={
+                closeRejected
+              }
+              className="mt-6 w-full rounded-2xl bg-gray-700 py-4 font-bold text-white hover:bg-gray-800"
+            >
+              Close
+            </button>
+
+          </div>
 
         </div>
 
-      </main>
-    </BusinessProtected>
+      )}
+
+    </main>
   );
 }

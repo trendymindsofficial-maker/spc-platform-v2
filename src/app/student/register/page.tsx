@@ -327,218 +327,332 @@ export default function StudentRegister() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 shadow-xl">
+    <main className="min-h-screen bg-[#f5f3ed] text-[#07111f]">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
 
-        <div className="mb-6">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(212,175,55,0.14),transparent_32%),radial-gradient(circle_at_90%_85%,rgba(7,17,31,0.09),transparent_30%),linear-gradient(135deg,#fffdf7_0%,#f5f3ed_52%,#eeeade_100%)]" />
+        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl" />
+
+        <div className="relative w-full max-w-6xl">
+
+          {/* BACK */}
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-200"
+            className="mb-5 rounded-full border border-black/10 bg-white/85 px-5 py-2.5 text-sm font-bold text-[#07111f] shadow-sm backdrop-blur transition hover:border-[#d4af37]/50 hover:bg-white"
           >
             ← Back to Home
           </button>
-        </div>
 
-        <h1 className="mb-2 text-center text-3xl font-bold text-blue-700">
-          🎓 Student Registration
-        </h1>
+          <div className="grid overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-[0_30px_100px_rgba(7,17,31,0.16)] backdrop-blur-xl lg:grid-cols-[0.8fr_1.2fr]">
 
-        <p className="mb-6 text-center text-gray-500">
-          Create your SBC Student Account
-        </p>
+            {/* BRAND PANEL */}
+            <div className="relative hidden overflow-hidden bg-[#07111f] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#d4af37]/15 blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-[#d4af37]/10 blur-3xl" />
 
-        <div className="space-y-4">
+              <div className="relative">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">
+                  SBC
+                </div>
 
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            disabled={loading}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600"
-          />
+                <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">
+                  Student Benefit Card
+                </p>
 
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">
-              Mobile Number
-            </label>
+                <h2 className="mt-3 text-4xl font-black leading-tight">
+                  Start your
+                  <span className="block text-[#f1cf63]">
+                    SBC journey.
+                  </span>
+                </h2>
 
-            <div className="flex gap-2">
-              <div className="flex items-center rounded-xl border border-gray-300 bg-gray-50 px-4 font-bold text-gray-700">
-                +91
+                <p className="mt-5 max-w-sm text-sm leading-6 text-white/55">
+                  Register once, get your SBC card and unlock exclusive student benefits from partner businesses.
+                </p>
               </div>
 
-              <input
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                maxLength={10}
-                placeholder="10-digit Mobile Number"
-                value={mobile}
-                onChange={(e) =>
-                  setMobile(
-                    e.target.value.replace(/\D/g, "").slice(0, 10)
-                  )
-                }
-                disabled={otpSent || loading}
-                className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600 disabled:bg-gray-100"
-              />
+              <div className="relative space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-xl">🎁</p>
+                    <p className="mt-2 text-xs font-black">Exclusive Offers</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-xl">⭐</p>
+                    <p className="mt-2 text-xs font-black">Reward Points</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 text-[10px] font-bold uppercase tracking-wider text-white/35">
+                  <span>Secure Registration</span>
+                  <span className="text-[#f1cf63]">SBC • 2026</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-            <p className="text-sm font-bold text-blue-700">
-              🔐 Secure Mobile Verification
-            </p>
-            <p className="mt-1 text-xs text-blue-600">
-              Firebase will automatically perform security verification when you send the OTP.
-            </p>
-          </div>
+            {/* FORM PANEL */}
+            <div className="p-6 sm:p-9 lg:p-11">
 
-          {!otpSent && (
-            <button
-              id="student-send-otp-button"
-              type="button"
-              onClick={sendOTP}
-              disabled={
-                otpLoading ||
-                mobile.length !== 10 ||
-                !fullName.trim()
-              }
-              className="w-full rounded-xl bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {otpLoading ? "📱 Sending OTP..." : "📱 Send OTP"}
-            </button>
-          )}
+              {/* MOBILE BRANDING */}
+              <div className="mb-7 text-center lg:hidden">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#07111f] text-base font-black text-[#f1cf63] shadow-lg">
+                  SBC
+                </div>
+              </div>
 
-          {otpSent && (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-              <div className="mb-4">
-                <p className="font-bold text-blue-700">
-                  📱 OTP Verification
-                </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Enter the 6-digit OTP sent to
-                  <strong> +91 {mobile}</strong>
+              <div className="text-center lg:text-left">
+                <div className="inline-flex items-center rounded-full border border-[#d4af37]/30 bg-[#fff8df] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#8a680c]">
+                  ✦ Student Registration
+                </div>
+
+                <h1 className="mt-4 text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
+                  Create Your SBC Account
+                </h1>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  Complete your details and verify your mobile number.
                 </p>
               </div>
 
-              {!otpVerified ? (
-                <>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    placeholder="Enter 6-digit OTP"
-                    value={otp}
-                    onChange={(e) =>
-                      setOtp(
-                        e.target.value.replace(/\D/g, "").slice(0, 6)
-                      )
-                    }
-                    className="w-full rounded-xl border border-blue-300 bg-white p-4 text-center text-2xl font-bold tracking-[0.5em] outline-none focus:border-blue-600"
-                  />
+              <div className="mt-8 space-y-4">
 
-                  <button
-                    type="button"
-                    onClick={verifyOTP}
-                    disabled={verifyingOtp || otp.length !== 6}
-                    className="mt-3 w-full rounded-xl bg-blue-600 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {verifyingOtp ? "⏳ Verifying..." : "✅ Verify OTP"}
-                  </button>
+                {/* NAME */}
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg">👤</span>
+                    <input
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      disabled={loading}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] py-3.5 pl-12 pr-4 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={sendOTP}
-                    disabled={otpLoading}
-                    className="mt-3 w-full rounded-xl bg-white py-3 font-semibold text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-                  >
-                    {otpLoading ? "Sending..." : "🔄 Resend OTP"}
-                  </button>
+                {/* MOBILE */}
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    Mobile Number
+                  </label>
 
-                  <button
-                    type="button"
-                    onClick={changeMobile}
-                    className="mt-2 w-full py-2 text-sm font-semibold text-gray-600 hover:underline"
-                  >
-                    Change Mobile Number
-                  </button>
-                </>
-              ) : (
-                <div className="rounded-xl bg-green-100 p-4 text-center">
-                  <p className="text-lg font-bold text-green-700">
-                    ✅ Mobile Number Verified
+                  <div className="flex gap-2">
+                    <div className="flex items-center rounded-2xl border border-black/10 bg-[#07111f] px-4 text-sm font-black text-[#f1cf63]">
+                      +91
+                    </div>
+
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                      value={mobile}
+                      onChange={(e) =>
+                        setMobile(
+                          e.target.value.replace(/\D/g, "").slice(0, 10)
+                        )
+                      }
+                      disabled={otpSent || loading}
+                      className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+                </div>
+
+                {/* SECURITY NOTE */}
+                <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+                  <p className="text-sm font-black text-[#8a680c]">
+                    🔐 Secure Mobile Verification
                   </p>
-                  <p className="mt-1 text-sm text-green-700">
-                    +91 {mobile}
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Firebase will automatically perform security verification when you send the OTP.
                   </p>
                 </div>
-              )}
+
+                {/* SEND OTP */}
+                {!otpSent && (
+                  <button
+                    id="student-send-otp-button"
+                    type="button"
+                    onClick={sendOTP}
+                    disabled={
+                      otpLoading ||
+                      mobile.length !== 10 ||
+                      !fullName.trim()
+                    }
+                    className="w-full rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {otpLoading ? "📱 Sending OTP..." : "📱 Send OTP →"}
+                  </button>
+                )}
+
+                {/* OTP */}
+                {otpSent && (
+                  <div className="rounded-[1.5rem] border border-[#d4af37]/25 bg-[#fffdf5] p-5">
+                    <div className="mb-4">
+                      <p className="font-black text-[#8a680c]">
+                        📱 OTP Verification
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Enter the 6-digit OTP sent to
+                        <strong className="text-[#07111f]"> +91 {mobile}</strong>
+                      </p>
+                    </div>
+
+                    {!otpVerified ? (
+                      <>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          placeholder="Enter 6-digit OTP"
+                          value={otp}
+                          onChange={(e) =>
+                            setOtp(
+                              e.target.value.replace(/\D/g, "").slice(0, 6)
+                            )
+                          }
+                          className="w-full rounded-2xl border border-[#d4af37]/35 bg-white p-4 text-center text-2xl font-black tracking-[0.5em] outline-none focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/10"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={verifyOTP}
+                          disabled={verifyingOtp || otp.length !== 6}
+                          className="mt-3 w-full rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e] disabled:opacity-50"
+                        >
+                          {verifyingOtp ? "⏳ Verifying..." : "✅ Verify OTP"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={sendOTP}
+                          disabled={otpLoading}
+                          className="mt-2 w-full rounded-xl py-2.5 text-sm font-bold text-[#a37b0d] transition hover:bg-[#fff8df] disabled:opacity-50"
+                        >
+                          {otpLoading ? "Sending..." : "🔄 Resend OTP"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={changeMobile}
+                          className="mt-1 w-full py-2 text-xs font-bold text-slate-500 hover:underline"
+                        >
+                          Change Mobile Number
+                        </button>
+                      </>
+                    ) : (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+                        <p className="text-base font-black text-emerald-700">
+                          ✅ Mobile Number Verified
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-emerald-700">
+                          +91 {mobile}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* DETAILS */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Create password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading || !otpVerified}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      College
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="College name"
+                      value={college}
+                      onChange={(e) => setCollege(e.target.value)}
+                      disabled={loading || !otpVerified}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Course
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Course"
+                      value={course}
+                      onChange={(e) => setCourse(e.target.value)}
+                      disabled={loading || !otpVerified}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Year
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Year"
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      disabled={loading || !otpVerified}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                    />
+                  </div>
+                </div>
+
+                {/* REGISTER */}
+                <button
+                  type="button"
+                  onClick={registerStudent}
+                  disabled={loading || !otpVerified}
+                  className="w-full rounded-2xl bg-[#d4af37] py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading
+                    ? "⏳ Registering..."
+                    : !otpVerified
+                    ? "🔒 Verify Mobile First"
+                    : "🎓 Create SBC Account →"}
+                </button>
+
+                {/* LOGIN */}
+                <div className="rounded-2xl border border-black/5 bg-[#fbfaf6] p-4 text-center text-sm text-slate-500">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/student/login")}
+                    className="font-black text-[#a37b0d] hover:text-[#07111f] hover:underline"
+                  >
+                    Login
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-7 flex items-center justify-between border-t border-black/5 pt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>Student Benefit Card</span>
+                <span className="text-[#a37b0d]">SBC • 2026</span>
+              </div>
             </div>
-          )}
-
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder="Create Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading || !otpVerified}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600 disabled:bg-gray-100"
-          />
-
-          <input
-            type="text"
-            placeholder="College"
-            value={college}
-            onChange={(e) => setCollege(e.target.value)}
-            disabled={loading || !otpVerified}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600 disabled:bg-gray-100"
-          />
-
-          <input
-            type="text"
-            placeholder="Course"
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-            disabled={loading || !otpVerified}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600 disabled:bg-gray-100"
-          />
-
-          <input
-            type="text"
-            placeholder="Year"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            disabled={loading || !otpVerified}
-            className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none focus:border-blue-600 disabled:bg-gray-100"
-          />
-
-          <button
-            type="button"
-            onClick={registerStudent}
-            disabled={loading || !otpVerified}
-            className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading
-              ? "⏳ Registering..."
-              : !otpVerified
-              ? "🔒 Verify Mobile First"
-              : "🎓 Register Student"}
-          </button>
-
-          <div className="pt-2 text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/student/login")}
-              className="font-bold text-blue-600 hover:underline"
-            >
-              Login
-            </button>
           </div>
         </div>
       </div>

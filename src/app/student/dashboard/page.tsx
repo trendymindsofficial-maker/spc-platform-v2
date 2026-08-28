@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 import { auth, db } from "@/lib/firebase";
-import {
-  enableStudentNotifications,
-  listenForStudentNotifications,
-} from "@/lib/firebase-messaging";
+import { enableStudentNotifications } from "@/lib/firebase-messaging";
 
 import {
   onAuthStateChanged,
@@ -23,6 +20,7 @@ import {
   getDocs,
   query,
   where,
+  onSnapshot,
 } from "firebase/firestore";
 
 interface Student {
@@ -35,19 +33,18 @@ interface Student {
   mobile?: string;
   email?: string;
   status?: string;
+  points?: number;
 }
 
 export default function StudentDashboard() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [error, setError] = useState("");
 
-  const [student, setStudent] =
-    useState<Student | null>(null);
-
-  const [error, setError] =
-    useState("");
+  /* Cumulative points from studentPoints/{uid}.totalPoints */
+  const [totalPoints, setTotalPoints] = useState(0);
 
   /*
    * ==========================================
@@ -55,30 +52,25 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  const getCacheKey = (
-    uid: string
-  ) => {
+  const getCacheKey = (uid: string) => {
     return `sbc_student_dashboard_${uid}`;
   };
 
-  const saveStudentToCache = (
-    studentData: Student
-  ) => {
+  /*
+   * ==========================================
+   * SAVE STUDENT CACHE
+   * ==========================================
+   */
+
+  const saveStudentToCache = (studentData: Student) => {
     try {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
+      if (typeof window === "undefined") {
         return;
       }
 
       sessionStorage.setItem(
-        getCacheKey(
-          studentData.uid
-        ),
-        JSON.stringify(
-          studentData
-        )
+        getCacheKey(studentData.uid),
+        JSON.stringify(studentData)
       );
 
       console.log(
@@ -92,41 +84,42 @@ export default function StudentDashboard() {
     }
   };
 
+  /*
+   * ==========================================
+   * LOAD STUDENT CACHE
+   * ==========================================
+   */
+
   const loadStudentFromCache = (
     uid: string
   ): Student | null => {
     try {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
+      if (typeof window === "undefined") {
         return null;
       }
 
-      const cached =
-        sessionStorage.getItem(
-          getCacheKey(uid)
-        );
+      const cached = sessionStorage.getItem(
+        getCacheKey(uid)
+      );
 
       if (!cached) {
         return null;
       }
 
-      const parsed =
-        JSON.parse(
-          cached
-        ) as Student;
+      const parsed = JSON.parse(
+        cached
+      ) as Student;
 
-      if (
-        !parsed ||
-        !parsed.uid
-      ) {
+      if (!parsed || !parsed.uid) {
         return null;
       }
 
-      if (
-        parsed.uid !== uid
-      ) {
+      /*
+       * Cache UID must match
+       * current Firebase Auth UID.
+       */
+
+      if (parsed.uid !== uid) {
         console.warn(
           "Cached student UID does not match current auth UID."
         );
@@ -147,7 +140,7 @@ export default function StudentDashboard() {
 
   /*
    * ==========================================
-   * BUILD STUDENT DATA
+   * BUILD STUDENT OBJECT
    * ==========================================
    */
 
@@ -160,28 +153,22 @@ export default function StudentDashboard() {
       uid,
 
       fullName:
-        data.fullName ||
-        "",
+        data.fullName || "",
 
       cardNumber:
-        data.cardNumber ||
-        "",
+        data.cardNumber || "",
 
       college:
-        data.college ||
-        "",
+        data.college || "",
 
       course:
-        data.course ||
-        "",
+        data.course || "",
 
       year:
-        data.year ||
-        "",
+        data.year || "",
 
       mobile:
-        data.mobile ||
-        "",
+        data.mobile || "",
 
       email:
         data.email ||
@@ -191,16 +178,22 @@ export default function StudentDashboard() {
       status:
         data.status ||
         "pending",
+
+      points:
+        Number(data.points || 0),
     };
   };
+
+  /*
+   * ==========================================
+   * APPLY STUDENT
+   * ==========================================
+   */
 
   const applyStudent = (
     studentData: Student
   ) => {
-    setStudent(
-      studentData
-    );
-
+    setStudent(studentData);
     setError("");
 
     saveStudentToCache(
@@ -210,8 +203,125 @@ export default function StudentDashboard() {
 
   /*
    * ==========================================
+   * LOAD STUDENT REWARD POINTS
+   * ==========================================
+   *
+   * Business approval stores cumulative points in
+   * studentPoints/{studentUid}.totalPoints.
+   */
+
+  const loadStudentPoints = async (authUid: string): Promise<string> => {
+    try {
+      /*
+       * IMPORTANT:
+       * Business approval saves the cumulative reward balance in:
+       *
+       * studentPoints/{request.studentId}
+       *
+       * student-offers uses auth.currentUser.uid as request.studentId,
+       * so Auth UID is the PRIMARY points document ID.
+       *
+       * We also check the actual students document ID as a legacy/fallback
+       * so an older student record can never make the dashboard show 0.
+       */
+
+      const possibleDocIds = new Set<string>();
+      possibleDocIds.add(authUid);
+
+      try {
+        const studentUidQuery = query(
+          collection(db, "students"),
+          where("uid", "==", authUid)
+        );
+
+        const studentUidSnap = await getDocs(studentUidQuery);
+
+        if (!studentUidSnap.empty) {
+          possibleDocIds.add(studentUidSnap.docs[0].id);
+        }
+      } catch (studentLookupError) {
+        console.error(
+          "Student document ID lookup for points failed:",
+          studentLookupError
+        );
+      }
+
+      let bestPoints = 0;
+      let bestDocId = authUid;
+
+      for (const pointsDocId of possibleDocIds) {
+        try {
+          const pointsSnap = await getDoc(
+            doc(db, "studentPoints", pointsDocId)
+          );
+
+          if (pointsSnap.exists()) {
+            const storedPoints = Number(
+              pointsSnap.data().totalPoints || 0
+            );
+
+            if (storedPoints >= bestPoints) {
+              bestPoints = storedPoints;
+              bestDocId = pointsDocId;
+            }
+
+            console.log(
+              "⭐ studentPoints document found:",
+              pointsDocId,
+              storedPoints
+            );
+          }
+        } catch (singlePointsError) {
+          console.error(
+            `Unable to read studentPoints/${pointsDocId}:`,
+            singlePointsError
+          );
+        }
+      }
+
+      setTotalPoints(bestPoints);
+
+      setStudent((current) => {
+        if (!current) return current;
+
+        const updated = { ...current, points: bestPoints };
+        saveStudentToCache(updated);
+        return updated;
+      });
+
+      console.log("⭐ FINAL STUDENT POINTS:", {
+        authUid,
+        pointsDocument: bestDocId,
+        totalPoints: bestPoints,
+      });
+
+      return bestDocId;
+    } catch (error) {
+      console.error("Student points load error:", error);
+      return authUid;
+    }
+  };
+
+  /*
+   * ==========================================
    * LOAD STUDENT
    * ==========================================
+   *
+   * ONLY a valid student record is accepted.
+   *
+   * Business account:
+   *
+   * business UID
+   *       ↓
+   * students/{businessUID} missing
+   *       ↓
+   * uid query missing
+   *       ↓
+   * email query missing
+   *       ↓
+   * NOT A STUDENT
+   *
+   * Then caller redirects to student login.
    */
 
   const loadStudent = async (
@@ -220,40 +330,35 @@ export default function StudentDashboard() {
   ): Promise<boolean> => {
 
     /*
+     * ========================================
      * METHOD 1
      * students/{uid}
+     * ========================================
      */
 
     try {
-      const studentRef =
-        doc(
-          db,
-          "students",
-          uid
-        );
+      const studentRef = doc(
+        db,
+        "students",
+        uid
+      );
 
-      const snap =
-        await getDoc(
-          studentRef
-        );
+      const snap = await getDoc(
+        studentRef
+      );
 
       console.log(
         "Direct student document:",
         {
-          id:
-            snap.id,
-          exists:
-            snap.exists(),
+          id: snap.id,
+          exists: snap.exists(),
           uid,
           email,
         }
       );
 
-      if (
-        snap.exists()
-      ) {
-        const data =
-          snap.data();
+      if (snap.exists()) {
+        const data = snap.data();
 
         const studentData =
           buildStudentData(
@@ -280,23 +385,24 @@ export default function StudentDashboard() {
     }
 
     /*
+     * ========================================
      * METHOD 2
      * students where uid == auth.uid
+     * ========================================
      */
 
     try {
-      const uidQuery =
-        query(
-          collection(
-            db,
-            "students"
-          ),
-          where(
-            "uid",
-            "==",
-            uid
-          )
-        );
+      const uidQuery = query(
+        collection(
+          db,
+          "students"
+        ),
+        where(
+          "uid",
+          "==",
+          uid
+        )
+      );
 
       const uidSnap =
         await getDocs(
@@ -313,14 +419,32 @@ export default function StudentDashboard() {
         }
       );
 
-      if (
-        !uidSnap.empty
-      ) {
+      if (!uidSnap.empty) {
         const studentDoc =
           uidSnap.docs[0];
 
         const data =
           studentDoc.data();
+
+        /*
+         * Use actual student
+         * document ID.
+         */
+
+        const studentData =
+          buildStudentData(
+            data,
+            studentDoc.id,
+            email
+          );
+
+        /*
+         * IMPORTANT:
+         *
+         * Verify Firestore student
+         * record belongs to current
+         * Auth UID.
+         */
 
         if (
           data.uid &&
@@ -332,13 +456,6 @@ export default function StudentDashboard() {
 
           return false;
         }
-
-        const studentData =
-          buildStudentData(
-            data,
-            studentDoc.id,
-            email
-          );
 
         console.log(
           "✅ STUDENT FOUND BY UID FIELD"
@@ -358,8 +475,10 @@ export default function StudentDashboard() {
     }
 
     /*
+     * ========================================
      * METHOD 3
      * Search by email
+     * ========================================
      */
 
     if (email) {
@@ -401,6 +520,12 @@ export default function StudentDashboard() {
           const data =
             studentDoc.data();
 
+          /*
+           * If UID exists in student
+           * record, it MUST match
+           * current Auth UID.
+           */
+
           if (
             data.uid &&
             data.uid !== uid
@@ -437,6 +562,12 @@ export default function StudentDashboard() {
       }
     }
 
+    /*
+     * ========================================
+     * NOT A STUDENT
+     * ========================================
+     */
+
     console.warn(
       "❌ AUTH USER IS NOT A VALID STUDENT:",
       {
@@ -461,9 +592,7 @@ export default function StudentDashboard() {
           "⚠️ Current account is not a student. Redirecting to student login."
         );
 
-        await signOut(
-          auth
-        );
+        await signOut(auth);
       } catch (error) {
         console.error(
           "Sign out during student guard failed:",
@@ -478,36 +607,34 @@ export default function StudentDashboard() {
 
   /*
    * ==========================================
-   * SBC NOTIFICATION SETUP
+   * SBC NOTIFICATION PROMPT
    * ==========================================
    *
    * REQUIRED BEHAVIOUR:
    *
-   * FIRST LOGIN
-   * → Custom popup
+   * FIRST LOGIN:
+   * Dashboard → Popup
    *
-   * OK
-   * → Browser permission
+   * OK:
+   * Popup → Browser permission
    *
-   * SUCCESS
-   * → Never show custom popup again
+   * Permission GRANTED:
+   * Never show popup again.
    *
-   * CANCEL
-   * → No more popup during this login
-   * → Next login can ask again
+   * Permission DENIED:
+   * Popup only once during current login.
+   * After logout/login → popup can appear again.
    *
-   * DENIED
-   * → No more popup during this login
-   * → Next login can ask again
+   * CANCEL:
+   * Popup only once during current login.
+   * After logout/login → popup can appear again.
    *
-   * Dashboard → Offers → Dashboard
-   * → No duplicate popup
+   * Dashboard → Offers → Dashboard:
+   * No popup again.
    */
 
   const enableNotificationsOnFirstLogin =
-    async (
-      uid: string
-    ) => {
+    async (uid: string) => {
       try {
         if (
           typeof window ===
@@ -517,10 +644,7 @@ export default function StudentDashboard() {
         }
 
         if (
-          !(
-            "Notification" in
-            window
-          )
+          !("Notification" in window)
         ) {
           console.log(
             "Browser does not support notifications."
@@ -531,12 +655,13 @@ export default function StudentDashboard() {
 
         /*
          * ========================================
-         * PERMANENT SUCCESS FLAG
+         * PERMANENTLY ENABLED
          * ========================================
          *
-         * If student has successfully enabled
-         * notifications before, NEVER show the
-         * SBC custom popup again.
+         * Student already enabled
+         * notifications successfully.
+         *
+         * NEVER show popup again.
          */
 
         const enabledKey =
@@ -552,48 +677,24 @@ export default function StudentDashboard() {
           "true"
         ) {
           console.log(
-            "🔔 Notifications already enabled permanently. No popup."
+            "🔔 SBC notifications already enabled. No popup."
           );
-
-          /*
-           * Permission should also be granted.
-           * Refresh/get FCM token without asking
-           * browser permission again.
-           */
-
-          if (
-            Notification.permission ===
-            "granted"
-          ) {
-            try {
-              await enableStudentNotifications();
-
-              console.log(
-                "✅ Existing notification token refreshed."
-              );
-            } catch (error) {
-              console.error(
-                "Existing notification token refresh failed:",
-                error
-              );
-            }
-          }
 
           return;
         }
 
         /*
          * ========================================
-         * CURRENT LOGIN SESSION FLAG
+         * CURRENT LOGIN SESSION
          * ========================================
          *
-         * Prevent:
+         * Prevent duplicate popup when:
          *
          * Dashboard
-         * → Offers
-         * → Dashboard
-         *
-         * from showing the popup again.
+         *     ↓
+         * Offers
+         *     ↓
+         * Dashboard
          */
 
         const sessionPromptKey =
@@ -619,12 +720,6 @@ export default function StudentDashboard() {
          * ========================================
          * BROWSER PERMISSION ALREADY GRANTED
          * ========================================
-         *
-         * This can happen if browser permission
-         * was granted previously but localStorage
-         * flag was cleared.
-         *
-         * Do NOT show custom popup.
          */
 
         if (
@@ -640,11 +735,11 @@ export default function StudentDashboard() {
             );
 
             console.log(
-              "✅ Browser permission already granted. No popup."
+              "✅ Browser notification permission already granted."
             );
           } catch (error) {
             console.error(
-              "Unable to setup existing notification permission:",
+              "Unable to refresh notification token:",
               error
             );
           }
@@ -654,24 +749,20 @@ export default function StudentDashboard() {
 
         /*
          * ========================================
-         * MARK POPUP SHOWN IMMEDIATELY
+         * SHOW SBC CUSTOM POPUP
          * ========================================
          *
-         * This prevents duplicate popup during
-         * the same login even if React effects
-         * execute more than once.
+         * Mark immediately.
+         *
+         * Therefore even if user presses
+         * Cancel, popup won't appear again
+         * during this login.
          */
 
         sessionStorage.setItem(
           sessionPromptKey,
           "true"
         );
-
-        /*
-         * ========================================
-         * CUSTOM SBC POPUP
-         * ========================================
-         */
 
         const shouldEnable =
           window.confirm(
@@ -683,13 +774,11 @@ export default function StudentDashboard() {
 
         /*
          * ========================================
-         * USER CANCELLED
+         * USER CLICKED CANCEL
          * ========================================
          */
 
-        if (
-          !shouldEnable
-        ) {
+        if (!shouldEnable) {
           console.log(
             "ℹ️ Student cancelled notification setup."
           );
@@ -707,8 +796,8 @@ export default function StudentDashboard() {
           await enableStudentNotifications();
 
           /*
-           * ONLY successful setup gets
-           * permanent flag.
+           * ONLY after successful notification
+           * setup permanently remember it.
            */
 
           localStorage.setItem(
@@ -717,25 +806,21 @@ export default function StudentDashboard() {
           );
 
           console.log(
-            "✅ SBC notifications enabled permanently."
+            "✅ SBC notifications enabled successfully."
           );
         } catch (error) {
           console.error(
-            "❌ Notification enable failed:",
+            "Notification enable failed:",
             error
           );
 
           /*
-           * IMPORTANT:
+           * Do NOT save permanent enabled flag.
            *
-           * Do NOT set enabledKey.
-           *
-           * Therefore next login can try again.
+           * If browser permission was denied
+           * or setup failed, user can be asked
+           * again after next login.
            */
-
-          localStorage.removeItem(
-            enabledKey
-          );
         }
       } catch (error) {
         console.error(
@@ -753,29 +838,25 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribePoints: (() => void) | null = null;
 
     const unsubscribe =
       onAuthStateChanged(
         auth,
         async (user) => {
-          if (
-            !mounted
-          ) {
+          if (!mounted) {
             return;
           }
 
           /*
+           * ==================================
            * NOT LOGGED IN
+           * ==================================
            */
 
           if (!user) {
-            setStudent(
-              null
-            );
-
-            setLoading(
-              false
-            );
+            setStudent(null);
+            setLoading(false);
 
             router.replace(
               "/student/login"
@@ -801,7 +882,7 @@ export default function StudentDashboard() {
           /*
            * ==================================
            * STEP 1
-           * CACHE
+           * CHECK CACHE
            * ==================================
            */
 
@@ -813,31 +894,30 @@ export default function StudentDashboard() {
           if (
             cachedStudent
           ) {
+            /*
+             * Show cached student
+             * immediately.
+             */
+
             setStudent(
               cachedStudent
             );
 
             setError("");
-
-            setLoading(
-              false
-            );
+            setLoading(false);
 
             console.log(
               "✅ Showing cached student dashboard."
             );
           } else {
-            setLoading(
-              true
-            );
-
+            setLoading(true);
             setError("");
           }
 
           /*
            * ==================================
            * STEP 2
-           * FIRESTORE
+           * VERIFY STUDENT IN FIRESTORE
            * ==================================
            */
 
@@ -847,9 +927,7 @@ export default function StudentDashboard() {
               user.email
             );
 
-          if (
-            !mounted
-          ) {
+          if (!mounted) {
             return;
           }
 
@@ -860,20 +938,18 @@ export default function StudentDashboard() {
            * ==================================
            */
 
-          if (
-            !success
-          ) {
+          if (!success) {
             console.warn(
               "❌ This authenticated account is not a valid SBC student."
             );
 
-            setStudent(
-              null
-            );
+            /*
+             * Do NOT keep old cached student
+             * when current Auth UID is different.
+             */
 
-            setLoading(
-              false
-            );
+            setStudent(null);
+            setLoading(false);
 
             await redirectToStudentLogin();
 
@@ -882,18 +958,82 @@ export default function StudentDashboard() {
 
           /*
            * ==================================
+           * LOAD + LISTEN TO TOTAL POINTS
+           * ==================================
+           */
+
+          const pointsDocId = await loadStudentPoints(user.uid);
+
+          if (!mounted) {
+            return;
+          }
+
+          if (unsubscribePoints) {
+            unsubscribePoints();
+            unsubscribePoints = null;
+          }
+
+          /*
+           * REAL-TIME POINTS LISTENER
+           *
+           * Business approval updates studentPoints/{authUid}.
+           * Listen directly to that document so the student dashboard
+           * changes immediately after the business approves redemption.
+           */
+          unsubscribePoints = onSnapshot(
+            doc(db, "studentPoints", user.uid),
+            (pointsSnap) => {
+              if (!mounted) return;
+
+              const latestTotalPoints = pointsSnap.exists()
+                ? Number(pointsSnap.data().totalPoints || 0)
+                : 0;
+
+              setTotalPoints(latestTotalPoints);
+
+              setStudent((current) => {
+                if (!current) return current;
+
+                const updated = {
+                  ...current,
+                  points: latestTotalPoints,
+                };
+
+                saveStudentToCache(updated);
+                return updated;
+              });
+
+              console.log(
+                "⭐ STUDENT DASHBOARD REAL-TIME TOTAL POINTS:",
+                latestTotalPoints
+              );
+            },
+            (pointsError) => {
+              console.error(
+                "Student points listener error:",
+                pointsError
+              );
+            }
+          );
+
+          /*
+           * If an older installation stores points under the actual
+           * students document ID instead of Auth UID, the initial loader
+           * above still displays that value.
+           */
+
+          /*
+           * ==================================
            * STEP 4
            * SUCCESS
            * ==================================
            */
 
-          setLoading(
-            false
-          );
+          setLoading(false);
 
           /*
-           * Notification setup must never
-           * block dashboard loading.
+           * Notifications must NOT block
+           * dashboard loading.
            */
 
           enableNotificationsOnFirstLogin(
@@ -912,6 +1052,11 @@ export default function StudentDashboard() {
       mounted = false;
 
       unsubscribe();
+
+      if (unsubscribePoints) {
+        unsubscribePoints();
+        unsubscribePoints = null;
+      }
     };
   }, [router]);
 
@@ -920,44 +1065,47 @@ export default function StudentDashboard() {
    * LOGOUT
    * ==========================================
    *
-   * Permanent enabled flag is NOT removed.
+   * IMPORTANT:
    *
-   * Session popup flag is removed so that
-   * cancelled/denied users can be asked again
-   * on their next login.
+   * Clear ONLY the session popup flag.
+   *
+   * Permanent "enabled" flag remains.
+   *
+   * Therefore:
+   *
+   * User enabled notifications:
+   * logout → login → NO popup.
+   *
+   * User cancelled/denied:
+   * logout → login → popup again.
    */
 
-  const logout =
-    async () => {
-      try {
-        const user =
-          auth.currentUser;
+  const logout = async () => {
+    try {
+      const user =
+        auth.currentUser;
 
-        if (
-          user
-        ) {
-          const sessionPromptKey =
-            `sbc_notification_prompt_shown_${user.uid}`;
+      if (user) {
+        const sessionPromptKey =
+          `sbc_notification_prompt_shown_${user.uid}`;
 
-          sessionStorage.removeItem(
-            sessionPromptKey
-          );
-        }
-
-        await signOut(
-          auth
-        );
-
-        router.replace(
-          "/student/login"
-        );
-      } catch (error) {
-        console.error(
-          "Logout error:",
-          error
+        sessionStorage.removeItem(
+          sessionPromptKey
         );
       }
-    };
+
+      await signOut(auth);
+
+      router.replace(
+        "/student/login"
+      );
+    } catch (error) {
+      console.error(
+        "Logout error:",
+        error
+      );
+    }
+  };
 
   /*
    * ==========================================
@@ -965,76 +1113,76 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  const retryLoading =
-    async () => {
-      const user =
-        auth.currentUser;
+  const retryLoading = async () => {
+    const user =
+      auth.currentUser;
 
-      if (!user) {
-        router.replace(
-          "/student/login"
-        );
-
-        return;
-      }
-
-      setLoading(
-        true
+    if (!user) {
+      router.replace(
+        "/student/login"
       );
 
-      setError("");
+      return;
+    }
 
-      const cachedStudent =
-        loadStudentFromCache(
-          user.uid
-        );
+    setLoading(true);
+    setError("");
 
-      if (
+    /*
+     * Check cache first.
+     */
+
+    const cachedStudent =
+      loadStudentFromCache(
+        user.uid
+      );
+
+    if (
+      cachedStudent
+    ) {
+      setStudent(
         cachedStudent
-      ) {
+      );
+
+      setLoading(false);
+    }
+
+    /*
+     * Verify Firestore.
+     */
+
+    const success =
+      await loadStudent(
+        user.uid,
+        user.email
+      );
+
+    if (!success) {
+      /*
+       * If cache belongs to same UID,
+       * keep it.
+       */
+
+      if (cachedStudent) {
         setStudent(
           cachedStudent
         );
 
-        setLoading(
-          false
-        );
-      }
-
-      const success =
-        await loadStudent(
-          user.uid,
-          user.email
-        );
-
-      if (
-        !success
-      ) {
-        if (
-          cachedStudent
-        ) {
-          setStudent(
-            cachedStudent
-          );
-
-          setError("");
-
-          setLoading(
-            false
-          );
-
-          return;
-        }
-
-        await redirectToStudentLogin();
+        setError("");
+        setLoading(false);
 
         return;
       }
 
-      setLoading(
-        false
-      );
-    };
+      await redirectToStudentLogin();
+
+      return;
+    }
+
+    await loadStudentPoints(user.uid);
+
+    setLoading(false);
+  };
 
   /*
    * ==========================================
@@ -1073,9 +1221,7 @@ export default function StudentDashboard() {
    * ==========================================
    */
 
-  if (
-    !student
-  ) {
+  if (!student) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
 
@@ -1133,242 +1279,274 @@ export default function StudentDashboard() {
         student.cardNumber ||
         "",
 
-      type:
-        "student",
+      type: "student",
     });
 
   /*
    * ==========================================
-   * DASHBOARD
+   * PREMIUM SBC DASHBOARD UI
    * ==========================================
+   * Visual direction inspired by the supplied
+   * SPC reference: deep navy, warm gold,
+   * clean cards, premium spacing and subtle
+   * glass/gradient treatment.
    */
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6">
+    <main className="min-h-screen bg-[#f5f3ed] text-slate-900">
 
-      <div className="mx-auto max-w-6xl">
-
-        {/* HEADER */}
-
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-          <div>
-
-            <h1 className="text-4xl font-bold text-blue-700">
-              Welcome 👋
-            </h1>
-
-            <p className="text-gray-600">
-              {student.fullName}
-            </p>
-
+      {/* TOP NAV */}
+      <header className="sticky top-0 z-30 border-b border-black/10 bg-[#07111f]/95 text-white backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63] shadow-[0_0_30px_rgba(212,175,55,0.12)]">
+              SBC
+            </div>
+            <div>
+              <p className="text-[15px] font-black uppercase tracking-[0.25em] text-[#FFD700]">
+                Student Benefit Card
+              </p>
+              <p className="text-sm font-medium text-white/70">
+                Premium Student Dashboard
+              </p>
+            </div>
           </div>
 
           <button
-            onClick={
-              logout
-            }
-            className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white transition hover:bg-red-700"
+            onClick={logout}
+            className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
           >
             Logout
           </button>
-
         </div>
+      </header>
 
-        {/* CARD + QR */}
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        {/* HERO */}
+        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-10 lg:p-12">
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+          <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          {/* DIGITAL SBC CARD */}
-
-          <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-8 text-white shadow-xl">
-
-            <h2 className="mb-6 text-2xl font-bold">
-              💳 Student Benefit Card
-            </h2>
-
-            <div className="space-y-3 text-lg">
-
-              <p>
-                <strong>
-                  Name :
-                </strong>{" "}
-                {student.fullName ||
-                  "-"}
-              </p>
-
-              <p>
-                <strong>
-                  Card Number :
-                </strong>{" "}
-                {student.cardNumber ||
-                  "-"}
-              </p>
-
-              <p>
-                <strong>
-                  College :
-                </strong>{" "}
-                {student.college ||
-                  "-"}
-              </p>
-
-              <p>
-                <strong>
-                  Course :
-                </strong>{" "}
-                {student.course ||
-                  "-"}
-              </p>
-
-              <p>
-                <strong>
-                  Year :
-                </strong>{" "}
-                {student.year ||
-                  "-"}
-              </p>
-
-              <p>
-                <strong>
-                  Mobile :
-                </strong>{" "}
-                {student.mobile ||
-                  "-"}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* QR */}
-
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
-
-            <h2 className="mb-6 text-2xl font-bold">
-              📱 My QR Code
-            </h2>
-
-            <div className="flex flex-col items-center">
-
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
-
-                <QRCode
-                  value={
-                    qrValue
-                  }
-                  size={
-                    220
-                  }
-                />
-
+          <div className="relative grid gap-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#f1cf63]">
+                ✦ Verified SBC Student
               </div>
 
-              <p className="mt-5 text-lg font-bold">
-                {student.cardNumber ||
-                  "-"}
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Welcome,
+                <span className="block text-[#f1cf63]">
+                  {student.fullName || "Student"}
+                </span>
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
+                Your SBC card unlocks exclusive student benefits, partner offers and reward points.
               </p>
 
-              <p className="mt-2 text-center text-sm text-gray-500">
-                Show this QR to Business Partner
-              </p>
-
+              <div className="mt-7 flex flex-wrap gap-3">
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm text-white/80">
+                  Card {student.cardNumber || "—"}
+                </span>
+                <span className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+                  ● {student.status ? student.status.toUpperCase() : "PENDING"}
+                </span>
+              </div>
             </div>
 
+            <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Current Reward Balance
+              </p>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="text-5xl font-black tracking-tight text-[#f1cf63]">
+                  {totalPoints.toLocaleString()}
+                </span>
+                <span className="pb-2 text-sm font-bold text-white/55">
+                  POINTS
+                </span>
+              </div>
+              <p className="mt-3 text-sm text-white/55">
+                Earn more points every time you redeem at an SBC partner.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* DIGITAL CARD + QR */}
+        <section className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
+
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-9">
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#d4af37]/10 blur-2xl" />
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#d4af37]">
+                  Digital Membership Card
+                </p>
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
+                  Student Benefit Card
+                </h2>
+              </div>
+              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">
+                SBC
+              </div>
+            </div>
+
+            <div className="relative mt-9 grid gap-6 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Card Holder</p>
+                <p className="mt-1 text-lg font-bold">{student.fullName || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Card Number</p>
+                <p className="mt-1 text-lg font-bold tracking-wider">{student.cardNumber || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">College</p>
+                <p className="mt-1 text-sm font-semibold text-white/80">{student.college || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Course / Year</p>
+                <p className="mt-1 text-sm font-semibold text-white/80">
+                  {student.course || "—"} {student.year ? `• ${student.year}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="relative mt-10 flex items-center justify-between border-t border-white/10 pt-5">
+              <span className="text-xs text-white/40">Verified Student Membership</span>
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#f1cf63]">SBC • 2026</span>
+            </div>
           </div>
 
-        </div>
+          <div className="rounded-[2rem] border border-black/5 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">Scan & Redeem</p>
+                <h2 className="mt-1 text-2xl font-black text-[#07111f]">My QR Code</h2>
+              </div>
+              <div className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                Active
+              </div>
+            </div>
 
-        {/* QUICK ACTIONS */}
+            <div className="mt-7 flex justify-center">
+              <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
+                <QRCode value={qrValue} size={205} />
+              </div>
+            </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-
-          {/* OFFERS */}
-
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
-
-            <h2 className="mb-5 text-2xl font-bold">
-              🎁 Available Offers
-            </h2>
-
-            <p className="mb-6 text-gray-600">
-              View all active offers from
-              SBC Business Partners.
+            <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
+              {student.cardNumber || "—"}
             </p>
-
-            <button
-              onClick={() =>
-                router.push(
-                  "/student/offers"
-                )
-              }
-              className="w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white transition hover:bg-blue-700"
-            >
-              🎁 View Offers
-            </button>
-
+            <p className="mt-2 text-center text-xs text-slate-500">
+              Show this QR to an SBC Business Partner to redeem an offer.
+            </p>
           </div>
+        </section>
 
-          {/* ACCOUNT STATUS */}
-
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
-
-            <h2 className="mb-5 text-2xl font-bold">
-              👤 Account Status
-            </h2>
-
-            <div className="rounded-2xl bg-green-100 p-5 text-center">
-
-              <p className="text-sm text-gray-600">
-                Current Status
-              </p>
-
-              <h3 className="mt-2 text-3xl font-bold text-green-700">
-                {student.status
-                  ? student.status.toUpperCase()
-                  : "PENDING"}
-              </h3>
-
+        {/* REWARD + GIFT */}
+        <section className="mt-7 grid gap-7 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">SBC Rewards</p>
+                <h2 className="mt-2 text-4xl font-black tracking-tight text-[#07111f]">
+                  {totalPoints.toLocaleString()}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Total Reward Points</p>
+              </div>
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#07111f] text-3xl shadow-lg">
+                ⭐
+              </div>
             </div>
 
-          </div>
-
-        </div>
-
-        {/* BOTTOM INFORMATION */}
-
-        <div className="mt-10 rounded-3xl bg-white p-6 shadow-xl">
-
-          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-
-            <div>
-
-              <h3 className="text-xl font-bold">
-                Student Benefit Card
-              </h3>
-
-              <p className="text-gray-500">
-                Show your QR code at partner
-                businesses to redeem offers.
-              </p>
-
+            <div className="mt-7 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#b18a16] to-[#f1cf63] transition-all duration-700"
+                style={{ width: `${Math.min((totalPoints / 1000) * 100, 100)}%` }}
+              />
             </div>
-
-            <button
-              onClick={
-                logout
-              }
-              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white transition hover:bg-red-700"
-            >
-              Logout
-            </button>
-
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              {Math.min(Math.round((totalPoints / 1000) * 100), 100)}% towards the 1,000-point milestone
+            </p>
           </div>
 
-        </div>
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#fffdf5] to-[#f7f1dd] p-7 shadow-[0_20px_60px_rgba(120,90,20,0.10)] sm:p-8">
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#d4af37]/15 blur-2xl" />
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a37b0d]">🎁 Surprise Gift</p>
+                <h2 className="mt-2 text-2xl font-black text-[#07111f]">
+                  {totalPoints >= 1000 ? "Surprise Gift Unlocked!" : `${Math.max(1000 - totalPoints, 0)} Points to go`}
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                  {totalPoints >= 1000
+                    ? "Congratulations! You reached 1,000 SBC Reward Points. Your surprise gift is unlocked."
+                    : `Keep redeeming SBC partner offers. Just ${Math.max(1000 - totalPoints, 0)} more points and your Surprise Gift unlocks.`}
+                </p>
+              </div>
+
+              <div className="shrink-0 rounded-2xl border border-[#d4af37]/30 bg-white/70 px-5 py-4 text-center shadow-sm">
+                <p className="text-2xl font-black text-[#07111f]">
+                  {Math.min(totalPoints, 1000).toLocaleString()}
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">of 1,000</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ACTIONS */}
+        <section className="mt-7 grid gap-7 md:grid-cols-2">
+          <div className="group rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] transition hover:-translate-y-1 sm:p-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#d4af37]/10 text-2xl text-[#f1cf63]">
+              🎁
+            </div>
+            <h2 className="mt-5 text-2xl font-black">Exclusive Offers</h2>
+            <p className="mt-2 leading-6 text-white/55">
+              Explore active discounts and benefits from verified SBC Business Partners.
+            </p>
+            <button
+              onClick={() => router.push("/student/offers")}
+              className="mt-7 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+            >
+              Explore Offers →
+            </button>
+          </div>
+
+          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">Account</p>
+            <h2 className="mt-2 text-2xl font-black text-[#07111f]">Membership Status</h2>
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Current Status</p>
+                <p className="mt-1 text-2xl font-black text-emerald-700">
+                  {student.status ? student.status.toUpperCase() : "PENDING"}
+                </p>
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">✓</div>
+            </div>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="mt-10 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-black text-[#07111f]">Student Benefit Card</p>
+            <p className="mt-1">One card. More benefits. More savings.</p>
+          </div>
+          <button
+            onClick={logout}
+            className="w-fit rounded-full border border-slate-300 px-5 py-2.5 font-bold text-slate-700 transition hover:border-[#b18a16] hover:text-[#8a680c]"
+          >
+            Logout
+          </button>
+        </footer>
 
       </div>
-
     </main>
   );
 }
