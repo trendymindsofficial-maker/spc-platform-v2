@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 import { auth, db } from "@/lib/firebase";
-import {
-  enableStudentNotifications,
-  listenForStudentNotifications,
-} from "@/lib/firebase-messaging";
+import { enableStudentNotifications } from "@/lib/firebase-messaging";
 
 import {
   onAuthStateChanged,
@@ -45,6 +42,12 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [error, setError] = useState("");
+
+  // Notification setup UI. The browser permission request MUST happen
+  // directly from the student's button click on Android Chrome.
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [notificationEnabling, setNotificationEnabling] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
 
   /* Cumulative points from studentPoints/{uid}.totalPoints */
   const [totalPoints, setTotalPoints] = useState(0);
@@ -636,241 +639,99 @@ export default function StudentDashboard() {
    * No popup again.
    */
 
-  const enableNotificationsOnFirstLogin =
-    async (uid: string) => {
-      try {
-        if (
-          typeof window ===
-          "undefined"
-        ) {
-          return;
-        }
+  const prepareNotificationPrompt = async (uid: string) => {
+    try {
+      if (typeof window === "undefined") return;
 
-        if (
-          !("Notification" in window)
-        ) {
-          console.log(
-            "Browser does not support notifications."
-          );
+      if (!("Notification" in window)) {
+        console.log("Browser does not support notifications.");
+        return;
+      }
 
-          return;
-        }
+      const enabledKey = `sbc_notifications_enabled_${uid}`;
+      const permanentlyEnabled = localStorage.getItem(enabledKey);
 
-        /*
-         * ========================================
-         * PERMANENTLY ENABLED
-         * ========================================
-         *
-         * Student already enabled
-         * notifications successfully.
-         *
-         * NEVER show popup again.
-         */
+      if (permanentlyEnabled === "true") {
+        console.log("🔔 SBC notifications already enabled. No popup.");
+        return;
+      }
 
-        const enabledKey =
-          `sbc_notifications_enabled_${uid}`;
+      const sessionPromptKey = `sbc_notification_prompt_shown_${uid}`;
+      const alreadyShownThisLogin = sessionStorage.getItem(sessionPromptKey);
 
-        const permanentlyEnabled =
-          localStorage.getItem(
-            enabledKey
-          );
+      if (alreadyShownThisLogin === "true") {
+        console.log("🔔 Notification popup already shown in this login session.");
+        return;
+      }
 
-        if (
-          permanentlyEnabled ===
-          "true"
-        ) {
-          console.log(
-            "🔔 SBC notifications already enabled. No popup."
-          );
-
-          return;
-        }
-
-        /*
-         * ========================================
-         * CURRENT LOGIN SESSION
-         * ========================================
-         *
-         * Prevent duplicate popup when:
-         *
-         * Dashboard
-         *     ↓
-         * Offers
-         *     ↓
-         * Dashboard
-         */
-
-        const sessionPromptKey =
-          `sbc_notification_prompt_shown_${uid}`;
-
-        const alreadyShownThisLogin =
-          sessionStorage.getItem(
-            sessionPromptKey
-          );
-
-        if (
-          alreadyShownThisLogin ===
-          "true"
-        ) {
-          console.log(
-            "🔔 Notification popup already shown in this login session."
-          );
-
-          return;
-        }
-
-        /*
-         * ========================================
-         * BROWSER PERMISSION ALREADY GRANTED
-         * ========================================
-         */
-
-        if (
-          Notification.permission ===
-          "granted"
-        ) {
-          try {
-            await enableStudentNotifications();
-
-            localStorage.setItem(
-              enabledKey,
-              "true"
-            );
-
-            console.log(
-              "✅ Browser notification permission already granted."
-            );
-          } catch (error) {
-            console.error(
-              "Unable to refresh notification token:",
-              error
-            );
-          }
-
-          return;
-        }
-
-        /*
-         * ========================================
-         * SHOW SBC CUSTOM POPUP
-         * ========================================
-         *
-         * Mark immediately.
-         *
-         * Therefore even if user presses
-         * Cancel, popup won't appear again
-         * during this login.
-         */
-
-        sessionStorage.setItem(
-          sessionPromptKey,
-          "true"
-        );
-
-        const shouldEnable =
-          window.confirm(
-            "🔔 Stay Updated with SBC\n\n" +
-              "Get new offers, important announcements " +
-              "and SBC updates directly on your device.\n\n" +
-              "Click OK to enable notifications."
-          );
-
-        /*
-         * ========================================
-         * USER CLICKED CANCEL
-         * ========================================
-         */
-
-        if (!shouldEnable) {
-          console.log(
-            "ℹ️ Student cancelled notification setup."
-          );
-
-          return;
-        }
-
-        /*
-         * ========================================
-         * USER CLICKED OK
-         * ========================================
-         */
-
+      // If permission is already granted, no user gesture is needed.
+      // Refresh/register the FCM token automatically.
+      if (Notification.permission === "granted") {
         try {
           await enableStudentNotifications();
-
-          /*
-           * ONLY after successful notification
-           * setup permanently remember it.
-           */
-
-          localStorage.setItem(
-            enabledKey,
-            "true"
-          );
-
-          console.log(
-            "✅ SBC notifications enabled successfully."
-          );
+          localStorage.setItem(enabledKey, "true");
+          console.log("✅ Browser notification permission already granted.");
         } catch (error) {
-          console.error(
-            "Notification enable failed:",
-            error
-          );
-
-          /*
-           * Do NOT save permanent enabled flag.
-           *
-           * If browser permission was denied
-           * or setup failed, user can be asked
-           * again after next login.
-           */
+          console.error("Unable to refresh notification token:", error);
         }
-      } catch (error) {
-        console.error(
-          "Notification setup error:",
-          error
-        );
+        return;
       }
-    };
 
-  /*
-   * ==========================================
-   * FOREGROUND FCM LISTENER
-   * ==========================================
-   */
+      // Do not call Notification.requestPermission() here. This function
+      // runs from useEffect/auth flow, which is NOT a user gesture on Android.
+      // The actual request is made by handleEnableNotifications().
+      sessionStorage.setItem(sessionPromptKey, "true");
+      setNotificationError("");
+      setShowNotificationPrompt(true);
+    } catch (error) {
+      console.error("Notification setup preparation error:", error);
+    }
+  };
 
-  useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-    let mounted = true;
+  const handleEnableNotifications = async () => {
+    const user = auth.currentUser;
 
-    const startNotificationListener = async () => {
-      try {
-        const cleanup = await listenForStudentNotifications((payload) => {
-          console.log("🔔 SBC dashboard notification:", payload);
-        });
+    if (!user) {
+      setNotificationError("Please login again and try.");
+      return;
+    }
 
-        if (mounted) {
-          unsubscribe = cleanup;
-        } else {
-          cleanup();
-        }
-      } catch (error) {
-        console.error(
-          "❌ Unable to start SBC notification listener:",
-          error
-        );
+    try {
+      setNotificationEnabling(true);
+      setNotificationError("");
+
+      // IMPORTANT: this function is called directly by the button click.
+      // Android Chrome can therefore show its native permission prompt.
+      const token = await enableStudentNotifications();
+
+      if (!token) {
+        throw new Error("FCM token was not generated.");
       }
-    };
 
-    startNotificationListener();
+      localStorage.setItem(
+        `sbc_notifications_enabled_${user.uid}`,
+        "true"
+      );
 
-    return () => {
-      mounted = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []);
+      setShowNotificationPrompt(false);
+      console.log("✅ SBC notifications enabled successfully.");
+    } catch (error) {
+      console.error("Notification enable failed:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to enable notifications.";
+
+      setNotificationError(message);
+    } finally {
+      setNotificationEnabling(false);
+    }
+  };
+
+  const handleNotificationCancel = () => {
+    setShowNotificationPrompt(false);
+  };
 
   /*
    * ==========================================
@@ -1078,9 +939,7 @@ export default function StudentDashboard() {
            * dashboard loading.
            */
 
-          enableNotificationsOnFirstLogin(
-            user.uid
-          ).catch(
+          prepareNotificationPrompt(user.uid).catch(
             (error) =>
               console.error(
                 "Notification setup error:",
@@ -1336,6 +1195,62 @@ export default function StudentDashboard() {
 
   return (
     <main className="min-h-screen bg-[#f5f3ed] text-slate-900">
+
+      {showNotificationPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07111f]/70 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_100px_rgba(7,17,31,0.35)]">
+            <div className="bg-gradient-to-br from-[#07111f] via-[#111827] to-[#5f4700] px-7 py-8 text-white">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-2xl">
+                🔔
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f1cf63]">
+                Student Benefit Card
+              </p>
+              <h2 className="mt-2 text-2xl font-black">
+                Stay Updated with SBC
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-white/70">
+                Get new offers, important announcements and SBC updates directly on your device.
+              </p>
+            </div>
+
+            <div className="p-7">
+              <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-4">
+                <p className="text-sm font-bold text-[#07111f]">
+                  🔔 Enable notifications
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Tap Enable below. Chrome will then ask for notification permission.
+                </p>
+              </div>
+
+              {notificationError && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                  {notificationError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={notificationEnabling}
+                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63] px-5 py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {notificationEnabling ? "Enabling Notifications..." : "🔔 Enable Notifications"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNotificationCancel}
+                disabled={notificationEnabling}
+                className="mt-3 w-full rounded-2xl border border-slate-200 px-5 py-3.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOP NAV */}
       <header className="sticky top-0 z-30 border-b border-black/10 bg-[#07111f]/95 text-white backdrop-blur-xl">
