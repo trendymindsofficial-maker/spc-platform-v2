@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
+import { auth, storage } from "@/lib/firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import AdminProtected from "@/components/AdminProtected";
 
 export default function AdminNotificationsPage() {
@@ -19,11 +20,15 @@ export default function AdminNotificationsPage() {
 
   /*
    * ============================================================
-   * CLOUDINARY IMAGE UPLOAD
+   * FIREBASE STORAGE IMAGE UPLOAD
    * ============================================================
+   *
+   * Admin selects an image directly from the PC.
+   * The image is automatically uploaded to Firebase Storage
+   * and the download URL is attached to the notification.
    */
 
-  const uploadImageToCloudinary = async (file: File) => {
+  const uploadImageToFirebaseStorage = async (file: File) => {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -36,60 +41,42 @@ export default function AdminNotificationsPage() {
       return;
     }
 
-    const cloudName =
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-
-    const uploadPreset =
-      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      alert(
-        "Cloudinary configuration is missing. Please check your Cloudinary environment variables."
-      );
-      return;
-    }
-
     try {
       setImageUploading(true);
       setResult("");
 
-      const formData = new FormData();
+      const user = auth.currentUser;
 
-      formData.append("file", file);
-      formData.append("upload_preset", uploadPreset);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error?.message ||
-            "Cloudinary image upload failed."
-        );
+      if (!user) {
+        throw new Error("Admin login required.");
       }
 
-      if (!data.secure_url) {
-        throw new Error(
-          "Cloudinary did not return an image URL."
-        );
-      }
+      const safeFileName = file.name
+        .replace(/[^a-zA-Z0-9._-]/g, "-")
+        .toLowerCase();
 
-      setImageUrl(data.secure_url);
+      const filePath =
+        `notification-images/${user.uid}/${Date.now()}-${safeFileName}`;
+
+      const storageRef = ref(storage, filePath);
+
+      await uploadBytes(storageRef, file, {
+        contentType: file.type,
+        cacheControl: "public,max-age=31536000",
+      });
+
+      const downloadUrl =
+        await getDownloadURL(storageRef);
+
+      setImageUrl(downloadUrl);
 
       console.log(
-        "✅ Cloudinary image uploaded:",
-        data.secure_url
+        "✅ Notification image uploaded to Firebase Storage:",
+        downloadUrl
       );
     } catch (error) {
       console.error(
-        "Cloudinary upload error:",
+        "Firebase Storage image upload error:",
         error
       );
 
@@ -383,7 +370,7 @@ export default function AdminNotificationsPage() {
 
                     <p className="font-black text-slate-800">
                       {imageUploading
-                        ? "Uploading to Cloudinary..."
+                        ? "Uploading to Firebase Storage..."
                         : "Upload Notification Image"}
                     </p>
 
@@ -408,7 +395,7 @@ export default function AdminNotificationsPage() {
                           e.target.files?.[0];
 
                         if (file) {
-                          uploadImageToCloudinary(
+                          uploadImageToFirebaseStorage(
                             file
                           );
                         }
@@ -446,7 +433,7 @@ export default function AdminNotificationsPage() {
                         </p>
 
                         <p className="mt-1 truncate text-xs text-slate-400">
-                          Cloudinary
+                          Firebase Storage
                         </p>
 
                       </div>
