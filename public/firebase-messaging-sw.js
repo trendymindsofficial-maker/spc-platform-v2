@@ -29,13 +29,21 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 /*
- * IMPORTANT:
- *
- * Do NOT call showNotification() here.
- *
- * Server sends a notification payload, so Firebase
- * automatically displays the background notification.
- */
+|--------------------------------------------------------------------------
+| BACKGROUND NOTIFICATION
+|--------------------------------------------------------------------------
+|
+| The server sends a notification payload.
+| Firebase displays it automatically when the
+| SBC site is in the background / screen is off.
+|
+*/
+
+/*
+|--------------------------------------------------------------------------
+| NOTIFICATION CLICK
+|--------------------------------------------------------------------------
+*/
 
 self.addEventListener(
   "notificationclick",
@@ -44,25 +52,41 @@ self.addEventListener(
 
     const url =
       event.notification?.data?.url ||
-      "https://www.studentbenefitcard.com/student/dashboard";
+      "/student/dashboard";
 
     event.waitUntil(
-      clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      }).then((clientList) => {
-        for (const client of clientList) {
-          if ("focus" in client) {
-            return client.focus();
+      clients
+        .matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        })
+        .then((clientList) => {
+          /*
+           * If SBC is already open,
+           * navigate/focus that tab.
+           */
+
+          for (const client of clientList) {
+            if (
+              "navigate" in client &&
+              "focus" in client
+            ) {
+              return client
+                .navigate(url)
+                .then(() => client.focus());
+            }
           }
-        }
 
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
+          /*
+           * Otherwise open SBC dashboard.
+           */
 
-        return undefined;
-      })
+          if (clients.openWindow) {
+            return clients.openWindow(url);
+          }
+
+          return undefined;
+        })
     );
   }
 );
