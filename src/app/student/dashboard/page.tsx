@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 import { auth, db } from "@/lib/firebase";
-import { enableStudentNotifications } from "@/lib/firebase-messaging";
+import {
+  enableStudentNotifications,
+  listenForStudentNotifications,
+} from "@/lib/firebase-messaging";
 
 import {
   onAuthStateChanged,
@@ -829,6 +832,45 @@ export default function StudentDashboard() {
         );
       }
     };
+
+  /*
+   * ==========================================
+   * FOREGROUND FCM LISTENER
+   * ==========================================
+   */
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    let mounted = true;
+
+    const startNotificationListener = async () => {
+      try {
+        const cleanup = await listenForStudentNotifications((payload) => {
+          console.log("🔔 SBC dashboard notification:", payload);
+        });
+
+        if (mounted) {
+          unsubscribe = cleanup;
+        } else {
+          cleanup();
+        }
+      } catch (error) {
+        console.error(
+          "❌ Unable to start SBC notification listener:",
+          error
+        );
+      }
+    };
+
+    startNotificationListener();
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   /*
    * ==========================================
