@@ -1,1142 +1,789 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import AdminProtected from "@/components/AdminProtected";
-import { db } from "@/lib/firebase";
+import BusinessProtected from "@/components/BusinessProtected";
+
+import { auth, db } from "@/lib/firebase";
 
 import {
   collection,
   getDocs,
-  updateDoc,
-  deleteDoc,
+  addDoc,
   doc,
+  getDoc,
+  serverTimestamp,
+  query,
+  where,
 } from "firebase/firestore";
 
-interface Business {
+import { v4 as uuid } from "uuid";
+
+interface ExistingOffer {
   id: string;
-  businessName: string;
-  ownerName: string;
-  mobile: string;
   category: string;
-  status: string;
-  createdAt?: any;
+  image: string;
+  description: string;
 }
 
-export default function AdminBusinesses() {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // VIEW / EDIT BUSINESS
-  const [selectedBusiness, setSelectedBusiness] =
-    useState<Business | null>(null);
-  const [modalMode, setModalMode] =
-    useState<"view" | "edit" | null>(null);
-  const [editBusinessName, setEditBusinessName] = useState("");
-  const [editOwnerName, setEditOwnerName] = useState("");
-  const [editMobile, setEditMobile] = useState("");
-  const [editCategory, setEditCategory] = useState("");
+export default function AddOffer() {
+  const router = useRouter();
 
-  const [categories, setCategories] = useState<
-    { id: string; name: string }[]
-  >([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
 
-  /*
-   * ==========================================
-   * LOAD BUSINESSES
-   * ==========================================
-   */
+  const [imageFile, setImageFile] =
+    useState<File | null>(null);
 
-  const loadBusinesses = async () => {
-    try {
-      setLoading(true);
+  const [preview, setPreview] = useState("");
 
-      const snap = await getDocs(
-        collection(db, "businesses")
-      );
+  const [categories, setCategories] =
+    useState<string[]>([]);
 
-      const data = snap.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      })) as Business[];
+  const [loadingCategories, setLoadingCategories] =
+    useState(true);
 
-      setBusinesses(data);
-    } catch (error) {
-      console.error(
-        "Error loading businesses:",
-        error
-      );
+  const [checkingOffer, setCheckingOffer] =
+    useState(true);
 
-      alert(
-        "Unable to load businesses."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [existingOffer, setExistingOffer] =
+    useState<ExistingOffer | null>(null);
 
-  useEffect(() => {
-    loadBusinesses();
-  }, []);
+  const [saving, setSaving] = useState(false);
 
   /*
-   * ==========================================
-   * LOAD EXISTING CATEGORIES
-   * ==========================================
+   * ==========================================================
+   * LOAD CATEGORIES
+   * ==========================================================
    */
 
   useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        setCategoriesLoading(true);
-
-        const snap = await getDocs(
-          collection(db, "categories")
-        );
-
-        const data = snap.docs
-          .map((item) => {
-            const itemData = item.data();
-
-            return {
-              id: item.id,
-              name:
-                itemData.name ||
-                itemData.category ||
-                itemData.title ||
-                "",
-            };
-          })
-          .filter(
-            (item) => item.name.trim() !== ""
-          )
-          .sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
-
-        setCategories(data);
-      } catch (error) {
-        console.error(
-          "Category loading error:",
-          error
-        );
-        alert(
-          "Unable to load business categories."
-        );
-      } finally {
-        setCategoriesLoading(false);
-      }
-    };
-
     loadCategories();
   }, []);
 
   /*
-   * ==========================================
-   * APPROVE BUSINESS
-   * ==========================================
+   * ==========================================================
+   * CHECK AUTH + EXISTING ACTIVE OFFER
+   * ==========================================================
    */
 
-  const approveBusiness = async (
-    id: string,
-    name: string
-  ) => {
-    const ok = window.confirm(
-      `Approve "${name}" as an SBC Partner Business?`
-    );
-
-    if (!ok) {
-      return;
-    }
-
-    try {
-      setActionLoading(id);
-
-      await updateDoc(
-        doc(db, "businesses", id),
-        {
-          status: "approved",
+  useEffect(() => {
+    const unsubscribe =
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          router.replace("/business/login");
+          return;
         }
+
+        await checkExistingOffer(user.uid);
+      });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  /*
+   * ==========================================================
+   * CHECK EXISTING ACTIVE OFFER
+   * ==========================================================
+   */
+
+  const checkExistingOffer = async (
+    businessId: string
+  ) => {
+    try {
+      setCheckingOffer(true);
+
+      const offerQuery = query(
+        collection(db, "offers"),
+        where("businessId", "==", businessId),
+        where("status", "==", "active")
       );
 
-      setBusinesses(
-        (currentBusinesses) =>
-          currentBusinesses.map(
-            (business) =>
-              business.id === id
-                ? {
-                    ...business,
-                    status: "approved",
-                  }
-                : business
-          )
-      );
+      const offerSnap =
+        await getDocs(offerQuery);
 
-      alert(
-        `${name} approved successfully.`
-      );
+      if (!offerSnap.empty) {
+        const offerDoc =
+          offerSnap.docs[0];
+
+        const data =
+          offerDoc.data();
+
+        setExistingOffer({
+          id: offerDoc.id,
+          category: data.category || "",
+          image: data.image || "",
+          description:
+            data.description || "",
+        });
+      } else {
+        setExistingOffer(null);
+      }
     } catch (error) {
       console.error(
-        "Error approving business:",
+        "Active offer checking error:",
         error
       );
-
-      alert(
-        "Unable to approve business."
-      );
     } finally {
-      setActionLoading(null);
+      setCheckingOffer(false);
     }
   };
 
   /*
-   * ==========================================
-   * REJECT BUSINESS
-   * ==========================================
+   * ==========================================================
+   * LOAD CATEGORIES
+   * ==========================================================
    */
 
-  const rejectBusiness = async (
-    id: string,
-    name: string
-  ) => {
-    const ok = window.confirm(
-      `Reject "${name}"?`
-    );
-
-    if (!ok) {
-      return;
-    }
-
+  const loadCategories = async () => {
     try {
-      setActionLoading(id);
+      setLoadingCategories(true);
 
-      await updateDoc(
-        doc(db, "businesses", id),
-        {
-          status: "rejected",
-        }
+      const snap = await getDocs(
+        collection(db, "categories")
       );
 
-      setBusinesses(
-        (currentBusinesses) =>
-          currentBusinesses.map(
-            (business) =>
-              business.id === id
-                ? {
-                    ...business,
-                    status: "rejected",
-                  }
-                : business
-          )
-      );
+      const data = snap.docs
+        .map((item) => {
+          const itemData = item.data();
 
-      alert(
-        `${name} rejected.`
-      );
+          return (
+            itemData.name ||
+            itemData.category ||
+            itemData.title ||
+            ""
+          );
+        })
+        .filter(Boolean) as string[];
+
+      const uniqueCategories =
+        Array.from(new Set(data)).sort(
+          (a, b) => a.localeCompare(b)
+        );
+
+      setCategories(uniqueCategories);
     } catch (error) {
       console.error(
-        "Error rejecting business:",
+        "Category loading error:",
         error
       );
-
-      alert(
-        "Unable to reject business."
-      );
     } finally {
-      setActionLoading(null);
+      setLoadingCategories(false);
     }
   };
 
   /*
-   * ==========================================
-   * VIEW BUSINESS
-   * ==========================================
+   * ==========================================================
+   * IMAGE SELECT
+   * ==========================================================
    */
 
-  const openViewBusiness = (business: Business) => {
-    setSelectedBusiness(business);
-    setModalMode("view");
-  };
-
-  /*
-   * ==========================================
-   * EDIT BUSINESS
-   * ==========================================
-   */
-
-  const openEditBusiness = (business: Business) => {
-    setSelectedBusiness(business);
-    setEditBusinessName(business.businessName || "");
-    setEditOwnerName(business.ownerName || "");
-    setEditMobile(business.mobile || "");
-    setEditCategory(business.category || "");
-    setModalMode("edit");
-  };
-
-  const closeBusinessModal = () => {
-    setSelectedBusiness(null);
-    setModalMode(null);
-  };
-
-  const saveBusiness = async () => {
-    if (!selectedBusiness) return;
-
-    const businessName = editBusinessName.trim();
-    const ownerName = editOwnerName.trim();
-    const mobile = editMobile.trim();
-    const category = editCategory.trim();
-
-    if (!businessName || !ownerName || !mobile || !category) {
-      alert("Please fill all business details.");
-      return;
-    }
-
-    try {
-      setActionLoading(selectedBusiness.id);
-
-      await updateDoc(
-        doc(db, "businesses", selectedBusiness.id),
-        {
-          businessName,
-          ownerName,
-          mobile,
-          category,
-        }
-      );
-
-      setBusinesses((currentBusinesses) =>
-        currentBusinesses.map((business) =>
-          business.id === selectedBusiness.id
-            ? {
-                ...business,
-                businessName,
-                ownerName,
-                mobile,
-                category,
-              }
-            : business
-        )
-      );
-
-      alert("Business details updated successfully.");
-      closeBusinessModal();
-    } catch (error) {
-      console.error("Error updating business:", error);
-      alert("Unable to update business details.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  /*
-   * ==========================================
-   * DELETE BUSINESS
-   * ==========================================
-   */
-
-  const deleteBusiness = async (
-    id: string,
-    name: string
+  const handleImageChange = (
+    file: File | null
   ) => {
-    const ok = window.confirm(
-      `Delete "${name}" permanently?`
-    );
+    if (!file) {
+      return;
+    }
 
-    if (!ok) {
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image.");
+      return;
+    }
+
+    setImageFile(file);
+
+    const url =
+      URL.createObjectURL(file);
+
+    setPreview(url);
+  };
+
+  /*
+   * ==========================================================
+   * DESCRIPTION
+   * ==========================================================
+   */
+
+  const handleDescriptionChange = (
+    value: string
+  ) => {
+    setDescription(value);
+  };
+
+  /*
+   * ==========================================================
+   * ADD OFFER
+   * ==========================================================
+   */
+
+  const addOffer = async () => {
+    if (!category) {
+      alert("Please select a category.");
+      return;
+    }
+
+    if (!description.trim()) {
+      alert(
+        "Please enter a short description."
+      );
+      return;
+    }
+
+    if (!imageFile) {
+      alert(
+        "Please select an offer image."
+      );
+      return;
+    }
+
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("Business login required.");
       return;
     }
 
     try {
-      setActionLoading(id);
+      setSaving(true);
 
-      await deleteDoc(
-        doc(db, "businesses", id)
-      );
+      /*
+       * ======================================================
+       * FINAL ACTIVE OFFER CHECK
+       * ======================================================
+       */
 
-      setBusinesses(
-        (currentBusinesses) =>
-          currentBusinesses.filter(
-            (business) =>
-              business.id !== id
+      const existingOfferQuery =
+        query(
+          collection(db, "offers"),
+          where(
+            "businessId",
+            "==",
+            user.uid
+          ),
+          where(
+            "status",
+            "==",
+            "active"
           )
-      );
-    } catch (error) {
-      console.error(
-        "Error deleting business:",
-        error
-      );
+        );
 
-      alert(
-        "Unable to delete business."
-      );
-    } finally {
-      setActionLoading(null);
-    }
-  };
+      const existingOfferSnap =
+        await getDocs(
+          existingOfferQuery
+        );
 
-  /*
-   * ==========================================
-   * HELPERS
-   * ==========================================
-   */
-
-  const isPending = (
-    business: Business
-  ) =>
-    business.status?.toLowerCase() ===
-    "pending";
-
-  const getCreatedTime = (
-    business: Business
-  ) => {
-    try {
       if (
-        business.createdAt?.toMillis
+        !existingOfferSnap.empty
       ) {
-        return business.createdAt.toMillis();
+        const offerDoc =
+          existingOfferSnap.docs[0];
+
+        const data =
+          offerDoc.data();
+
+        setExistingOffer({
+          id: offerDoc.id,
+          category:
+            data.category || "",
+          image:
+            data.image || "",
+          description:
+            data.description || "",
+        });
+
+        alert(
+          "⚠️ You already have an active offer.\n\nPlease manage your existing offer before creating a new one."
+        );
+
+        return;
       }
 
-      if (
-        business.createdAt?.seconds
-      ) {
-        return (
-          business.createdAt.seconds *
-          1000
+      /*
+       * ======================================================
+       * BUSINESS DETAILS
+       * ======================================================
+       */
+
+      const businessSnap =
+        await getDoc(
+          doc(
+            db,
+            "businesses",
+            user.uid
+          )
+        );
+
+      const businessData =
+        businessSnap.exists()
+          ? businessSnap.data()
+          : {};
+
+      const businessName =
+        businessData.businessName || "";
+
+      const businessMobile =
+        businessData.mobile ||
+        businessData.phone ||
+        businessData.businessMobile ||
+        businessData.ownerMobile ||
+        "";
+
+      const businessAddress =
+        businessData.address ||
+        businessData.businessAddress ||
+        businessData.location ||
+        businessData.fullAddress ||
+        "";
+
+      /*
+       * ======================================================
+       * CLOUDINARY UPLOAD
+       * ======================================================
+       */
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        imageFile
+      );
+
+      formData.append(
+        "upload_preset",
+        "spc_offers"
+      );
+
+      formData.append(
+        "public_id",
+        uuid()
+      );
+
+      const upload =
+        await fetch(
+          "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      if (!upload.ok) {
+        throw new Error(
+          "Cloudinary upload failed."
         );
       }
 
-      if (
-        business.createdAt instanceof Date
-      ) {
-        return business.createdAt.getTime();
+      const uploaded =
+        await upload.json();
+
+      if (!uploaded.secure_url) {
+        throw new Error(
+          "Image upload failed."
+        );
       }
 
-      if (
-        typeof business.createdAt ===
-        "string"
-      ) {
-        const time = new Date(
-          business.createdAt
-        ).getTime();
+      /*
+       * ======================================================
+       * SAVE OFFER
+       * ======================================================
+       *
+       * Title/Discount are no longer used.
+       * We keep title as "SBC Offer" internally so
+       * older parts of the application remain compatible.
+       */
 
-        return Number.isNaN(time)
-          ? 0
-          : time;
-      }
+      await addDoc(
+        collection(db, "offers"),
+        {
+          title: "SBC Offer",
 
-      return 0;
-    } catch {
-      return 0;
+          discount: "",
+
+          category,
+
+          description: description.trim(),
+
+          image:
+            uploaded.secure_url,
+
+          businessId:
+            user.uid,
+
+          businessName,
+
+          businessMobile,
+
+          businessAddress,
+
+          status: "active",
+
+          createdAt:
+            serverTimestamp(),
+        }
+      );
+
+      alert(
+        "✅ Offer added successfully."
+      );
+
+      router.replace(
+        "/business/my-offers"
+      );
+    } catch (error) {
+      console.error(
+        "Offer creation error:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? `❌ ${error.message}`
+          : "❌ Failed to add offer."
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
   /*
-   * ==========================================
-   * FILTER + SORT
-   * ==========================================
-   *
-   * ORDER:
-   *
-   * 1. Pending businesses
-   * 2. Latest registrations
-   * 3. Approved businesses
-   * 4. Rejected businesses
-   *
+   * ==========================================================
+   * LOADING
+   * ==========================================================
    */
 
-  const filteredBusinesses =
-    useMemo(() => {
-      const searchText =
-        search.trim().toLowerCase();
+  if (
+    checkingOffer ||
+    loadingCategories
+  ) {
+    return (
+      <BusinessProtected>
+        <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+          <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
-      return [...businesses]
-        .filter((business) => {
-          if (!searchText) {
-            return true;
-          }
+            <h2 className="text-2xl font-bold text-green-700">
+              Checking Offer...
+            </h2>
 
-          return (
-            business.businessName
-              ?.toLowerCase()
-              .includes(searchText) ||
-            business.ownerName
-              ?.toLowerCase()
-              .includes(searchText) ||
-            business.mobile
-              ?.toLowerCase()
-              .includes(searchText) ||
-            business.category
-              ?.toLowerCase()
-              .includes(searchText)
-          );
-        })
-        .sort((a, b) => {
-          const statusA =
-            a.status?.toLowerCase();
-
-          const statusB =
-            b.status?.toLowerCase();
-
-          /*
-           * Pending first
-           */
-
-          const pendingA =
-            statusA === "pending";
-
-          const pendingB =
-            statusB === "pending";
-
-          if (
-            pendingA &&
-            !pendingB
-          ) {
-            return -1;
-          }
-
-          if (
-            !pendingA &&
-            pendingB
-          ) {
-            return 1;
-          }
-
-          /*
-           * Then latest registration first
-           */
-
-          const timeA =
-            getCreatedTime(a);
-
-          const timeB =
-            getCreatedTime(b);
-
-          if (
-            timeA !== timeB
-          ) {
-            return timeB - timeA;
-          }
-
-          /*
-           * Fallback alphabetical
-           */
-
-          return (
-            a.businessName || ""
-          ).localeCompare(
-            b.businessName || ""
-          );
-        });
-    }, [businesses, search]);
+            <p className="mt-2 text-gray-500">
+              Please wait...
+            </p>
+          </div>
+        </main>
+      </BusinessProtected>
+    );
+  }
 
   /*
-   * ==========================================
-   * PENDING COUNT
-   * ==========================================
+   * ==========================================================
+   * EXISTING ACTIVE OFFER
+   * ==========================================================
    */
 
-  const pendingCount =
-    businesses.filter(
-      (business) =>
-        isPending(business)
-    ).length;
+  if (existingOffer) {
+    return (
+      <BusinessProtected>
+        <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] p-6 sm:p-8">
+
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-white via-white to-green-50/70 px-6 py-6 sm:px-8">
+                <h1 className="text-3xl font-bold text-green-700">
+                  ➕ Add New Offer
+                </h1>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/business/dashboard"
+                    )
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  ← Back
+                </button>
+              </div>
+
+              <div className="rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-7">
+
+                <div className="text-center">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 text-4xl">
+                    ⚠️
+                  </div>
+
+                  <h2 className="mt-5 text-2xl font-bold text-yellow-800">
+                    You Already Have an Active Offer
+                  </h2>
+
+                  <p className="mt-3 leading-6 text-yellow-700">
+                    A business can have only one
+                    active offer at a time.
+                  </p>
+                </div>
+
+                <div className="mt-7 overflow-hidden rounded-2xl bg-white shadow-md">
+
+                  {existingOffer.image ? (
+                    <img
+                      src={
+                        existingOffer.image
+                      }
+                      alt="Active SBC Offer"
+                      className="aspect-video w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex aspect-video items-center justify-center bg-gray-100 text-5xl">
+                      🎁
+                    </div>
+                  )}
+
+                  <div className="p-6">
+
+                    {existingOffer.category && (
+                      <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                        {existingOffer.category}
+                      </span>
+                    )}
+
+                    {existingOffer.description && (
+                      <p className="mt-4 text-sm leading-6 text-gray-600">
+                        {existingOffer.description}
+                      </p>
+                    )}
+
+                  </div>
+                </div>
+
+                <div className="mt-7">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        "/business/my-offers"
+                      )
+                    }
+                    className="w-full rounded-2xl bg-blue-600 py-4 text-lg font-bold text-white transition hover:bg-blue-700"
+                  >
+                    ✏️ Manage Existing Offer
+                  </button>
+
+                  <p className="mt-3 text-center text-sm text-gray-500">
+                    Edit or delete your current
+                    offer from My Offers.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </main>
+      </BusinessProtected>
+    );
+  }
 
   /*
-   * ==========================================
-   * PAGE
-   * ==========================================
+   * ==========================================================
+   * NORMAL ADD OFFER PAGE
+   * ==========================================================
    */
 
   return (
-    <AdminProtected>
-      <main className="min-h-screen bg-[#f5f1e6] p-8">
-        <div className="mx-auto max-w-7xl">
+    <BusinessProtected>
+      <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
 
-          {/* ==================================
-              HEADER
-          =================================== */}
+        <div className="mx-auto max-w-3xl">
 
-          <div className="mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-[#07111f] via-[#111b2e] to-[#3b2b0b] p-7 shadow-2xl ring-1 ring-[#d4af37]/30">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)]">
 
-            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            {/* HEADER */}
+
+            <div className="mb-8 flex items-center justify-between gap-4">
 
               <div>
-                <div className="mb-3 inline-flex items-center rounded-full bg-[#d4af37]/15 px-4 py-1.5 text-xs font-extrabold tracking-[0.18em] text-[#f1cf63]">
-                  SBC ADMIN
-                </div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-green-600">
+                  SBC Business Portal
+                </p>
 
-                <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                  🏪 Business Management
+                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                  ➕ Add New Offer
                 </h1>
 
-                <p className="mt-2 text-sm text-slate-300 sm:text-base">
-                  Approve, Reject and Manage Businesses
+                <p className="mt-2 text-sm text-slate-500">
+                  Upload your offer image and add a short description.
                 </p>
               </div>
 
-              <Link
-                href="/admin/dashboard"
-                className="rounded-xl bg-white px-6 py-3 text-center font-bold text-[#07111f] shadow-lg transition hover:bg-[#f7e8ad] hover:text-[#5b4300]"
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    "/business/my-offers"
+                  )
+                }
+                className="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300"
               >
-                ← Dashboard
-              </Link>
+                ← Back
+              </button>
 
             </div>
 
-          </div>
+            {/* FORM */}
 
-          {/* ==================================
-              PENDING APPROVAL
-          =================================== */}
+            <div className="space-y-6 px-6 py-7 sm:px-8 sm:py-8">
 
-          {!loading && (
-            <div
-              className={`mb-6 rounded-2xl p-5 shadow ${
-                pendingCount > 0
-                  ? "border border-[#d4af37]/40 bg-gradient-to-r from-[#fff8df] to-[#f2df9b]"
-                  : "bg-white/90"
-              }`}
-            >
+              {/* CATEGORY */}
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Category
+                </label>
 
-                <div>
-                  <p
-                    className={`text-lg font-bold ${
-                      pendingCount > 0
-                        ? "text-[#8a680c]"
-                        : "text-green-700"
-                    }`}
-                  >
-                    {pendingCount > 0
-                      ? "⏳ Pending Business Approvals"
-                      : "✅ No Pending Business Approvals"}
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-600">
-                    {pendingCount > 0
-                      ? "New businesses waiting for admin verification."
-                      : "All currently registered businesses have been reviewed."}
-                  </p>
-                </div>
-
-                <div
-                  className={`rounded-xl px-6 py-3 text-2xl font-extrabold ${
-                    pendingCount > 0
-                      ? "bg-[#07111f] text-[#f1cf63]"
-                      : "bg-green-100 text-green-700"
-                  }`}
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
                 >
-                  {pendingCount}
+                  <option value="">
+                    Select Category
+                  </option>
+
+                  {categories.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* SHORT DESCRIPTION */}
+
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Short Description
+                </label>
+
+                <textarea
+                  placeholder="Example: Special student combo at ₹299..."
+                  value={description}
+                  onChange={(e) =>
+                    handleDescriptionChange(
+                      e.target.value
+                    )
+                  }
+                  className="h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                />
+
+                <p className="mt-2 text-xs text-slate-400">
+                  Add the important offer details students should know. No character limit.
+                </p>
+
+              </div>
+
+              {/* OFFER IMAGE */}
+
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Offer Image
+                </label>
+
+                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 transition hover:border-green-300 hover:bg-green-50/30">
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleImageChange(
+                        e.target.files?.[0] ||
+                          null
+                      )
+                    }
+                    className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-green-300"
+                  />
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    Recommended image ratio: 16:9
+                  </p>
+
                 </div>
 
               </div>
 
-            </div>
-          )}
+              {/* IMAGE PREVIEW */}
 
-          {/* ==================================
-              SEARCH
-          =================================== */}
+              {preview && (
+                <div>
 
-          <input
-            type="text"
-            placeholder="🔍 Search Business, Owner, Mobile or Category..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="mb-8 w-full rounded-2xl border border-[#d4af37]/30 bg-white/95 p-4 text-[#07111f] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-          />
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-700">
+                      Image Preview
+                    </p>
 
-          {/* ==================================
-              LOADING
-          =================================== */}
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                      16:9 Display
+                    </span>
+                  </div>
 
-          {loading ? (
+                  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-slate-50 shadow-sm">
 
-            <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
+                    <img
+                      src={preview}
+                      alt="Offer Preview"
+                      className="aspect-video w-full object-cover"
+                    />
 
-              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
-
-              <h2 className="text-2xl font-bold">
-                Loading Businesses...
-              </h2>
-
-            </div>
-
-          ) : (
-
-            <div className="grid gap-6">
-
-              {/* ==================================
-                  NO BUSINESSES
-              =================================== */}
-
-              {filteredBusinesses.length ===
-              0 ? (
-
-                <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
-
-                  <h2 className="text-2xl font-bold">
-                    No Businesses Found
-                  </h2>
-
-                  <p className="mt-3 text-gray-500">
-                    Try a different search.
-                  </p>
+                  </div>
 
                 </div>
-
-              ) : (
-
-                filteredBusinesses.map(
-                  (business, index) => {
-
-                    const pending =
-                      isPending(
-                        business
-                      );
-
-                    const recent =
-                      index < 5 &&
-                      getCreatedTime(
-                        business
-                      ) > 0;
-
-                    const actionBusy =
-                      actionLoading ===
-                      business.id;
-
-                    return (
-                      <div
-                        key={business.id}
-                        className={`rounded-[28px] p-6 shadow-lg transition hover:-translate-y-1 hover:shadow-2xl ${
-                          pending
-                            ? "border-2 border-[#d4af37] bg-gradient-to-r from-[#fff4c7] via-[#fffdf5] to-[#f0d985]"
-                            : "border border-[#d4af37]/25 bg-gradient-to-r from-[#fff8df] via-[#fffdf8] to-[#f4e4a8]"
-                        }`}
-                      >
-
-                        <div className="grid gap-6 md:grid-cols-2">
-
-                          {/* ==================================
-                              BUSINESS INFO
-                          =================================== */}
-
-                          <div>
-
-                            {/* NEW BADGE */}
-
-                            {pending && (
-                              <div className="mb-3 inline-flex rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-700">
-                                ⏳ PENDING APPROVAL
-                              </div>
-                            )}
-
-                            {!pending &&
-                              recent && (
-                                <div className="mb-3 inline-flex rounded-full bg-[#07111f]/10 px-4 py-2 text-sm font-bold text-[#07111f]">
-                                  🆕 RECENTLY JOINED
-                                </div>
-                              )}
-
-                            <h2 className="text-3xl font-extrabold text-[#07111f]">
-                              {
-                                business.businessName
-                              }
-                            </h2>
-
-                            <p className="mt-4 text-gray-600">
-                              👤 Owner :
-                              <span className="font-semibold">
-                                {" "}
-                                {
-                                  business.ownerName ||
-                                  "-"
-                                }
-                              </span>
-                            </p>
-
-                            <p className="mt-2 text-gray-600">
-                              📱 Mobile :
-                              <span className="font-semibold">
-                                {" "}
-                                {
-                                  business.mobile ||
-                                  "-"
-                                }
-                              </span>
-                            </p>
-
-                            <p className="mt-2 text-gray-600">
-                              🏷 Category :
-                              <span className="font-semibold">
-                                {" "}
-                                {
-                                  business.category ||
-                                  "-"
-                                }
-                              </span>
-                            </p>
-
-                            {getCreatedTime(
-                              business
-                            ) > 0 && (
-                              <p className="mt-2 text-sm text-gray-500">
-                                🕐 Registered :
-                                <span className="font-semibold">
-                                  {" "}
-                                  {new Date(
-                                    getCreatedTime(
-                                      business
-                                    )
-                                  ).toLocaleString()}
-                                </span>
-                              </p>
-                            )}
-
-                          </div>
-
-                          {/* ==================================
-                              STATUS + ACTIONS
-                          =================================== */}
-
-                          <div className="flex flex-col items-start justify-center">
-
-                            <span
-                              className={`rounded-full px-5 py-2 font-bold text-white ${
-                                business.status
-                                  ?.toLowerCase() ===
-                                "approved"
-                                  ? "bg-green-600"
-                                  : business.status
-                                        ?.toLowerCase() ===
-                                    "pending"
-                                  ? "bg-orange-500"
-                                  : "bg-red-600"
-                              }`}
-                            >
-                              {(
-                                business.status ||
-                                "unknown"
-                              ).toUpperCase()}
-                            </span>
-
-                            <div className="mt-6 flex flex-wrap gap-3">
-
-                              {/* VIEW */}
-
-                              <button
-                                onClick={() =>
-                                  openViewBusiness(business)
-                                }
-                                disabled={actionBusy}
-                                className="rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] shadow-sm transition hover:bg-[#18263d] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                👁 View
-                              </button>
-
-                              {/* EDIT */}
-
-                              <button
-                                onClick={() =>
-                                  openEditBusiness(business)
-                                }
-                                disabled={actionBusy}
-                                className="rounded-xl bg-[#6d4aff] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#5938e8] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                ✏️ Edit
-                              </button>
-
-                              {/* APPROVE */}
-
-                              {business.status
-                                ?.toLowerCase() !==
-                                "approved" && (
-                                <button
-                                  onClick={() =>
-                                    approveBusiness(
-                                      business.id,
-                                      business.businessName
-                                    )
-                                  }
-                                  disabled={
-                                    actionBusy
-                                  }
-                                  className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {actionBusy
-                                    ? "Processing..."
-                                    : "✅ Approve"}
-                                </button>
-                              )}
-
-                              {/* REJECT */}
-
-                              {business.status
-                                ?.toLowerCase() !==
-                                "rejected" && (
-                                <button
-                                  onClick={() =>
-                                    rejectBusiness(
-                                      business.id,
-                                      business.businessName
-                                    )
-                                  }
-                                  disabled={
-                                    actionBusy
-                                  }
-                                  className="rounded-xl bg-[#d97706] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#b45309] disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  ❌ Reject
-                                </button>
-                              )}
-
-                              {/* DELETE */}
-
-                              <button
-                                onClick={() =>
-                                  deleteBusiness(
-                                    business.id,
-                                    business.businessName
-                                  )
-                                }
-                                disabled={
-                                  actionBusy
-                                }
-                                className="rounded-xl bg-[#dc2626] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#b91c1c] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                🗑 Delete
-                              </button>
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-                    );
-                  }
-                )
-
               )}
 
-            </div>
+              {/* INFO */}
 
-          )}
+              <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
 
-          {/* ==================================
-              VIEW / EDIT BUSINESS MODAL
-          =================================== */}
+                <p className="text-sm font-bold text-green-800">
+                  💡 Offer Display
+                </p>
 
-          {selectedBusiness && modalMode && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-[#fffdf7] p-6 shadow-2xl ring-1 ring-[#d4af37]/25">
+                <p className="mt-1 text-xs leading-5 text-green-700">
+                  Students will mainly see your offer image,
+                  business name, address and short description.
+                  Keep the important offer details inside the image.
+                </p>
 
-                <div className="mb-6 flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-3xl font-extrabold text-[#07111f]">
-                      {modalMode === "edit"
-                        ? "✏️ Edit Business"
-                        : "👁 Business Details"}
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {modalMode === "edit"
-                        ? "Update the business information below."
-                        : "View the complete registered business information."}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={closeBusinessModal}
-                    className="rounded-full bg-gray-100 px-4 py-2 text-xl font-bold text-gray-600 transition hover:bg-gray-200"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {modalMode === "view" ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Business Name
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-gray-900">
-                        {selectedBusiness.businessName || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Owner Name
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-gray-900">
-                        {selectedBusiness.ownerName || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Mobile
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-gray-900">
-                        {selectedBusiness.mobile || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Category
-                      </p>
-                      <p className="mt-1 text-lg font-bold text-gray-900">
-                        {selectedBusiness.category || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4 sm:col-span-2">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Status
-                      </p>
-                      <p className="mt-1 text-lg font-bold uppercase text-gray-900">
-                        {selectedBusiness.status || "-"}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => openEditBusiness(selectedBusiness)}
-                      className="rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] transition hover:bg-[#18263d] sm:col-span-2"
-                    >
-                      ✏️ Edit Business
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    <div>
-                      <label className="mb-2 block font-bold text-gray-700">
-                        Business Name
-                      </label>
-                      <input
-                        value={editBusinessName}
-                        onChange={(e) =>
-                          setEditBusinessName(e.target.value)
-                        }
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block font-bold text-gray-700">
-                        Owner Name
-                      </label>
-                      <input
-                        value={editOwnerName}
-                        onChange={(e) =>
-                          setEditOwnerName(e.target.value)
-                        }
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block font-bold text-gray-700">
-                        Mobile
-                      </label>
-                      <input
-                        value={editMobile}
-                        onChange={(e) =>
-                          setEditMobile(e.target.value)
-                        }
-                        inputMode="tel"
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block font-bold text-gray-700">
-                        Category
-                      </label>
-
-                      <select
-                        value={editCategory}
-                        onChange={(e) =>
-                          setEditCategory(e.target.value)
-                        }
-                        disabled={categoriesLoading}
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20 disabled:cursor-not-allowed disabled:bg-gray-100"
-                      >
-                        <option value="">
-                          {categoriesLoading
-                            ? "Loading categories..."
-                            : "Select Category"}
-                        </option>
-
-                        {categories.map((category) => (
-                          <option
-                            key={category.id}
-                            value={category.name}
-                          >
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      {!categoriesLoading &&
-                        categories.length === 0 && (
-                          <p className="mt-2 text-sm text-orange-600">
-                            No categories found. Add categories from the Admin Dashboard.
-                          </p>
-                        )}
-                    </div>
-
-                    <div className="rounded-xl bg-gray-50 p-4">
-                      <p className="text-sm font-semibold text-gray-500">
-                        Current Status
-                      </p>
-                      <p className="mt-1 font-bold uppercase text-gray-800">
-                        {selectedBusiness.status || "-"}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Use Approve / Reject buttons on the business card to change status.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={closeBusinessModal}
-                        disabled={actionLoading === selectedBusiness.id}
-                        className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={saveBusiness}
-                        disabled={actionLoading === selectedBusiness.id}
-                        className="flex-1 rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] transition hover:bg-[#18263d] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {actionLoading === selectedBusiness.id
-                          ? "Saving..."
-                          : "💾 Save Changes"}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
-          )}
 
+              {/* SAVE */}
+
+              <button
+                type="button"
+                onClick={addOffer}
+                disabled={saving}
+                className="w-full rounded-2xl bg-slate-900 py-4 text-base font-black text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving
+                  ? "⏳ Uploading & Saving..."
+                  : "💾 Add Offer"}
+              </button>
+
+            </div>
+          </div>
         </div>
       </main>
-    </AdminProtected>
+    </BusinessProtected>
   );
 }
