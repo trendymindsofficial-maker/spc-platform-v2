@@ -1064,6 +1064,17 @@ export default function StudentOffers() {
 
     };
 
+  const getShortDescription = (description?: string) => {
+    if (!description) return "No offer details available.";
+
+    const words = description.trim().split(/\s+/);
+    const maxWords = 18;
+
+    if (words.length <= maxWords) return words.join(" ");
+
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
+
   /*
    * ==========================================
    * OPEN REDEEM
@@ -1860,7 +1871,7 @@ export default function StudentOffers() {
                   >
 
                     {/* FIXED OFFER IMAGE */}
-                    <div className="relative h-[260px] w-full overflow-hidden bg-[#07111f] sm:h-[280px]">
+                    <div className="relative h-[230px] w-full shrink-0 overflow-hidden bg-[#07111f] sm:h-[240px]">
                       {offer.image ? (
                         <img
                           src={offer.image}
@@ -1875,25 +1886,37 @@ export default function StudentOffers() {
                       )}
                     </div>
 
-                    {/* SIMPLE BUSINESS + USAGE INFO */}
+                    {/* OFFER + BUSINESS INFO */}
                     <div className="flex flex-1 flex-col p-4 sm:p-5">
+                      <div className="shrink-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8a680c]">
+                          🎁 Student Offer
+                        </p>
 
-                      <div className="min-h-[82px]">
+                        <h2 className="mt-1 h-[48px] overflow-hidden text-lg font-black leading-6 text-[#07111f] line-clamp-2">
+                          {offer.title || "SBC Offer"}
+                        </h2>
+
+                        <p className="mt-2 h-[40px] overflow-hidden text-xs font-medium leading-5 text-slate-500 line-clamp-2">
+                          {getShortDescription(offer.description)}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 min-h-[82px] shrink-0 border-t border-slate-100 pt-3">
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                           🏢 Business
                         </p>
 
-                        <h2 className="mt-1 line-clamp-2 text-base font-black leading-5 text-[#07111f]">
+                        <h3 className="mt-1 line-clamp-1 text-base font-black leading-5 text-[#07111f]">
                           {offer.businessName || "SBC Partner Business"}
-                        </h2>
+                        </h3>
 
                         <p className="mt-2 line-clamp-2 text-xs font-semibold leading-4 text-slate-500">
                           📍 {offer.businessAddress || "Address not available"}
                         </p>
                       </div>
 
-                      {/* USAGE */}
-                      <div className="mt-3 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] px-3.5 py-3">
+                      <div className="mt-3 shrink-0 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] px-3.5 py-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
@@ -1910,7 +1933,6 @@ export default function StudentOffers() {
                         </div>
                       </div>
 
-                      {/* ACTIONS */}
                       <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
                         <button
                           type="button"
@@ -1935,9 +1957,7 @@ export default function StudentOffers() {
                             : "🎁 Redeem Offer"}
                         </button>
                       </div>
-
                     </div>
-
                   </div>
                 );
               }

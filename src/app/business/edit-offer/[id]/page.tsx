@@ -19,9 +19,7 @@ import {
   doc,
   getDoc,
   getDocs,
-  query,
   updateDoc,
-  where,
 } from "firebase/firestore";
 
 interface EditOfferProps {
@@ -30,15 +28,13 @@ interface EditOfferProps {
   }>;
 }
 
+const MAX_DESCRIPTION_LENGTH = 80;
+
 export default function EditOffer({
   params,
 }: EditOfferProps) {
   const router = useRouter();
 
-  /*
-   * Next.js 15/16:
-   * params is a Promise.
-   */
   const { id: offerId } = use(params);
 
   const [loading, setLoading] =
@@ -173,8 +169,18 @@ export default function EditOffer({
         data.category || ""
       );
 
+      /*
+       * Existing descriptions longer than 80
+       * are trimmed for the new fixed format.
+       */
+
       setDescription(
-        data.description || ""
+        String(
+          data.description || ""
+        ).slice(
+          0,
+          MAX_DESCRIPTION_LENGTH
+        )
       );
 
       setOldImage(
@@ -286,6 +292,23 @@ export default function EditOffer({
 
   /*
    * ==========================================
+   * DESCRIPTION CHANGE
+   * ==========================================
+   */
+
+  const handleDescriptionChange = (
+    value: string
+  ) => {
+    setDescription(
+      value.slice(
+        0,
+        MAX_DESCRIPTION_LENGTH
+      )
+    );
+  };
+
+  /*
+   * ==========================================
    * UPDATE OFFER
    * ==========================================
    */
@@ -300,6 +323,17 @@ export default function EditOffer({
       ) {
         alert(
           "Please fill all fields."
+        );
+
+        return;
+      }
+
+      if (
+        description.trim().length >
+        MAX_DESCRIPTION_LENGTH
+      ) {
+        alert(
+          `Offer description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
         );
 
         return;
@@ -377,11 +411,6 @@ export default function EditOffer({
             imageFile
           );
 
-          /*
-           * Keep existing Cloudinary
-           * preset.
-           */
-
           formData.append(
             "upload_preset",
             "spc_offers"
@@ -440,7 +469,12 @@ export default function EditOffer({
             category,
 
             description:
-              description.trim(),
+              description
+                .trim()
+                .slice(
+                  0,
+                  MAX_DESCRIPTION_LENGTH
+                ),
 
             image,
           }
@@ -483,6 +517,7 @@ export default function EditOffer({
     return (
       <BusinessProtected>
         <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+
           <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
@@ -496,6 +531,7 @@ export default function EditOffer({
             </p>
 
           </div>
+
         </main>
       </BusinessProtected>
     );
@@ -519,9 +555,15 @@ export default function EditOffer({
 
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-              <h1 className="text-3xl font-bold text-green-700">
-                ✏️ Edit Offer
-              </h1>
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wider text-green-600">
+                  SBC Business
+                </p>
+
+                <h1 className="mt-1 text-3xl font-bold text-green-700">
+                  ✏️ Edit Offer
+                </h1>
+              </div>
 
               <button
                 type="button"
@@ -544,6 +586,7 @@ export default function EditOffer({
               {/* TITLE */}
 
               <div>
+
                 <label className="mb-2 block font-semibold text-gray-700">
                   Offer Title
                 </label>
@@ -559,11 +602,13 @@ export default function EditOffer({
                   placeholder="Offer Title"
                   className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                 />
+
               </div>
 
               {/* DISCOUNT */}
 
               <div>
+
                 <label className="mb-2 block font-semibold text-gray-700">
                   Discount
                 </label>
@@ -579,11 +624,13 @@ export default function EditOffer({
                   placeholder="Example: 20% OFF"
                   className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                 />
+
               </div>
 
               {/* CATEGORY */}
 
               <div>
+
                 <label className="mb-2 block font-semibold text-gray-700">
                   Category
                 </label>
@@ -627,27 +674,53 @@ export default function EditOffer({
                   )}
 
                 </select>
+
               </div>
 
-              {/* DESCRIPTION */}
+              {/* SHORT DESCRIPTION */}
 
               <div>
-                <label className="mb-2 block font-semibold text-gray-700">
-                  Offer Description
-                </label>
+
+                <div className="mb-2 flex items-center justify-between">
+
+                  <label className="block font-semibold text-gray-700">
+                    Short Description
+                  </label>
+
+                  <span
+                    className={`text-xs font-bold ${
+                      description.length >=
+                      MAX_DESCRIPTION_LENGTH
+                        ? "text-red-600"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {description.length}/
+                    {MAX_DESCRIPTION_LENGTH}
+                  </span>
+
+                </div>
 
                 <textarea
-                  value={
-                    description
-                  }
+                  value={description}
                   onChange={(e) =>
-                    setDescription(
+                    handleDescriptionChange(
                       e.target.value
                     )
                   }
-                  placeholder="Offer Description"
-                  className="h-36 w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  maxLength={
+                    MAX_DESCRIPTION_LENGTH
+                  }
+                  placeholder="Briefly describe your offer..."
+                  className="h-28 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                 />
+
+                <p className="mt-1 text-xs text-gray-400">
+                  Maximum{" "}
+                  {MAX_DESCRIPTION_LENGTH}{" "}
+                  characters. Keep it short and clear.
+                </p>
+
               </div>
 
               {/* IMAGE */}
