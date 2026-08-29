@@ -1859,165 +1859,81 @@ export default function StudentOffers() {
                     className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/40 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
                   >
 
-                    {/* IMAGE */}
-
-                    <div className="relative h-44 overflow-hidden bg-[#07111f]">
-
+                    {/* FIXED OFFER IMAGE */}
+                    <div className="relative h-[260px] w-full overflow-hidden bg-[#07111f] sm:h-[280px]">
                       {offer.image ? (
-
                         <img
-                          src={
-                            offer.image
-                          }
-                          alt={
-                            offer.title ||
-                            "Offer"
-                          }
+                          src={offer.image}
+                          alt={offer.title || "SBC Offer"}
                           loading="lazy"
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
                         />
-
                       ) : (
-
-                        <div className="flex h-full items-center justify-center bg-[#07111f] text-6xl text-[#f1cf63]">
+                        <div className="flex h-full items-center justify-center text-6xl text-[#f1cf63]">
                           🎁
                         </div>
-
                       )}
-
                     </div>
 
-                    {/* CONTENT */}
+                    {/* SIMPLE BUSINESS + USAGE INFO */}
+                    <div className="flex flex-1 flex-col p-4 sm:p-5">
 
-                    <div className="flex flex-1 flex-col bg-white p-5 sm:p-5">
-
-                      <div className="flex flex-wrap gap-3">
-
-                        <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                          {offer.category ||
-                            "Other"}
-                        </span>
-
-                        <span className="rounded-full border border-[#d4af37]/40 bg-[#fff8df] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8a680c]">
-                          🔥 SBC Exclusive
-                        </span>
-
-                      </div>
-
-                      <div className="mt-3 rounded-2xl border border-slate-200 bg-[#fbfaf6] p-3">
-
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                      <div className="min-h-[82px]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                           🏢 Business
                         </p>
 
-                        <p className="mt-1 text-sm font-black leading-5 text-[#07111f]">
-                          {offer.businessName ||
-                            "SBC Partner Business"}
-                        </p>
-
-                        <p className="mt-2 whitespace-pre-line break-words text-xs font-semibold leading-5 text-slate-500">
-                          📍 {offer.businessAddress ||
-                            "Address not available"}
-                        </p>
-
-                      </div>
-
-                      <div className="mt-4">
-
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                          🎁 Offer
-                        </p>
-
-                        <h2 className="mt-1 min-h-[48px] text-xl font-black leading-6 text-[#b18a16]">
-                          {offer.title || "SBC Offer"}
+                        <h2 className="mt-1 line-clamp-2 text-base font-black leading-5 text-[#07111f]">
+                          {offer.businessName || "SBC Partner Business"}
                         </h2>
 
+                        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-4 text-slate-500">
+                          📍 {offer.businessAddress || "Address not available"}
+                        </p>
                       </div>
 
                       {/* USAGE */}
-
-                      <div className="mt-3 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] p-3">
-
+                      <div className="mt-3 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] px-3.5 py-3">
                         <div className="flex items-center justify-between gap-3">
-
                           <div>
-
-                            <p className="text-sm font-bold text-[#8a680c]">
-                              🎟️ Your Usage at this Business
+                            <p className="text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
+                              Your Usage
                             </p>
-
-                            <p className="mt-1 text-lg font-black text-[#07111f]">
-                              {usedCount} / {MAX_REDEMPTIONS} Redemptions Used
+                            <p className="mt-0.5 text-sm font-black text-[#07111f]">
+                              {usedCount} / {MAX_REDEMPTIONS} Used
                             </p>
-
                           </div>
 
-                          <div
-                            className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base font-extrabold text-[#8a680c]"
-                          >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff0bd] text-xs font-black text-[#8a680c]">
                             {usedCount}/{MAX_REDEMPTIONS}
                           </div>
-
                         </div>
-
-                        <p className="mt-1 text-xs text-[#8a680c]">
-                          {usedCount >= MAX_REDEMPTIONS
-                            ? "You have reached the maximum 4 redemptions for this business."
-                            : `${MAX_REDEMPTIONS - usedCount} redemption${MAX_REDEMPTIONS - usedCount === 1 ? "" : "s"} remaining for this business.`}
-                        </p>
-
                       </div>
 
-                      {/* FULL DETAILS */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openOfferDetails(offer)
-                        }
-                        className="mt-3 w-full rounded-xl border border-[#d4af37]/40 bg-[#fffdf5] py-3 text-xs font-black text-[#8a680c] transition hover:border-[#d4af37] hover:bg-[#fff8df]"
-                      >
-                        👁️ View Full Details
-                      </button>
-
-                      {/* BUTTONS */}
-
+                      {/* ACTIONS */}
                       <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-
                         <button
-                          onClick={() =>
-                            callBusiness(
-                              offer
-                            )
-                          }
+                          type="button"
+                          onClick={() => callBusiness(offer)}
                           className="rounded-xl bg-[#07111f] py-3 text-xs font-black text-white transition hover:bg-[#101d2e]"
                         >
                           📞 Call Us
                         </button>
 
                         <button
-                          onClick={() =>
-                            openRedeemVerification(
-                              offer
-                            )
-                          }
-                          disabled={
-                            usedCount >=
-                            MAX_REDEMPTIONS
-                          }
+                          type="button"
+                          onClick={() => openRedeemVerification(offer)}
+                          disabled={usedCount >= MAX_REDEMPTIONS}
                           className={`rounded-xl py-3 text-xs font-black transition ${
-                            usedCount >=
-                            MAX_REDEMPTIONS
+                            usedCount >= MAX_REDEMPTIONS
                               ? "cursor-not-allowed bg-slate-300 text-slate-500"
                               : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
                           }`}
                         >
-                          {usedCount >=
-                          MAX_REDEMPTIONS
+                          {usedCount >= MAX_REDEMPTIONS
                             ? "🚫 Limit Reached"
                             : "🎁 Redeem Offer"}
                         </button>
-
                       </div>
 
                     </div>
@@ -2166,6 +2082,11 @@ export default function StudentOffers() {
                   {detailsOffer.title || "SBC Offer"}
                 </h3>
 
+                {detailsOffer.discount && (
+                  <p className="mt-2 text-3xl font-black text-[#b18a16]">
+                    {detailsOffer.discount}
+                  </p>
+                )}
 
               </div>
 
