@@ -28,18 +28,22 @@ interface ExistingOffer {
   image: string;
 }
 
+const MAX_DESCRIPTION_LENGTH = 80;
+
 export default function AddOffer() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] =
+    useState("");
 
   const [imageFile, setImageFile] =
     useState<File | null>(null);
 
-  const [preview, setPreview] = useState("");
+  const [preview, setPreview] =
+    useState("");
 
   const [categories, setCategories] =
     useState<string[]>([]);
@@ -53,7 +57,8 @@ export default function AddOffer() {
   const [existingOffer, setExistingOffer] =
     useState<ExistingOffer | null>(null);
 
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
 
   /*
    * ==========================================
@@ -73,14 +78,20 @@ export default function AddOffer() {
 
   useEffect(() => {
     const unsubscribe =
-      auth.onAuthStateChanged(async (user) => {
-        if (!user) {
-          router.replace("/business/login");
-          return;
-        }
+      auth.onAuthStateChanged(
+        async (user) => {
+          if (!user) {
+            router.replace(
+              "/business/login"
+            );
+            return;
+          }
 
-        await checkExistingOffer(user.uid);
-      });
+          await checkExistingOffer(
+            user.uid
+          );
+        }
+      );
 
     return () => unsubscribe();
   }, [router]);
@@ -112,7 +123,9 @@ export default function AddOffer() {
       );
 
       const offerSnap =
-        await getDocs(offerQuery);
+        await getDocs(
+          offerQuery
+        );
 
       if (!offerSnap.empty) {
         const offerDoc =
@@ -123,10 +136,14 @@ export default function AddOffer() {
 
         setExistingOffer({
           id: offerDoc.id,
-          title: data.title || "",
-          discount: data.discount || "",
-          category: data.category || "",
-          image: data.image || "",
+          title:
+            data.title || "",
+          discount:
+            data.discount || "",
+          category:
+            data.category || "",
+          image:
+            data.image || "",
         });
       } else {
         setExistingOffer(null);
@@ -147,44 +164,56 @@ export default function AddOffer() {
    * ==========================================
    */
 
-  const loadCategories = async () => {
-    try {
-      setLoadingCategories(true);
+  const loadCategories =
+    async () => {
+      try {
+        setLoadingCategories(
+          true
+        );
 
-      const snap = await getDocs(
-        collection(db, "categories")
-      );
-
-      const data = snap.docs
-        .map((item) => {
-          const itemData =
-            item.data();
-
-          return (
-            itemData.name ||
-            itemData.category ||
-            itemData.title ||
-            ""
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
           );
-        })
-        .filter(Boolean) as string[];
 
-      setCategories(
-        Array.from(
-          new Set(data)
-        ).sort((a, b) =>
-          a.localeCompare(b)
-        )
-      );
-    } catch (error) {
-      console.error(
-        "Category loading error:",
-        error
-      );
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
+        const data =
+          snap.docs
+            .map((item) => {
+              const itemData =
+                item.data();
+
+              return (
+                itemData.name ||
+                itemData.category ||
+                itemData.title ||
+                ""
+              );
+            })
+            .filter(
+              Boolean
+            ) as string[];
+
+        setCategories(
+          Array.from(
+            new Set(data)
+          ).sort((a, b) =>
+            a.localeCompare(b)
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Category loading error:",
+          error
+        );
+      } finally {
+        setLoadingCategories(
+          false
+        );
+      }
+    };
 
   /*
    * ==========================================
@@ -209,6 +238,26 @@ export default function AddOffer() {
 
   /*
    * ==========================================
+   * DESCRIPTION CHANGE
+   * ==========================================
+   */
+
+  const handleDescriptionChange = (
+    value: string
+  ) => {
+    const limitedValue =
+      value.slice(
+        0,
+        MAX_DESCRIPTION_LENGTH
+      );
+
+    setDescription(
+      limitedValue
+    );
+  };
+
+  /*
+   * ==========================================
    * ADD OFFER
    * ==========================================
    */
@@ -223,6 +272,22 @@ export default function AddOffer() {
       alert(
         "Please fill all fields."
       );
+
+      return;
+    }
+
+    /*
+     * FINAL DESCRIPTION LENGTH CHECK
+     */
+
+    if (
+      description.trim().length >
+      MAX_DESCRIPTION_LENGTH
+    ) {
+      alert(
+        `Offer description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
+      );
+
       return;
     }
 
@@ -230,6 +295,7 @@ export default function AddOffer() {
       alert(
         "Please select offer image."
       );
+
       return;
     }
 
@@ -240,6 +306,7 @@ export default function AddOffer() {
       alert(
         "Business login required."
       );
+
       return;
     }
 
@@ -250,10 +317,6 @@ export default function AddOffer() {
        * ========================================
        * FINAL ACTIVE OFFER CHECK
        * ========================================
-       *
-       * Check again immediately before saving.
-       * This prevents creating another active
-       * offer if another tab already created one.
        */
 
       const existingOfferQuery =
@@ -375,6 +438,12 @@ export default function AddOffer() {
           }
         );
 
+      if (!upload.ok) {
+        throw new Error(
+          "Cloudinary upload failed."
+        );
+      }
+
       const uploaded =
         await upload.json();
 
@@ -382,7 +451,7 @@ export default function AddOffer() {
         !uploaded.secure_url
       ) {
         throw new Error(
-          "Image upload failed"
+          "Image upload failed."
         );
       }
 
@@ -404,7 +473,10 @@ export default function AddOffer() {
           category,
 
           description:
-            description.trim(),
+            description.trim().slice(
+              0,
+              MAX_DESCRIPTION_LENGTH
+            ),
 
           image:
             uploaded.secure_url,
@@ -440,7 +512,9 @@ export default function AddOffer() {
       );
 
       alert(
-        "❌ Failed to add offer."
+        error instanceof Error
+          ? `❌ ${error.message}`
+          : "❌ Failed to add offer."
       );
     } finally {
       setSaving(false);
@@ -460,7 +534,6 @@ export default function AddOffer() {
     return (
       <BusinessProtected>
         <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-
           <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
@@ -474,7 +547,6 @@ export default function AddOffer() {
             </p>
 
           </div>
-
         </main>
       </BusinessProtected>
     );
@@ -504,6 +576,7 @@ export default function AddOffer() {
                 </h1>
 
                 <button
+                  type="button"
                   onClick={() =>
                     router.push(
                       "/business/dashboard"
@@ -590,6 +663,7 @@ export default function AddOffer() {
                 <div className="mt-7">
 
                   <button
+                    type="button"
                     onClick={() =>
                       router.push(
                         "/business/my-offers"
@@ -641,6 +715,7 @@ export default function AddOffer() {
               </h1>
 
               <button
+                type="button"
                 onClick={() =>
                   router.push(
                     "/business/my-offers"
@@ -659,73 +734,130 @@ export default function AddOffer() {
 
               {/* TITLE */}
 
-              <input
-                type="text"
-                placeholder="Offer Title"
-                value={title}
-                onChange={(e) =>
-                  setTitle(
-                    e.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              />
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Offer Title
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Offer Title"
+                  value={title}
+                  onChange={(e) =>
+                    setTitle(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+
+              </div>
 
               {/* DISCOUNT */}
 
-              <input
-                type="text"
-                placeholder="Discount (Example: 20% OFF)"
-                value={discount}
-                onChange={(e) =>
-                  setDiscount(
-                    e.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              />
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Discount
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Discount (Example: 20% OFF)"
+                  value={discount}
+                  onChange={(e) =>
+                    setDiscount(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+
+              </div>
 
               {/* CATEGORY */}
 
-              <select
-                value={category}
-                onChange={(e) =>
-                  setCategory(
-                    e.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              >
+              <div>
 
-                <option value="">
-                  Select Category
-                </option>
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Category
+                </label>
 
-                {categories.map(
-                  (item) => (
-                    <option
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </option>
-                  )
-                )}
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                >
 
-              </select>
+                  <option value="">
+                    Select Category
+                  </option>
 
-              {/* DESCRIPTION */}
+                  {categories.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
 
-              <textarea
-                placeholder="Offer Description"
-                value={description}
-                onChange={(e) =>
-                  setDescription(
-                    e.target.value
-                  )
-                }
-                className="h-36 w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-              />
+                </select>
+
+              </div>
+
+              {/* SHORT DESCRIPTION */}
+
+              <div>
+
+                <div className="mb-2 flex items-center justify-between">
+
+                  <label className="font-semibold text-gray-800">
+                    Short Description
+                  </label>
+
+                  <span
+                    className={`text-xs font-bold ${
+                      description.length >=
+                      MAX_DESCRIPTION_LENGTH
+                        ? "text-red-600"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {description.length}/
+                    {MAX_DESCRIPTION_LENGTH}
+                  </span>
+
+                </div>
+
+                <textarea
+                  placeholder="Briefly describe your offer..."
+                  value={description}
+                  maxLength={
+                    MAX_DESCRIPTION_LENGTH
+                  }
+                  onChange={(e) =>
+                    handleDescriptionChange(
+                      e.target.value
+                    )
+                  }
+                  className="h-28 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+
+                <p className="mt-1 text-xs text-gray-400">
+                  Keep it short and clear. Maximum{" "}
+                  {MAX_DESCRIPTION_LENGTH}{" "}
+                  characters.
+                </p>
+
+              </div>
 
               {/* IMAGE */}
 
@@ -752,16 +884,25 @@ export default function AddOffer() {
               {/* PREVIEW */}
 
               {preview && (
-                <img
-                  src={preview}
-                  alt="Offer Preview"
-                  className="h-64 w-full rounded-xl object-cover"
-                />
+                <div>
+
+                  <p className="mb-2 text-sm font-semibold text-gray-700">
+                    Image Preview
+                  </p>
+
+                  <img
+                    src={preview}
+                    alt="Offer Preview"
+                    className="h-64 w-full rounded-xl object-cover"
+                  />
+
+                </div>
               )}
 
               {/* SAVE */}
 
               <button
+                type="button"
                 onClick={addOffer}
                 disabled={saving}
                 className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"

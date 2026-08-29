@@ -15,9 +15,13 @@ import BusinessProtected from "@/components/BusinessProtected";
 import { auth, db } from "@/lib/firebase";
 
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
 interface EditOfferProps {
@@ -43,6 +47,15 @@ export default function EditOffer({
   const [saving, setSaving] =
     useState(false);
 
+  const [title, setTitle] =
+    useState("");
+
+  const [discount, setDiscount] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("");
+
   const [description, setDescription] =
     useState("");
 
@@ -55,9 +68,15 @@ export default function EditOffer({
   const [imageFile, setImageFile] =
     useState<File | null>(null);
 
+  const [categories, setCategories] =
+    useState<string[]>([]);
+
+  const [loadingCategories, setLoadingCategories] =
+    useState(true);
+
   /*
    * ==========================================
-   * LOAD OFFER
+   * LOAD DATA
    * ==========================================
    */
 
@@ -71,11 +90,12 @@ export default function EditOffer({
     }
 
     loadOffer();
+    loadCategories();
   }, [offerId]);
 
   /*
    * ==========================================
-   * LOAD OFFER DATA
+   * LOAD OFFER
    * ==========================================
    */
 
@@ -122,10 +142,7 @@ export default function EditOffer({
         offerSnap.data();
 
       /*
-       * =====================================
-       * SECURITY CHECK
-       * =====================================
-       *
+       * SECURITY:
        * Business can edit only its own offer.
        */
 
@@ -144,12 +161,17 @@ export default function EditOffer({
         return;
       }
 
-      /*
-       * Only load description + image.
-       *
-       * Title / Discount / Category
-       * are intentionally NOT editable.
-       */
+      setTitle(
+        data.title || ""
+      );
+
+      setDiscount(
+        data.discount || ""
+      );
+
+      setCategory(
+        data.category || ""
+      );
 
       setDescription(
         data.description || ""
@@ -183,6 +205,66 @@ export default function EditOffer({
 
   /*
    * ==========================================
+   * LOAD CATEGORIES
+   * ==========================================
+   */
+
+  const loadCategories =
+    async () => {
+      try {
+        setLoadingCategories(
+          true
+        );
+
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
+          );
+
+        const data =
+          snap.docs
+            .map((item) => {
+              const itemData =
+                item.data();
+
+              return (
+                itemData.name ||
+                itemData.category ||
+                itemData.title ||
+                ""
+              );
+            })
+            .filter(
+              Boolean
+            ) as string[];
+
+        const uniqueCategories =
+          Array.from(
+            new Set(data)
+          ).sort((a, b) =>
+            a.localeCompare(b)
+          );
+
+        setCategories(
+          uniqueCategories
+        );
+      } catch (error) {
+        console.error(
+          "Category loading error:",
+          error
+        );
+      } finally {
+        setLoadingCategories(
+          false
+        );
+      }
+    };
+
+  /*
+   * ==========================================
    * IMAGE CHANGE
    * ==========================================
    */
@@ -191,18 +273,6 @@ export default function EditOffer({
     file: File | null
   ) => {
     if (!file) {
-      return;
-    }
-
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-      alert(
-        "❌ Please select a valid image."
-      );
-
       return;
     }
 
@@ -222,46 +292,25 @@ export default function EditOffer({
 
   const updateOffer =
     async () => {
+      if (
+        !title.trim() ||
+        !discount.trim() ||
+        !category ||
+        !description.trim()
+      ) {
+        alert(
+          "Please fill all fields."
+        );
+
+        return;
+      }
+
       const user =
         auth.currentUser;
 
       if (!user) {
         alert(
           "❌ Business login required."
-        );
-
-        return;
-      }
-
-      /*
-       * Description is optional.
-       * But if entered, keep it short.
-       */
-
-      if (
-        description.trim().length >
-        250
-      ) {
-        alert(
-          "❌ Description should be 250 characters or less."
-        );
-
-        return;
-      }
-
-      /*
-       * Image must exist.
-       *
-       * Existing image is accepted,
-       * or a new image can be uploaded.
-       */
-
-      if (
-        !oldImage &&
-        !imageFile
-      ) {
-        alert(
-          "❌ Please upload an offer image."
         );
 
         return;
@@ -329,7 +378,8 @@ export default function EditOffer({
           );
 
           /*
-           * Existing Cloudinary preset.
+           * Keep existing Cloudinary
+           * preset.
            */
 
           formData.append(
@@ -376,22 +426,19 @@ export default function EditOffer({
          * =====================================
          * UPDATE FIRESTORE
          * =====================================
-         *
-         * IMPORTANT:
-         *
-         * Only description + image are updated.
-         *
-         * Existing:
-         * - title
-         * - discount
-         * - category
-         *
-         * are NOT touched.
          */
 
         await updateDoc(
           offerRef,
           {
+            title:
+              title.trim(),
+
+            discount:
+              discount.trim(),
+
+            category,
+
             description:
               description.trim(),
 
@@ -429,25 +476,26 @@ export default function EditOffer({
    * ==========================================
    */
 
-  if (loading) {
+  if (
+    loading ||
+    loadingCategories
+  ) {
     return (
       <BusinessProtected>
-        <main className="flex min-h-screen items-center justify-center bg-[#f5f3ed] p-6">
+        <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+          <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-10 text-center shadow-[0_25px_80px_rgba(7,17,31,0.12)]">
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
-            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-[#d4af37]" />
-
-            <h2 className="text-2xl font-black text-[#07111f]">
+            <h2 className="text-2xl font-bold text-green-700">
               Loading Offer...
             </h2>
 
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-gray-500">
               Please wait...
             </p>
 
           </div>
-
         </main>
       </BusinessProtected>
     );
@@ -461,196 +509,193 @@ export default function EditOffer({
 
   return (
     <BusinessProtected>
-
-      <main className="min-h-screen bg-[#f5f3ed] px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-slate-100 p-6">
 
         <div className="mx-auto max-w-2xl">
 
-          <div className="overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_25px_80px_rgba(7,17,31,0.12)]">
+          <div className="rounded-3xl bg-white p-8 shadow-xl">
 
-            {/* =================================
-                HEADER
-            ================================= */}
+            {/* HEADER */}
 
-            <div className="bg-[#07111f] px-6 py-7 text-white sm:px-8">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-              <div className="flex items-center justify-between gap-4">
+              <h1 className="text-3xl font-bold text-green-700">
+                ✏️ Edit Offer
+              </h1>
 
-                <div>
-
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d4af37]">
-                    SBC Business Portal
-                  </p>
-
-                  <h1 className="mt-2 text-3xl font-black">
-                    ✏️ Edit Offer
-                  </h1>
-
-                  <p className="mt-1 text-sm text-white/60">
-                    Update your offer image and short description.
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      "/business/my-offers"
-                    )
-                  }
-                  className="shrink-0 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/20"
-                >
-                  ← My Offers
-                </button>
-
-              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    "/business/my-offers"
+                  )
+                }
+                className="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300"
+              >
+                ← My Offers
+              </button>
 
             </div>
 
-            {/* =================================
-                FORM
-            ================================= */}
+            {/* FORM */}
 
-            <div className="space-y-7 p-6 sm:p-8">
+            <div className="space-y-5">
 
-              {/* =================================
-                  OFFER IMAGE
-              ================================= */}
+              {/* TITLE */}
 
               <div>
-
-                <div className="mb-3 flex items-end justify-between gap-3">
-
-                  <div>
-
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-                      Offer Image
-                    </label>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Upload the main image containing your offer details.
-                    </p>
-
-                  </div>
-
-                  <span className="hidden rounded-full bg-[#fff8df] px-3 py-1 text-[10px] font-black text-[#8a680c] sm:block">
-                    Recommended 1200 × 800
-                  </span>
-
-                </div>
-
-                <label className="group block cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#d4af37]/40 bg-[#fbfaf6] transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
-
-                  {preview ? (
-
-                    <img
-                      src={preview}
-                      alt="Offer Preview"
-                      className="h-72 w-full object-cover sm:h-96"
-                    />
-
-                  ) : (
-
-                    <div className="flex h-72 flex-col items-center justify-center text-center sm:h-96">
-
-                      <div className="text-5xl">
-                        🖼️
-                      </div>
-
-                      <p className="mt-4 text-base font-black text-[#07111f]">
-                        Upload Offer Image
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        JPG, PNG or WEBP
-                      </p>
-
-                    </div>
-
-                  )}
-
-                  <div className="border-t border-black/5 bg-white px-5 py-3 text-center text-sm font-black text-[#8a680c]">
-                    📷 Change Offer Image
-                  </div>
-
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) =>
-                      handleImageChange(
-                        e.target.files?.[0] ||
-                          null
-                      )
-                    }
-                  />
-
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Offer Title
                 </label>
 
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) =>
+                    setTitle(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Offer Title"
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
               </div>
 
-              {/* =================================
-                  SHORT DESCRIPTION
-              ================================= */}
+              {/* DISCOUNT */}
 
               <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Discount
+                </label>
 
-                <div className="mb-2 flex items-center justify-between gap-3">
+                <input
+                  type="text"
+                  value={discount}
+                  onChange={(e) =>
+                    setDiscount(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Example: 20% OFF"
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
 
-                  <div>
+              {/* CATEGORY */}
 
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-                      Short Description
-                    </label>
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Category
+                </label>
 
-                    <p className="mt-1 text-xs text-slate-400">
-                      Optional · Keep it short and clear.
-                    </p>
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                >
 
-                  </div>
+                  <option value="">
+                    Select Category
+                  </option>
 
-                  <span className="text-[10px] font-bold text-slate-400">
-                    {description.length}/250
-                  </span>
+                  {category &&
+                    !categories.includes(
+                      category
+                    ) && (
+                      <option
+                        value={
+                          category
+                        }
+                      >
+                        {category}
+                      </option>
+                    )}
 
-                </div>
+                  {categories.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+
+                </select>
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div>
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Offer Description
+                </label>
 
                 <textarea
-                  value={description}
-                  maxLength={250}
+                  value={
+                    description
+                  }
                   onChange={(e) =>
                     setDescription(
                       e.target.value
                     )
                   }
-                  placeholder="Example: Enjoy our special student combo with delicious food at a great price."
-                  className="h-28 w-full resize-none rounded-2xl border border-black/10 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                  placeholder="Offer Description"
+                  className="h-36 w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                />
+              </div>
+
+              {/* IMAGE */}
+
+              <div>
+
+                <label className="mb-2 block font-semibold text-gray-700">
+                  Change Offer Image
+                  <span className="ml-2 text-sm font-normal text-gray-400">
+                    (Optional)
+                  </span>
+                </label>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    handleImageChange(
+                      e.target.files?.[0] ||
+                        null
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-sm"
                 />
 
               </div>
 
-              {/* =================================
-                  INFO BOX
-              ================================= */}
+              {/* PREVIEW */}
 
-              <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+              {preview && (
+                <div>
 
-                <p className="text-sm font-black text-[#8a680c]">
-                  💡 Offer Information
-                </p>
+                  <p className="mb-2 text-sm font-semibold text-gray-600">
+                    Image Preview
+                  </p>
 
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Add the important offer details inside the image. The short description can be used for a quick explanation of the offer.
-                </p>
+                  <img
+                    src={preview}
+                    alt="Offer Preview"
+                    className="h-64 w-full rounded-2xl object-cover"
+                  />
 
-              </div>
+                </div>
+              )}
 
-              {/* =================================
-                  BUTTONS
-              ================================= */}
+              {/* BUTTONS */}
 
-              <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row">
+              <div className="flex flex-col gap-3 pt-3 sm:flex-row">
 
                 <button
                   type="button"
@@ -660,7 +705,7 @@ export default function EditOffer({
                     )
                   }
                   disabled={saving}
-                  className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  className="flex-1 rounded-xl border border-gray-300 bg-white py-4 text-lg font-bold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -671,10 +716,10 @@ export default function EditOffer({
                     updateOffer
                   }
                   disabled={saving}
-                  className="flex-1 rounded-2xl bg-[#d4af37] py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving
-                    ? "⏳ Saving..."
+                    ? "⏳ Updating..."
                     : "💾 Save Changes"}
                 </button>
 
@@ -687,7 +732,6 @@ export default function EditOffer({
         </div>
 
       </main>
-
     </BusinessProtected>
   );
 }
