@@ -65,9 +65,6 @@ export default function StudentOffers() {
   const [category, setCategory] =
     useState("All");
 
-  const [currentSlide, setCurrentSlide] =
-    useState(0);
-
   /*
    * ==========================================
    * REDEMPTION STATES
@@ -90,6 +87,15 @@ export default function StudentOffers() {
     useState(0);
 
   const [rejectedOffer, setRejectedOffer] =
+    useState<Offer | null>(null);
+
+  /*
+   * ==========================================
+   * FULL OFFER DETAILS MODAL
+   * ==========================================
+   */
+
+  const [detailsOffer, setDetailsOffer] =
     useState<Offer | null>(null);
 
   const [pendingRequestId, setPendingRequestId] =
@@ -998,47 +1004,19 @@ export default function StudentOffers() {
 
   /*
    * ==========================================
-   * AUTOMATIC OFFER CAROUSEL
-   * ==========================================
-   */
-
-  useEffect(() => {
-    setCurrentSlide(0);
-  }, [search, category]);
-
-  useEffect(() => {
-    if (filteredOffers.length <= 1) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setCurrentSlide((current) =>
-        (current + 1) % filteredOffers.length
-      );
-    }, 4000);
-
-    return () => window.clearInterval(timer);
-  }, [filteredOffers.length]);
-
-  const nextSlide = () => {
-    if (filteredOffers.length <= 1) return;
-    setCurrentSlide((current) =>
-      (current + 1) % filteredOffers.length
-    );
-  };
-
-  const previousSlide = () => {
-    if (filteredOffers.length <= 1) return;
-    setCurrentSlide((current) =>
-      (current - 1 + filteredOffers.length) % filteredOffers.length
-    );
-  };
-
-    /*
-   * ==========================================
    * CALL BUSINESS
    * ==========================================
    */
+
+  const openOfferDetails =
+    (offer: Offer) => {
+      setDetailsOffer(offer);
+    };
+
+  const closeOfferDetails =
+    () => {
+      setDetailsOffer(null);
+    };
 
   const callBusiness =
     (
@@ -1865,207 +1843,130 @@ export default function StudentOffers() {
 
         ) : (
 
-          <div className="mx-auto w-full max-w-2xl">
+          <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-            <div className="relative overflow-hidden rounded-[1.75rem]">
+            {filteredOffers.map(
+              (offer) => {
 
-              <div
-                className="flex transition-transform duration-700 ease-in-out"
-                style={{
-                  transform: `translateX(-${currentSlide * 100}%)`,
-                }}
-              >
-                {filteredOffers.map(
-                  (offer) => {
+                const usedCount =
+                  getUsageCount(
+                    offer.businessId
+                  );
 
-                    const usedCount =
-                      getUsageCount(
-                        offer.businessId
-                      );
+                return (
+                  <div
+                    key={offer.id}
+                    className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/40 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
+                  >
 
-                    return (
-                      <div
-                        key={offer.id}
-                        className="w-full shrink-0 px-1"
-                      >
-                        <div
-                          className="group flex min-h-[620px] w-full flex-col overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.10)]"
+                    {/* FIXED OFFER IMAGE */}
+                    <div className="relative h-[260px] w-full overflow-hidden bg-[#07111f] sm:h-[280px]">
+                      {offer.image ? (
+                        <img
+                          src={offer.image}
+                          alt={offer.title || "SBC Offer"}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-6xl text-[#f1cf63]">
+                          🎁
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BUSINESS + ADDRESS + OFFER PREVIEW */}
+                    <div className="flex flex-1 flex-col p-4 sm:p-5">
+
+                      {/* BUSINESS */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          🏢 Business
+                        </p>
+
+                        <h2 className="mt-1 text-base font-black leading-5 text-[#07111f]">
+                          {offer.businessName || "SBC Partner Business"}
+                        </h2>
+
+                        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-4 text-slate-500">
+                          📍 {offer.businessAddress || "Address not available"}
+                        </p>
+                      </div>
+
+                      {/* OFFER PREVIEW */}
+                      <div className="mt-4 rounded-2xl border border-[#d4af37]/25 bg-[#fffdf5] p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8a680c]">
+                          🎁 Offer
+                        </p>
+
+                        <h3 className="mt-1 text-base font-black leading-5 text-[#07111f]">
+                          {offer.title || "SBC Offer"}
+                        </h3>
+
+                        <div className="mt-2 max-h-[72px] overflow-hidden">
+                          <p className="line-clamp-3 whitespace-pre-line break-words text-sm font-medium leading-6 text-slate-600">
+                            {offer.description || "Offer details available inside."}
+                          </p>
+                        </div>
+
+                        {/* Always available at the end of the preview so the student can open the complete offer. */}
+                        <button
+                          type="button"
+                          onClick={() => openOfferDetails(offer)}
+                          className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-[#d4af37]/40 bg-white py-2.5 text-xs font-black text-[#8a680c] transition hover:bg-[#fff8df]"
                         >
+                          👁️ View Full Offer
+                        </button>
+                      </div>
 
-                          {/* IMAGE */}
-
-                          <div className="relative h-72 overflow-hidden bg-[#07111f] sm:h-80">
-                            {offer.image ? (
-                              <img
-                                src={offer.image}
-                                alt={
-                                  offer.title ||
-                                  "Student offer"
-                                }
-                                loading="lazy"
-                                className="h-full w-full object-contain bg-slate-100 transition duration-500"
-                              />
-                            ) : (
-                              <div className="flex h-full items-center justify-center bg-[#07111f] text-6xl text-[#f1cf63]">
-                                🎁
-                              </div>
-                            )}
+                      {/* USAGE */}
+                      <div className="mt-3 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] px-3.5 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
+                              Your Usage
+                            </p>
+                            <p className="mt-0.5 text-sm font-black text-[#07111f]">
+                              {usedCount} / {MAX_REDEMPTIONS} Used
+                            </p>
                           </div>
 
-                          {/* CONTENT */}
-
-                          <div className="flex flex-1 flex-col bg-white p-5 sm:p-6">
-
-                            <div className="flex flex-wrap gap-3">
-                              <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                                {offer.category || "Other"}
-                              </span>
-
-                              <span className="rounded-full border border-[#d4af37]/40 bg-[#fff8df] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8a680c]">
-                                🔥 SBC Exclusive
-                              </span>
-                            </div>
-
-                            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.10em] text-slate-500">
-                              🏢 {offer.businessName || "SBC Partner Business"}
-                            </p>
-
-                            <div className="mt-1 min-h-[42px]">
-                              {offer.businessAddress ? (
-                                <p className="flex items-start gap-1 text-xs leading-5 text-slate-500">
-                                  <span>📍</span>
-                                  <span>
-                                    {offer.businessAddress}
-                                  </span>
-                                </p>
-                              ) : (
-                                <p className="text-xs text-slate-400">
-                                  📍 Address not available
-                                </p>
-                              )}
-                            </div>
-
-                            <h2 className="mt-2 line-clamp-2 text-xl font-black text-[#b18a16]">
-                              {offer.title || "SBC Offer"}
-                            </h2>
-
-                            {offer.discount && (
-                              <h3 className="mt-1 line-clamp-2 text-2xl font-black text-[#b18a16]">
-                                {offer.discount}
-                              </h3>
-                            )}
-
-                            <div className="mt-4 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-bold text-[#8a680c]">
-                                    🎟️ Your Usage at this Business
-                                  </p>
-                                  <p className="mt-1 text-lg font-black text-[#07111f]">
-                                    Used {usedCount} times
-                                  </p>
-                                </div>
-
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base font-extrabold text-[#8a680c]">
-                                  {usedCount}/4
-                                </div>
-                              </div>
-
-                              <p className="mt-1 text-xs text-[#8a680c]">
-                                {usedCount >= MAX_REDEMPTIONS
-                                  ? "You have reached the maximum 4 redemptions for this business."
-                                  : `You can redeem this business ${MAX_REDEMPTIONS - usedCount} more time${MAX_REDEMPTIONS - usedCount === 1 ? "" : "s"}.`}
-                              </p>
-                            </div>
-
-                            {offer.description && (
-                              <p className="mt-3 line-clamp-2 min-h-[40px] text-sm leading-5 text-gray-600">
-                                {offer.description}
-                              </p>
-                            )}
-
-                            <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
-                              <button
-                                onClick={() =>
-                                  callBusiness(offer)
-                                }
-                                className="rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e]"
-                              >
-                                📞 Call Us
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  openRedeemVerification(offer)
-                                }
-                                disabled={
-                                  usedCount >= MAX_REDEMPTIONS
-                                }
-                                className={`rounded-xl py-3.5 text-sm font-black transition ${
-                                  usedCount >= MAX_REDEMPTIONS
-                                    ? "cursor-not-allowed bg-slate-300 text-slate-500"
-                                    : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
-                                }`}
-                              >
-                                {usedCount >= MAX_REDEMPTIONS
-                                  ? "🚫 Limit Reached"
-                                  : "🎁 Redeem Offer"}
-                              </button>
-                            </div>
-
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff0bd] text-xs font-black text-[#8a680c]">
+                            {usedCount}/{MAX_REDEMPTIONS}
                           </div>
                         </div>
                       </div>
-                    );
-                  }
-                )}
-              </div>
 
-              {filteredOffers.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={previousSlide}
-                    aria-label="Previous offer"
-                    className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-[#07111f]/85 text-xl font-black text-white shadow-lg backdrop-blur transition hover:bg-[#07111f]"
-                  >
-                    ←
-                  </button>
+                      {/* ACTIONS */}
+                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => callBusiness(offer)}
+                          className="rounded-xl bg-[#07111f] py-3 text-xs font-black text-white transition hover:bg-[#101d2e]"
+                        >
+                          📞 Call Us
+                        </button>
 
-                  <button
-                    type="button"
-                    onClick={nextSlide}
-                    aria-label="Next offer"
-                    className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-[#07111f]/85 text-xl font-black text-white shadow-lg backdrop-blur transition hover:bg-[#07111f]"
-                  >
-                    →
-                  </button>
-                </>
-              )}
-            </div>
+                        <button
+                          type="button"
+                          onClick={() => openRedeemVerification(offer)}
+                          disabled={usedCount >= MAX_REDEMPTIONS}
+                          className={`rounded-xl py-3 text-xs font-black transition ${
+                            usedCount >= MAX_REDEMPTIONS
+                              ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                              : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                          }`}
+                        >
+                          {usedCount >= MAX_REDEMPTIONS
+                            ? "🚫 Limit Reached"
+                            : "🎁 Redeem Offer"}
+                        </button>
+                      </div>
 
-            {filteredOffers.length > 1 && (
-              <div className="mt-5 flex items-center justify-center gap-2">
-                {filteredOffers.map((offer, index) => (
-                  <button
-                    key={offer.id}
-                    type="button"
-                    onClick={() => setCurrentSlide(index)}
-                    aria-label={`Go to offer ${index + 1}`}
-                    className={`h-2.5 rounded-full transition-all ${
-                      currentSlide === index
-                        ? "w-8 bg-[#d4af37]"
-                        : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-
-            {filteredOffers.length > 1 && (
-              <p className="mt-2 text-center text-xs font-bold text-slate-400">
-                {currentSlide + 1} / {filteredOffers.length}
-              </p>
+                    </div>
+                  </div>
+                );
+              }
             )}
 
           </div>
@@ -2111,6 +2012,193 @@ export default function StudentOffers() {
         )}
 
       </div>
+
+      {/* ==========================================
+          FULL OFFER DETAILS MODAL
+      =========================================== */}
+
+      {detailsOffer && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm"
+          onClick={closeOfferDetails}
+        >
+          <div
+            className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* CLOSE BUTTON */}
+            <button
+              type="button"
+              onClick={closeOfferDetails}
+              aria-label="Close full details"
+              className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 shadow-sm transition hover:bg-slate-200"
+            >
+              ✕
+            </button>
+
+            {/* FULL DETAILS */}
+
+
+            <div className="p-6 sm:p-7">
+
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+                🏢 Business
+              </p>
+
+              <h2 className="mt-1 text-lg font-black text-[#07111f]">
+                {detailsOffer.businessName || "SBC Partner Business"}
+              </h2>
+
+              {/* ADDRESS */}
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  📍 Full Business Address
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6 text-slate-700">
+                  {detailsOffer.businessAddress || "Address not available"}
+                </p>
+
+              </div>
+
+              {/* OFFER */}
+
+              <div className="mt-5">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  🎁 Offer
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black leading-tight text-[#b18a16]">
+                  {detailsOffer.title || "SBC Offer"}
+                </h3>
+
+                {detailsOffer.discount && (
+                  <p className="mt-2 text-3xl font-black text-[#b18a16]">
+                    {detailsOffer.discount}
+                  </p>
+                )}
+
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                  📝 Offer Full Details
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                  {detailsOffer.description || "No additional offer details available."}
+                </p>
+
+              </div>
+
+              {/* USAGE */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-4">
+
+                <div className="flex items-center justify-between gap-4">
+
+                  <div>
+
+                    <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                      🎟️ Your Usage at this Business
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-[#07111f]">
+                      {getUsageCount(detailsOffer.businessId)} / {MAX_REDEMPTIONS} Redemptions Used
+                    </p>
+
+                  </div>
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-[#8a680c]">
+                    {getUsageCount(detailsOffer.businessId)}/{MAX_REDEMPTIONS}
+                  </div>
+
+                </div>
+
+                <p className="mt-2 text-xs font-semibold text-[#8a680c]">
+                  {getUsageCount(detailsOffer.businessId) >= MAX_REDEMPTIONS
+                    ? "You have reached the maximum 4 redemptions for this business."
+                    : `${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId)} redemption${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId) === 1 ? "" : "s"} remaining for this business.`}
+                </p>
+
+              </div>
+
+              {/* CONTACT */}
+
+              {detailsOffer.businessMobile && (
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    📞 Business Contact
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-[#07111f]">
+                    {detailsOffer.businessMobile}
+                  </p>
+
+                </div>
+
+              )}
+
+              {/* ACTIONS */}
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    callBusiness(detailsOffer)
+                  }
+                  className="rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e]"
+                >
+                  📞 Call Us
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeOfferDetails();
+                    openRedeemVerification(detailsOffer);
+                  }}
+                  disabled={
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                  }
+                  className={`rounded-xl py-3.5 text-sm font-black transition ${
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                      ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                      : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                  }`}
+                >
+                  {getUsageCount(detailsOffer.businessId) >=
+                  MAX_REDEMPTIONS
+                    ? "🚫 Limit Reached"
+                    : "🎁 Redeem Offer"}
+                </button>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ==========================================
           BUSINESS VERIFICATION MODAL
