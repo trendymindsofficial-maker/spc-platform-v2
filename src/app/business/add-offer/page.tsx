@@ -486,8 +486,8 @@ export default function AddOffer() {
   if (existingOffer) {
     return (
       <BusinessProtected>
-        <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl">
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50/40 px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl">
             <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] p-6 sm:p-8">
 
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-white via-white to-green-50/70 px-6 py-6 sm:px-8">
@@ -593,26 +593,26 @@ export default function AddOffer() {
 
   return (
     <BusinessProtected>
-      <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-green-50/40 px-4 py-8 sm:px-6 lg:px-8">
 
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-2xl">
 
-          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)]">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
 
             {/* HEADER */}
 
-            <div className="mb-8 flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 bg-[#07111f] px-6 py-6 text-white sm:px-8">
 
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-green-600">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d4af37]">
                   SBC Business Portal
                 </p>
 
-                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">
                   ➕ Add New Offer
                 </h1>
 
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-white/55">
                   Upload your offer image and add a short description.
                 </p>
               </div>
@@ -624,7 +624,7 @@ export default function AddOffer() {
                     "/business/my-offers"
                   )
                 }
-                className="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300"
+                className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15"
               >
                 ← Back
               </button>
@@ -633,12 +633,12 @@ export default function AddOffer() {
 
             {/* FORM */}
 
-            <div className="space-y-6 px-6 py-7 sm:px-8 sm:py-8">
+            <div className="space-y-6 p-6 sm:p-8">
 
               {/* CATEGORY */}
 
               <div>
-                <label className="mb-2 block font-semibold text-gray-800">
+                <label className="mb-2 block text-sm font-black text-slate-800">
                   Category
                 </label>
 
@@ -649,7 +649,7 @@ export default function AddOffer() {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                 >
                   <option value="">
                     Select Category
@@ -672,7 +672,7 @@ export default function AddOffer() {
 
               <div>
 
-                <label className="mb-2 block font-semibold text-gray-800">
+                <label className="mb-2 block text-sm font-black text-slate-800">
                   Short Description
                 </label>
 
@@ -684,10 +684,10 @@ export default function AddOffer() {
                       e.target.value
                     )
                   }
-                  className="h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
+                  className="h-32 w-full resize-none rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                 />
 
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs leading-5 text-slate-400">
                   Add the important offer details students should know. No character limit.
                 </p>
 
@@ -697,11 +697,11 @@ export default function AddOffer() {
 
               <div>
 
-                <label className="mb-2 block font-semibold text-gray-800">
+                <label className="mb-2 block text-sm font-black text-slate-800">
                   Offer Image
                 </label>
 
-                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 transition hover:border-green-300 hover:bg-green-50/30">
+                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-[#fafbf9] p-5 transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
 
                   <input
                     type="file"
@@ -712,10 +712,10 @@ export default function AddOffer() {
                           null
                       )
                     }
-                    className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-green-300"
+                    className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-[#d4af37]"
                   />
 
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs font-medium text-slate-400">
                     Recommended image ratio: 16:9
                   </p>
 
@@ -733,12 +733,12 @@ export default function AddOffer() {
                       Image Preview
                     </p>
 
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                    <span className="rounded-full bg-[#fff8df] px-3 py-1 text-xs font-black text-[#8a680c]">
                       16:9 Display
                     </span>
                   </div>
 
-                  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-slate-50 shadow-sm">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
 
                     <img
                       src={preview}
@@ -753,13 +753,13 @@ export default function AddOffer() {
 
               {/* INFO */}
 
-              <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+              <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
 
-                <p className="text-sm font-bold text-green-800">
+                <p className="text-sm font-black text-[#8a680c]">
                   💡 Offer Display
                 </p>
 
-                <p className="mt-1 text-xs leading-5 text-green-700">
+                <p className="mt-1 text-xs leading-5 text-slate-500">
                   Students will mainly see your offer image,
                   business name, address and short description.
                   Keep the important offer details inside the image.
@@ -773,7 +773,7 @@ export default function AddOffer() {
                 type="button"
                 onClick={addOffer}
                 disabled={saving}
-                className="w-full rounded-2xl bg-slate-900 py-4 text-base font-black text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-2xl bg-[#07111f] py-4 text-base font-black text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving
                   ? "⏳ Uploading & Saving..."
