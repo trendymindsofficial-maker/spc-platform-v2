@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 import AdminProtected from "@/components/AdminProtected";
 import { db } from "@/lib/firebase";
@@ -40,7 +41,11 @@ function getRedemptionDate(
 
   try {
     if (raw instanceof Timestamp) {
-      return raw.toDate();
+      const date = raw.toDate();
+
+      return Number.isNaN(date.getTime())
+        ? null
+        : date;
     }
 
     if (
@@ -50,9 +55,13 @@ function getRedemptionDate(
       typeof (raw as { toDate?: unknown }).toDate ===
         "function"
     ) {
-      return (
+      const date = (
         raw as { toDate: () => Date }
       ).toDate();
+
+      return Number.isNaN(date.getTime())
+        ? null
+        : date;
     }
 
     if (
@@ -60,24 +69,26 @@ function getRedemptionDate(
       raw !== null &&
       "seconds" in raw
     ) {
-      return new Date(
+      const date = new Date(
         Number(
           (raw as { seconds: number }).seconds
         ) * 1000
       );
+
+      return Number.isNaN(date.getTime())
+        ? null
+        : date;
     }
 
-    const parsed = new Date(
+    const date = new Date(
       typeof raw === "number"
         ? raw
         : String(raw)
     );
 
-    if (Number.isNaN(parsed.getTime())) {
-      return null;
-    }
-
-    return parsed;
+    return Number.isNaN(date.getTime())
+      ? null
+      : date;
   } catch {
     return null;
   }
@@ -86,24 +97,30 @@ function getRedemptionDate(
 function formatRedeemedDate(
   item: Redemption
 ) {
-  const date =
-    getRedemptionDate(item);
+  const date = getRedemptionDate(item);
 
   if (!date) {
     return "Date & time unavailable";
   }
 
-  return date.toLocaleString(
-    "en-IN",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }
-  );
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getMonthName(month: number) {
+  return new Date(
+    2000,
+    month,
+    1
+  ).toLocaleString("en-IN", {
+    month: "long",
+  });
 }
 
 export default function AdminRedemptions() {
@@ -114,112 +131,60 @@ export default function AdminRedemptions() {
     useState("");
 
   const [businessFilter, setBusinessFilter] =
-    useState("");
+    useState("all");
 
   const [monthFilter, setMonthFilter] =
-    useState("");
+    useState("all");
 
   const [yearFilter, setYearFilter] =
-    useState(
-      new Date().getFullYear().toString()
-    );
+    useState("all");
 
   const [loading, setLoading] =
     useState(true);
 
-  const [
-    selectedRedemption,
-    setSelectedRedemption,
-  ] = useState<Redemption | null>(null);
+  const [downloading, setDownloading] =
+    useState(false);
+
+  const [selectedRedemption, setSelectedRedemption] =
+    useState<Redemption | null>(null);
+
+  /*
+   * ==========================================
+   * LOAD REDEMPTIONS
+   * ==========================================
+   */
 
   useEffect(() => {
     loadRedemptions();
   }, []);
 
-  const loadRedemptions =
-    async () => {
-      try {
-        setLoading(true);
+  const loadRedemptions = async () => {
+    try {
+      setLoading(true);
 
-        const snap =
-          await getDocs(
-            collection(
-              db,
-              "redemptions"
-            )
-          );
+      const snap = await getDocs(
+        collection(db, "redemptions")
+      );
 
-        const data =
-          snap.docs.map(
-            (item) => ({
-              id: item.id,
-              ...item.data(),
-            })
-          ) as Redemption[];
+      const data = snap.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      })) as Redemption[];
 
-        setRedemptions(data);
-      } catch (error) {
-        console.error(
-          "Error loading redemptions:",
-          error
-        );
+      setRedemptions(data);
+    } catch (error) {
+      console.error(
+        "Error loading redemptions:",
+        error
+      );
 
-        alert(
-          "Unable to load redemptions."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-  const deleteRedemption =
-    async (
-      id: string,
-      studentName: string
-    ) => {
-      const ok =
-        window.confirm(
-          `Delete redemption of "${studentName}" ?`
-        );
-
-      if (!ok) return;
-
-      try {
-        await deleteDoc(
-          doc(
-            db,
-            "redemptions",
-            id
-          )
-        );
-
-        setRedemptions(
-          (current) =>
-            current.filter(
-              (item) =>
-                item.id !== id
-            )
-        );
-
-        if (
-          selectedRedemption?.id ===
-          id
-        ) {
-          setSelectedRedemption(
-            null
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Delete redemption error:",
-          error
-        );
-
-        alert(
-          "Failed to delete redemption."
-        );
-      }
-    };
+      alert(
+        "Unable to load redemptions."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /*
    * ==========================================
@@ -227,34 +192,21 @@ export default function AdminRedemptions() {
    * ==========================================
    */
 
-  const businesses =
-    useMemo(() => {
-      const names =
-        redemptions
-          .map(
-            (item) =>
-              item.businessName
-          )
-          .filter(
-            (name): name is string =>
-              Boolean(
-                name &&
-                  name.trim()
-              )
-          );
-
-      return Array.from(
-        new Set(
-          names.map(
-            (name) =>
-              name.trim()
-          )
+  const businessOptions = useMemo(() => {
+    const businesses =
+      redemptions
+        .map(
+          (item) =>
+            item.businessName?.trim()
         )
-      ).sort(
-        (a, b) =>
-          a.localeCompare(b)
-      );
-    }, [redemptions]);
+        .filter(Boolean);
+
+    return Array.from(
+      new Set(businesses)
+    ).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [redemptions]);
 
   /*
    * ==========================================
@@ -262,104 +214,26 @@ export default function AdminRedemptions() {
    * ==========================================
    */
 
-  const years =
-    useMemo(() => {
-      const foundYears =
-        redemptions
-          .map(
-            (item) => {
-              const date =
-                getRedemptionDate(
-                  item
-                );
+  const yearOptions = useMemo(() => {
+    const years =
+      redemptions
+        .map((item) => {
+          const date =
+            getRedemptionDate(item);
 
-              return date
-                ? date
-                    .getFullYear()
-                    .toString()
-                : null;
-            }
-          )
-          .filter(
-            (
-              year
-            ): year is string =>
-              Boolean(year)
-          );
+          return date
+            ? date.getFullYear()
+            : null;
+        })
+        .filter(
+          (year): year is number =>
+            year !== null
+        );
 
-      const currentYear =
-        new Date()
-          .getFullYear()
-          .toString();
-
-      return Array.from(
-        new Set([
-          currentYear,
-          ...foundYears,
-        ])
-      ).sort(
-        (a, b) =>
-          Number(b) -
-          Number(a)
-      );
-    }, [redemptions]);
-
-  /*
-   * ==========================================
-   * MONTH LIST
-   * ==========================================
-   */
-
-  const months = [
-    {
-      value: "1",
-      label: "January",
-    },
-    {
-      value: "2",
-      label: "February",
-    },
-    {
-      value: "3",
-      label: "March",
-    },
-    {
-      value: "4",
-      label: "April",
-    },
-    {
-      value: "5",
-      label: "May",
-    },
-    {
-      value: "6",
-      label: "June",
-    },
-    {
-      value: "7",
-      label: "July",
-    },
-    {
-      value: "8",
-      label: "August",
-    },
-    {
-      value: "9",
-      label: "September",
-    },
-    {
-      value: "10",
-      label: "October",
-    },
-    {
-      value: "11",
-      label: "November",
-    },
-    {
-      value: "12",
-      label: "December",
-    },
-  ];
+    return Array.from(
+      new Set(years)
+    ).sort((a, b) => b - a);
+  }, [redemptions]);
 
   /*
    * ==========================================
@@ -369,86 +243,99 @@ export default function AdminRedemptions() {
 
   const filteredRedemptions =
     useMemo(() => {
-      const searchValue =
-        search
-          .trim()
-          .toLowerCase();
+      const searchText =
+        search.trim().toLowerCase();
 
-      return redemptions.filter(
-        (item) => {
+      return redemptions
+        .filter((item) => {
           /*
-           * Student search
+           * STUDENT SEARCH
            */
 
           if (
-            searchValue &&
+            searchText &&
             !(
-              item.studentName ||
-              ""
+              item.studentName
+                ?.toLowerCase()
+                .includes(searchText)
             )
-              .toLowerCase()
-              .includes(
-                searchValue
-              )
           ) {
             return false;
           }
 
           /*
-           * Business filter
+           * BUSINESS FILTER
            */
 
           if (
-            businessFilter &&
-            (
-              item.businessName ||
-              ""
-            ).trim() !==
+            businessFilter !== "all" &&
+            item.businessName !==
               businessFilter
           ) {
             return false;
           }
 
           /*
-           * Month + Year filter
+           * DATE
+           */
+
+          const date =
+            getRedemptionDate(item);
+
+          /*
+           * MONTH FILTER
            */
 
           if (
-            monthFilter
+            monthFilter !== "all"
           ) {
-            const date =
-              getRedemptionDate(
-                item
-              );
-
             if (!date) {
               return false;
             }
 
-            const itemMonth =
-              (
-                date.getMonth() +
-                1
-              ).toString();
-
-            const itemYear =
-              date
-                .getFullYear()
-                .toString();
+            const selectedMonth =
+              Number(monthFilter);
 
             if (
-              itemMonth !==
-                monthFilter ||
-              itemYear !==
-                yearFilter
+              date.getMonth() !==
+              selectedMonth
+            ) {
+              return false;
+            }
+          }
+
+          /*
+           * YEAR FILTER
+           */
+
+          if (
+            yearFilter !== "all"
+          ) {
+            if (!date) {
+              return false;
+            }
+
+            if (
+              date.getFullYear() !==
+              Number(yearFilter)
             ) {
               return false;
             }
           }
 
           return true;
-        }
-      );
+        })
+        .sort((a, b) => {
+          const aDate =
+            getRedemptionDate(a)
+              ?.getTime() || 0;
+
+          const bDate =
+            getRedemptionDate(b)
+              ?.getTime() || 0;
+
+          return bDate - aDate;
+        });
     }, [
       redemptions,
       search,
@@ -459,28 +346,213 @@ export default function AdminRedemptions() {
 
   /*
    * ==========================================
+   * DELETE
+   * ==========================================
+   */
+
+  const deleteRedemption = async (
+    id: string,
+    studentName: string
+  ) => {
+    const ok = window.confirm(
+      `Delete redemption of "${studentName}" ?`
+    );
+
+    if (!ok) return;
+
+    try {
+      await deleteDoc(
+        doc(db, "redemptions", id)
+      );
+
+      setRedemptions(
+        (current) =>
+          current.filter(
+            (item) =>
+              item.id !== id
+          )
+      );
+
+      if (
+        selectedRedemption?.id === id
+      ) {
+        setSelectedRedemption(
+          null
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Delete redemption error:",
+        error
+      );
+
+      alert(
+        "Failed to delete redemption."
+      );
+    }
+  };
+
+  /*
+   * ==========================================
+   * DOWNLOAD EXCEL
+   * ==========================================
+   */
+
+  const downloadExcel = () => {
+    if (
+      filteredRedemptions.length === 0
+    ) {
+      alert(
+        "No redemptions available to download."
+      );
+
+      return;
+    }
+
+    try {
+      setDownloading(true);
+
+      const excelData =
+        filteredRedemptions.map(
+          (item, index) => ({
+            "S.No": index + 1,
+
+            "Student Name":
+              item.studentName || "-",
+
+            "Business Name":
+              item.businessName || "-",
+
+            "Offer":
+              item.offerTitle || "-",
+
+            "Discount":
+              item.discount || "-",
+
+            "Status":
+              (
+                item.status ||
+                "redeemed"
+              ).toUpperCase(),
+
+            "Redeemed On":
+              formatRedeemedDate(item),
+
+            "Record ID":
+              item.id,
+          })
+        );
+
+      const worksheet =
+        XLSX.utils.json_to_sheet(
+          excelData
+        );
+
+      /*
+       * COLUMN WIDTHS
+       */
+
+      worksheet["!cols"] = [
+        { wch: 8 },
+        { wch: 28 },
+        { wch: 28 },
+        { wch: 35 },
+        { wch: 18 },
+        { wch: 15 },
+        { wch: 28 },
+        { wch: 38 },
+      ];
+
+      const workbook =
+        XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Redemptions"
+      );
+
+      /*
+       * FILE NAME
+       */
+
+      let fileName =
+        "SBC_Redemptions";
+
+      if (
+        businessFilter !== "all"
+      ) {
+        fileName +=
+          `_${businessFilter
+            .replace(
+              /[^a-zA-Z0-9]+/g,
+              "_"
+            )
+            .slice(0, 30)}`;
+      }
+
+      if (
+        monthFilter !== "all"
+      ) {
+        fileName +=
+          `_${getMonthName(
+            Number(monthFilter)
+          )}`;
+      }
+
+      if (
+        yearFilter !== "all"
+      ) {
+        fileName +=
+          `_${yearFilter}`;
+      }
+
+      fileName += ".xlsx";
+
+      XLSX.writeFile(
+        workbook,
+        fileName
+      );
+
+      console.log(
+        "✅ Redemption Excel downloaded:",
+        fileName
+      );
+    } catch (error) {
+      console.error(
+        "Excel download error:",
+        error
+      );
+
+      alert(
+        "Unable to download Excel file."
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  /*
+   * ==========================================
    * CLEAR FILTERS
    * ==========================================
    */
 
-  const clearFilters =
-    () => {
-      setSearch("");
-      setBusinessFilter("");
-      setMonthFilter("");
-      setYearFilter(
-        new Date()
-          .getFullYear()
-          .toString()
-      );
-    };
+  const clearFilters = () => {
+    setSearch("");
+    setBusinessFilter("all");
+    setMonthFilter("all");
+    setYearFilter("all");
+  };
 
-  const hasFilters =
-    Boolean(
-      search ||
-        businessFilter ||
-        monthFilter
-    );
+  /*
+   * ==========================================
+   * PENDING / TOTAL
+   * ==========================================
+   */
+
+  const totalRedemptions =
+    redemptions.length;
 
   return (
     <AdminProtected>
@@ -488,7 +560,9 @@ export default function AdminRedemptions() {
 
         <div className="mx-auto max-w-7xl">
 
+          {/* ================================= */}
           {/* HEADER */}
+          {/* ================================= */}
 
           <div className="mb-6 overflow-hidden rounded-[28px] bg-[#07111f] shadow-[0_20px_65px_rgba(7,17,31,0.13)]">
 
@@ -505,7 +579,8 @@ export default function AdminRedemptions() {
                 </h1>
 
                 <p className="mt-1 text-sm text-white/50">
-                  View, search and manage all redemptions.
+                  View, search, filter and
+                  download SBC redemptions.
                 </p>
 
               </div>
@@ -521,39 +596,30 @@ export default function AdminRedemptions() {
 
           </div>
 
+          {/* ================================= */}
           {/* FILTER PANEL */}
+          {/* ================================= */}
 
-          <div className="mb-6 rounded-3xl border border-[#d4af37]/20 bg-white p-5 shadow-sm md:p-6">
+          <div className="mb-6 rounded-3xl border border-black/5 bg-white p-5 shadow-sm">
 
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
 
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b18a16]">
+                <h2 className="text-lg font-black text-[#07111f]">
                   Redemption Filters
-                </p>
-
-                <h2 className="mt-1 text-xl font-black text-[#07111f]">
-                  Find Redemptions
                 </h2>
 
-                <p className="mt-1 text-xs font-medium text-slate-500">
-                  Filter by business and redemption month.
+                <p className="mt-1 text-xs font-semibold text-slate-400">
+                  Select business and month to
+                  view redemptions for that period.
                 </p>
 
               </div>
 
-              {hasFilters && (
-                <button
-                  type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                >
-                  ✕ Clear Filters
-                </button>
-              )}
+              <div className="rounded-full bg-[#fff8df] px-4 py-2 text-xs font-black text-[#8a680c]">
+                {filteredRedemptions.length} Results
+              </div>
 
             </div>
 
@@ -561,9 +627,9 @@ export default function AdminRedemptions() {
 
               {/* STUDENT SEARCH */}
 
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-1">
 
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
                   Student Search
                 </label>
 
@@ -575,16 +641,11 @@ export default function AdminRedemptions() {
 
                   <input
                     type="text"
-                    placeholder="Search Student..."
-                    value={
-                      search
-                    }
-                    onChange={(
-                      e
-                    ) =>
+                    placeholder="Search student..."
+                    value={search}
+                    onChange={(e) =>
                       setSearch(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
                     className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] py-3.5 pl-11 pr-4 text-sm font-semibold text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
@@ -598,44 +659,31 @@ export default function AdminRedemptions() {
 
               <div>
 
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Business Name
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Business
                 </label>
 
                 <select
-                  value={
-                    businessFilter
-                  }
-                  onChange={(
-                    e
-                  ) =>
+                  value={businessFilter}
+                  onChange={(e) =>
                     setBusinessFilter(
-                      e.target
-                        .value
+                      e.target.value
                     )
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-bold text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                 >
 
-                  <option value="">
+                  <option value="all">
                     All Businesses
                   </option>
 
-                  {businesses.map(
-                    (
-                      business
-                    ) => (
+                  {businessOptions.map(
+                    (business) => (
                       <option
-                        key={
-                          business
-                        }
-                        value={
-                          business
-                        }
+                        key={business}
+                        value={business}
                       >
-                        {
-                          business
-                        }
+                        {business}
                       </option>
                     )
                   )}
@@ -648,44 +696,71 @@ export default function AdminRedemptions() {
 
               <div>
 
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Redemption Month
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Month
                 </label>
 
                 <select
-                  value={
-                    monthFilter
-                  }
-                  onChange={(
-                    e
-                  ) =>
+                  value={monthFilter}
+                  onChange={(e) =>
                     setMonthFilter(
-                      e.target
-                        .value
+                      e.target.value
                     )
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-bold text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                 >
 
-                  <option value="">
+                  <option value="all">
                     All Months
                   </option>
 
-                  {months.map(
-                    (
-                      month
-                    ) => (
+                  {Array.from(
+                    { length: 12 },
+                    (_, month) => (
                       <option
-                        key={
-                          month.value
-                        }
-                        value={
-                          month.value
-                        }
+                        key={month}
+                        value={month}
                       >
-                        {
-                          month.label
-                        }
+                        {getMonthName(
+                          month
+                        )}
+                      </option>
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+              {/* YEAR */}
+
+              <div>
+
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Year
+                </label>
+
+                <select
+                  value={yearFilter}
+                  onChange={(e) =>
+                    setYearFilter(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-bold text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                >
+
+                  <option value="all">
+                    All Years
+                  </option>
+
+                  {yearOptions.map(
+                    (year) => (
+                      <option
+                        key={year}
+                        value={year}
+                      >
+                        {year}
                       </option>
                     )
                   )}
@@ -696,119 +771,56 @@ export default function AdminRedemptions() {
 
             </div>
 
-            {/* YEAR */}
+            {/* FILTER ACTIONS */}
 
-            {monthFilter && (
-              <div className="mt-4 max-w-[220px]">
+            <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
 
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Year
-                </label>
+              <p className="text-xs font-semibold text-slate-400">
+                Showing{" "}
+                <span className="font-black text-[#07111f]">
+                  {filteredRedemptions.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-black text-[#07111f]">
+                  {totalRedemptions}
+                </span>{" "}
+                redemptions
+              </p>
 
-                <select
-                  value={
-                    yearFilter
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setYearFilter(
-                      e.target
-                        .value
-                    )
-                  }
-                  className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-bold text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+              <div className="flex flex-col gap-2 sm:flex-row">
+
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
                 >
+                  ↻ Clear Filters
+                </button>
 
-                  {years.map(
-                    (
-                      year
-                    ) => (
-                      <option
-                        key={
-                          year
-                        }
-                        value={
-                          year
-                        }
-                      >
-                        {
-                          year
-                        }
-                      </option>
-                    )
-                  )}
-
-                </select>
-
-              </div>
-            )}
-
-            {/* FILTER SUMMARY */}
-
-            <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4 sm:flex-row sm:items-center sm:justify-between">
-
-              <div className="flex flex-wrap items-center gap-2">
-
-                <span className="text-xs font-bold text-slate-500">
-                  Showing
-                </span>
-
-                <span className="rounded-full bg-[#07111f] px-3 py-1 text-xs font-black text-[#f1cf63]">
-                  {
-                    filteredRedemptions.length
+                <button
+                  type="button"
+                  onClick={downloadExcel}
+                  disabled={
+                    downloading ||
+                    filteredRedemptions.length ===
+                      0
                   }
-                </span>
-
-                <span className="text-xs font-bold text-slate-500">
-                  of{" "}
-                  {
-                    redemptions.length
-                  }{" "}
-                  redemptions
-                </span>
+                  className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {downloading
+                    ? "Preparing Excel..."
+                    : "📥 Download Excel"}
+                </button>
 
               </div>
-
-              {(businessFilter ||
-                monthFilter) && (
-                <div className="flex flex-wrap gap-2">
-
-                  {businessFilter && (
-                    <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black text-white">
-                      🏪{" "}
-                      {
-                        businessFilter
-                      }
-                    </span>
-                  )}
-
-                  {monthFilter && (
-                    <span className="rounded-full bg-[#d4af37]/20 px-3 py-1.5 text-[10px] font-black text-[#8a680c]">
-                      📅{" "}
-                      {
-                        months.find(
-                          (
-                            m
-                          ) =>
-                            m.value ===
-                            monthFilter
-                        )?.label
-                      }{" "}
-                      {
-                        yearFilter
-                      }
-                    </span>
-                  )}
-
-                </div>
-              )}
 
             </div>
 
           </div>
 
+          {/* ================================= */}
           {/* CONTENT */}
+          {/* ================================= */}
 
           {loading ? (
 
@@ -820,9 +832,15 @@ export default function AdminRedemptions() {
                 Loading Redemptions...
               </h2>
 
+              <p className="mt-1 text-sm text-slate-400">
+                Fetching the latest redemption
+                records.
+              </p>
+
             </div>
 
-          ) : filteredRedemptions.length === 0 ? (
+          ) : filteredRedemptions.length ===
+            0 ? (
 
             <div className="rounded-[28px] bg-white p-12 text-center shadow-sm">
 
@@ -835,20 +853,17 @@ export default function AdminRedemptions() {
               </h2>
 
               <p className="mt-2 text-sm text-slate-500">
-                Try another business, month or student.
+                No redemption records match
+                your selected filters.
               </p>
 
-              {hasFilters && (
-                <button
-                  type="button"
-                  onClick={
-                    clearFilters
-                  }
-                  className="mt-5 rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]"
-                >
-                  Clear Filters
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-5 rounded-2xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]"
+              >
+                Clear Filters
+              </button>
 
             </div>
 
@@ -857,31 +872,23 @@ export default function AdminRedemptions() {
             <div className="grid gap-4">
 
               {filteredRedemptions.map(
-                (
-                  item
-                ) => (
+                (item) => (
 
                   <div
-                    key={
-                      item.id
-                    }
+                    key={item.id}
                     className="overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
                   >
 
-                    <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center md:p-6">
+                    <div className="flex flex-col gap-5 p-5 md:p-6 lg:flex-row lg:items-center">
 
                       {/* STUDENT */}
 
                       <div className="flex min-w-0 flex-1 items-center gap-4">
 
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#fff8df] text-xl font-black text-[#8a680c]">
-                          {(
-                            item.studentName ||
-                            "S"
-                          )
-                            .charAt(
-                              0
-                            )
+                          {(item.studentName ||
+                            "S")
+                            .charAt(0)
                             .toUpperCase()}
                         </div>
 
@@ -890,10 +897,8 @@ export default function AdminRedemptions() {
                           <div className="flex flex-wrap items-center gap-2">
 
                             <h2 className="truncate text-lg font-black text-[#07111f]">
-                              {
-                                item.studentName ||
-                                "Unknown Student"
-                              }
+                              {item.studentName ||
+                                "Unknown Student"}
                             </h2>
 
                             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-700">
@@ -909,30 +914,24 @@ export default function AdminRedemptions() {
 
                             <span>
                               🏪{" "}
-                              {
-                                item.businessName ||
-                                "-"
-                              }
+                              {item.businessName ||
+                                "-"}
                             </span>
 
                             <span>
                               🎁{" "}
-                              {
-                                item.offerTitle ||
-                                "-"
-                              }
+                              {item.offerTitle ||
+                                "-"}
+                            </span>
+
+                            <span>
+                              🕒{" "}
+                              {formatRedeemedDate(
+                                item
+                              )}
                             </span>
 
                           </div>
-
-                          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-                            🕒{" "}
-                            {
-                              formatRedeemedDate(
-                                item
-                              )
-                            }
-                          </p>
 
                         </div>
 
@@ -947,10 +946,8 @@ export default function AdminRedemptions() {
                         </p>
 
                         <p className="mt-1 font-black text-[#07111f]">
-                          {
-                            item.discount ||
-                            "-"
-                          }
+                          {item.discount ||
+                            "-"}
                         </p>
 
                       </div>
@@ -990,13 +987,10 @@ export default function AdminRedemptions() {
 
                     <div className="border-t border-slate-100 bg-[#fbfaf6] px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 md:px-6">
                       Redemption Record · ID:{" "}
-                      {
-                        item.id
-                      }
+                      {item.id}
                     </div>
 
                   </div>
-
                 )
               )}
 
@@ -1006,15 +1000,15 @@ export default function AdminRedemptions() {
 
         </div>
 
+        {/* ================================= */}
         {/* VIEW DETAILS POPUP */}
+        {/* ================================= */}
 
         {selectedRedemption && (
 
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07111f]/70 p-4 backdrop-blur-sm"
-            onMouseDown={(
-              event
-            ) => {
+            onMouseDown={(event) => {
               if (
                 event.target ===
                 event.currentTarget
@@ -1049,10 +1043,8 @@ export default function AdminRedemptions() {
                       id="redemption-details-title"
                       className="mt-2 text-2xl font-black"
                     >
-                      {
-                        selectedRedemption.studentName ||
-                        "Student"
-                      }
+                      {selectedRedemption.studentName ||
+                        "Student"}
                     </h2>
 
                     <p className="mt-1 text-sm text-white/50">
@@ -1089,10 +1081,8 @@ export default function AdminRedemptions() {
                   </p>
 
                   <p className="mt-1 font-black text-[#07111f]">
-                    {
-                      selectedRedemption.studentName ||
-                      "-"
-                    }
+                    {selectedRedemption.studentName ||
+                      "-"}
                   </p>
 
                 </div>
@@ -1104,10 +1094,8 @@ export default function AdminRedemptions() {
                   </p>
 
                   <p className="mt-1 font-black text-[#07111f]">
-                    {
-                      selectedRedemption.businessName ||
-                      "-"
-                    }
+                    {selectedRedemption.businessName ||
+                      "-"}
                   </p>
 
                 </div>
@@ -1119,10 +1107,8 @@ export default function AdminRedemptions() {
                   </p>
 
                   <p className="mt-1 font-black text-[#07111f]">
-                    {
-                      selectedRedemption.offerTitle ||
-                      "-"
-                    }
+                    {selectedRedemption.offerTitle ||
+                      "-"}
                   </p>
 
                 </div>
@@ -1136,10 +1122,8 @@ export default function AdminRedemptions() {
                     </p>
 
                     <p className="mt-1 font-black text-[#07111f]">
-                      {
-                        selectedRedemption.discount ||
-                        "-"
-                      }
+                      {selectedRedemption.discount ||
+                        "-"}
                     </p>
 
                   </div>
@@ -1151,10 +1135,8 @@ export default function AdminRedemptions() {
                     </p>
 
                     <p className="mt-1 font-black uppercase text-emerald-700">
-                      {
-                        selectedRedemption.status ||
-                        "redeemed"
-                      }
+                      {selectedRedemption.status ||
+                        "redeemed"}
                     </p>
 
                   </div>
@@ -1178,11 +1160,9 @@ export default function AdminRedemptions() {
                       </p>
 
                       <p className="mt-1 text-sm font-black text-[#07111f]">
-                        {
-                          formatRedeemedDate(
-                            selectedRedemption
-                          )
-                        }
+                        {formatRedeemedDate(
+                          selectedRedemption
+                        )}
                       </p>
 
                     </div>
@@ -1191,6 +1171,8 @@ export default function AdminRedemptions() {
 
                 </div>
 
+                {/* RECORD ID */}
+
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
 
                   <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
@@ -1198,9 +1180,7 @@ export default function AdminRedemptions() {
                   </p>
 
                   <p className="mt-1 break-all font-mono text-xs font-bold text-slate-600">
-                    {
-                      selectedRedemption.id
-                    }
+                    {selectedRedemption.id}
                   </p>
 
                 </div>
