@@ -2023,54 +2023,21 @@ export default function StudentOffers() {
           onClick={closeOfferDetails}
         >
           <div
-            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
+            className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
             onClick={(e) => e.stopPropagation()}
           >
-
-            {/* IMAGE */}
-
-            <div className="relative h-56 overflow-hidden bg-[#07111f] sm:h-64">
-
-              {detailsOffer.image ? (
-
-                <img
-                  src={detailsOffer.image}
-                  alt={detailsOffer.title || "Offer"}
-                  className="h-full w-full object-cover"
-                />
-
-              ) : (
-
-                <div className="flex h-full items-center justify-center text-7xl text-[#f1cf63]">
-                  🎁
-                </div>
-
-              )}
-
-              <button
-                type="button"
-                onClick={closeOfferDetails}
-                aria-label="Close full details"
-                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white backdrop-blur transition hover:bg-black/80"
-              >
-                ✕
-              </button>
-
-              <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
-
-                <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white">
-                  {detailsOffer.category || "Other"}
-                </span>
-
-                <span className="rounded-full border border-[#d4af37]/50 bg-[#fff8df] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
-                  🔥 SBC Exclusive
-                </span>
-
-              </div>
-
-            </div>
+            {/* CLOSE BUTTON */}
+            <button
+              type="button"
+              onClick={closeOfferDetails}
+              aria-label="Close full details"
+              className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 shadow-sm transition hover:bg-slate-200"
+            >
+              ✕
+            </button>
 
             {/* FULL DETAILS */}
+
 
             <div className="p-6 sm:p-7">
 
