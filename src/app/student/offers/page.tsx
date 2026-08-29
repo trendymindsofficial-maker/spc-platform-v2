@@ -1072,6 +1072,16 @@ export default function StudentOffers() {
           offer.businessId
         );
 
+      // SBC RULE:
+      // One student can redeem from one business a maximum
+      // of 4 times in total, regardless of which offer is selected.
+      if (usedCount >= MAX_REDEMPTIONS) {
+        alert(
+          `🚫 Redemption limit reached. You can redeem from "${offer.businessName || "this business"}" only 4 times in total.`
+        );
+        return;
+      }
+
       setSelectedOffer(
         offer
       );
@@ -1466,6 +1476,26 @@ export default function StudentOffers() {
         getUsageCount(
           selectedOffer.businessId
         );
+
+      // Re-check immediately before creating the request.
+      // This prevents an old/open modal from bypassing the 4-use limit.
+      if (usedCount >= MAX_REDEMPTIONS) {
+        alert(
+          `🚫 Redemption limit reached. You can redeem from "${selectedOffer.businessName || "this business"}" only 4 times in total.`
+        );
+
+        setShowVerificationModal(false);
+        setSelectedOffer(null);
+        setVerifiedBusiness(null);
+
+        if (auth.currentUser) {
+          await loadBusinessUsage(
+            auth.currentUser.uid
+          );
+        }
+
+        return;
+      }
 
       try {
 
@@ -1924,7 +1954,9 @@ export default function StudentOffers() {
                         </div>
 
                         <p className="mt-1 text-xs text-[#8a680c]">
-                          Keep enjoying this SBC partner benefit.
+                          {usedCount >= MAX_REDEMPTIONS
+                            ? "You have reached the maximum 4 redemptions for this business."
+                            : `You can redeem this business ${MAX_REDEMPTIONS - usedCount} more time${MAX_REDEMPTIONS - usedCount === 1 ? "" : "s"}.`}
                         </p>
 
                       </div>
@@ -1954,9 +1986,21 @@ export default function StudentOffers() {
                               offer
                             )
                           }
-                          className="rounded-xl bg-[#d4af37] py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                          disabled={
+                            usedCount >=
+                            MAX_REDEMPTIONS
+                          }
+                          className={`rounded-xl py-3 text-xs font-black transition ${
+                            usedCount >=
+                            MAX_REDEMPTIONS
+                              ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                              : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                          }`}
                         >
-                          🎁 Redeem Offer
+                          {usedCount >=
+                          MAX_REDEMPTIONS
+                            ? "🚫 Limit Reached"
+                            : "🎁 Redeem Offer"}
                         </button>
 
                       </div>
