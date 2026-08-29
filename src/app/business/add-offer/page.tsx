@@ -22,10 +22,9 @@ import { v4 as uuid } from "uuid";
 
 interface ExistingOffer {
   id: string;
-  title: string;
-  discount: string;
   category: string;
   image: string;
+  description: string;
 }
 
 const MAX_DESCRIPTION_LENGTH = 80;
@@ -33,17 +32,13 @@ const MAX_DESCRIPTION_LENGTH = 80;
 export default function AddOffer() {
   const router = useRouter();
 
-  const [title, setTitle] = useState("");
-  const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
-  const [description, setDescription] =
-    useState("");
+  const [description, setDescription] = useState("");
 
   const [imageFile, setImageFile] =
     useState<File | null>(null);
 
-  const [preview, setPreview] =
-    useState("");
+  const [preview, setPreview] = useState("");
 
   const [categories, setCategories] =
     useState<string[]>([]);
@@ -57,13 +52,12 @@ export default function AddOffer() {
   const [existingOffer, setExistingOffer] =
     useState<ExistingOffer | null>(null);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [saving, setSaving] = useState(false);
 
   /*
-   * ==========================================
+   * ==========================================================
    * LOAD CATEGORIES
-   * ==========================================
+   * ==========================================================
    */
 
   useEffect(() => {
@@ -71,35 +65,29 @@ export default function AddOffer() {
   }, []);
 
   /*
-   * ==========================================
+   * ==========================================================
    * CHECK AUTH + EXISTING ACTIVE OFFER
-   * ==========================================
+   * ==========================================================
    */
 
   useEffect(() => {
     const unsubscribe =
-      auth.onAuthStateChanged(
-        async (user) => {
-          if (!user) {
-            router.replace(
-              "/business/login"
-            );
-            return;
-          }
-
-          await checkExistingOffer(
-            user.uid
-          );
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          router.replace("/business/login");
+          return;
         }
-      );
+
+        await checkExistingOffer(user.uid);
+      });
 
     return () => unsubscribe();
   }, [router]);
 
   /*
-   * ==========================================
-   * CHECK BUSINESS ACTIVE OFFER
-   * ==========================================
+   * ==========================================================
+   * CHECK EXISTING ACTIVE OFFER
+   * ==========================================================
    */
 
   const checkExistingOffer = async (
@@ -110,22 +98,12 @@ export default function AddOffer() {
 
       const offerQuery = query(
         collection(db, "offers"),
-        where(
-          "businessId",
-          "==",
-          businessId
-        ),
-        where(
-          "status",
-          "==",
-          "active"
-        )
+        where("businessId", "==", businessId),
+        where("status", "==", "active")
       );
 
       const offerSnap =
-        await getDocs(
-          offerQuery
-        );
+        await getDocs(offerQuery);
 
       if (!offerSnap.empty) {
         const offerDoc =
@@ -136,14 +114,10 @@ export default function AddOffer() {
 
         setExistingOffer({
           id: offerDoc.id,
-          title:
-            data.title || "",
-          discount:
-            data.discount || "",
-          category:
-            data.category || "",
-          image:
-            data.image || "",
+          category: data.category || "",
+          image: data.image || "",
+          description:
+            data.description || "",
         });
       } else {
         setExistingOffer(null);
@@ -159,72 +133,63 @@ export default function AddOffer() {
   };
 
   /*
-   * ==========================================
+   * ==========================================================
    * LOAD CATEGORIES
-   * ==========================================
+   * ==========================================================
    */
 
-  const loadCategories =
-    async () => {
-      try {
-        setLoadingCategories(
-          true
-        );
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
 
-        const snap =
-          await getDocs(
-            collection(
-              db,
-              "categories"
-            )
+      const snap = await getDocs(
+        collection(db, "categories")
+      );
+
+      const data = snap.docs
+        .map((item) => {
+          const itemData = item.data();
+
+          return (
+            itemData.name ||
+            itemData.category ||
+            itemData.title ||
+            ""
           );
+        })
+        .filter(Boolean) as string[];
 
-        const data =
-          snap.docs
-            .map((item) => {
-              const itemData =
-                item.data();
+      const uniqueCategories =
+        Array.from(new Set(data)).sort(
+          (a, b) => a.localeCompare(b)
+        );
 
-              return (
-                itemData.name ||
-                itemData.category ||
-                itemData.title ||
-                ""
-              );
-            })
-            .filter(
-              Boolean
-            ) as string[];
-
-        setCategories(
-          Array.from(
-            new Set(data)
-          ).sort((a, b) =>
-            a.localeCompare(b)
-          )
-        );
-      } catch (error) {
-        console.error(
-          "Category loading error:",
-          error
-        );
-      } finally {
-        setLoadingCategories(
-          false
-        );
-      }
-    };
+      setCategories(uniqueCategories);
+    } catch (error) {
+      console.error(
+        "Category loading error:",
+        error
+      );
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   /*
-   * ==========================================
+   * ==========================================================
    * IMAGE SELECT
-   * ==========================================
+   * ==========================================================
    */
 
   const handleImageChange = (
     file: File | null
   ) => {
     if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image.");
       return;
     }
 
@@ -237,76 +202,62 @@ export default function AddOffer() {
   };
 
   /*
-   * ==========================================
-   * DESCRIPTION CHANGE
-   * ==========================================
+   * ==========================================================
+   * DESCRIPTION
+   * ==========================================================
    */
 
   const handleDescriptionChange = (
     value: string
   ) => {
-    const limitedValue =
+    setDescription(
       value.slice(
         0,
         MAX_DESCRIPTION_LENGTH
-      );
-
-    setDescription(
-      limitedValue
+      )
     );
   };
 
   /*
-   * ==========================================
+   * ==========================================================
    * ADD OFFER
-   * ==========================================
+   * ==========================================================
    */
 
   const addOffer = async () => {
-    if (
-      !title.trim() ||
-      !discount.trim() ||
-      !category ||
-      !description.trim()
-    ) {
-      alert(
-        "Please fill all fields."
-      );
-
+    if (!category) {
+      alert("Please select a category.");
       return;
     }
 
-    /*
-     * FINAL DESCRIPTION LENGTH CHECK
-     */
+    if (!description.trim()) {
+      alert(
+        "Please enter a short description."
+      );
+      return;
+    }
 
     if (
       description.trim().length >
       MAX_DESCRIPTION_LENGTH
     ) {
       alert(
-        `Offer description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
+        `Short description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
       );
-
       return;
     }
 
     if (!imageFile) {
       alert(
-        "Please select offer image."
+        "Please select an offer image."
       );
-
       return;
     }
 
-    const user =
-      auth.currentUser;
+    const user = auth.currentUser;
 
     if (!user) {
-      alert(
-        "Business login required."
-      );
-
+      alert("Business login required.");
       return;
     }
 
@@ -314,9 +265,9 @@ export default function AddOffer() {
       setSaving(true);
 
       /*
-       * ========================================
+       * ======================================================
        * FINAL ACTIVE OFFER CHECK
-       * ========================================
+       * ======================================================
        */
 
       const existingOfferQuery =
@@ -350,14 +301,12 @@ export default function AddOffer() {
 
         setExistingOffer({
           id: offerDoc.id,
-          title:
-            data.title || "",
-          discount:
-            data.discount || "",
           category:
             data.category || "",
           image:
             data.image || "",
+          description:
+            data.description || "",
         });
 
         alert(
@@ -368,9 +317,9 @@ export default function AddOffer() {
       }
 
       /*
-       * ========================================
+       * ======================================================
        * BUSINESS DETAILS
-       * ========================================
+       * ======================================================
        */
 
       const businessSnap =
@@ -388,8 +337,7 @@ export default function AddOffer() {
           : {};
 
       const businessName =
-        businessData.businessName ||
-        "";
+        businessData.businessName || "";
 
       const businessMobile =
         businessData.mobile ||
@@ -406,9 +354,9 @@ export default function AddOffer() {
         "";
 
       /*
-       * ========================================
-       * CLOUDINARY IMAGE UPLOAD
-       * ========================================
+       * ======================================================
+       * CLOUDINARY UPLOAD
+       * ======================================================
        */
 
       const formData =
@@ -447,36 +395,38 @@ export default function AddOffer() {
       const uploaded =
         await upload.json();
 
-      if (
-        !uploaded.secure_url
-      ) {
+      if (!uploaded.secure_url) {
         throw new Error(
           "Image upload failed."
         );
       }
 
       /*
-       * ========================================
+       * ======================================================
        * SAVE OFFER
-       * ========================================
+       * ======================================================
+       *
+       * Title/Discount are no longer used.
+       * We keep title as "SBC Offer" internally so
+       * older parts of the application remain compatible.
        */
 
       await addDoc(
         collection(db, "offers"),
         {
-          title:
-            title.trim(),
+          title: "SBC Offer",
 
-          discount:
-            discount.trim(),
+          discount: "",
 
           category,
 
           description:
-            description.trim().slice(
-              0,
-              MAX_DESCRIPTION_LENGTH
-            ),
+            description
+              .trim()
+              .slice(
+                0,
+                MAX_DESCRIPTION_LENGTH
+              ),
 
           image:
             uploaded.secure_url,
@@ -490,8 +440,7 @@ export default function AddOffer() {
 
           businessAddress,
 
-          status:
-            "active",
+          status: "active",
 
           createdAt:
             serverTimestamp(),
@@ -522,9 +471,9 @@ export default function AddOffer() {
   };
 
   /*
-   * ==========================================
+   * ==========================================================
    * LOADING
-   * ==========================================
+   * ==========================================================
    */
 
   if (
@@ -535,7 +484,6 @@ export default function AddOffer() {
       <BusinessProtected>
         <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
           <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
-
             <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
             <h2 className="text-2xl font-bold text-green-700">
@@ -545,7 +493,6 @@ export default function AddOffer() {
             <p className="mt-2 text-gray-500">
               Please wait...
             </p>
-
           </div>
         </main>
       </BusinessProtected>
@@ -553,24 +500,19 @@ export default function AddOffer() {
   }
 
   /*
-   * ==========================================
+   * ==========================================================
    * EXISTING ACTIVE OFFER
-   * ==========================================
+   * ==========================================================
    */
 
   if (existingOffer) {
     return (
       <BusinessProtected>
         <main className="min-h-screen bg-slate-100 p-6">
-
           <div className="mx-auto max-w-2xl">
-
             <div className="rounded-3xl bg-white p-8 shadow-xl">
 
-              {/* HEADER */}
-
               <div className="mb-8 flex items-center justify-between gap-4">
-
                 <h1 className="text-3xl font-bold text-green-700">
                   ➕ Add New Offer
                 </h1>
@@ -586,15 +528,11 @@ export default function AddOffer() {
                 >
                   ← Back
                 </button>
-
               </div>
-
-              {/* WARNING */}
 
               <div className="rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-7">
 
                 <div className="text-center">
-
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 text-4xl">
                     ⚠️
                   </div>
@@ -607,10 +545,7 @@ export default function AddOffer() {
                     A business can have only one
                     active offer at a time.
                   </p>
-
                 </div>
-
-                {/* EXISTING OFFER */}
 
                 <div className="mt-7 overflow-hidden rounded-2xl bg-white shadow-md">
 
@@ -619,14 +554,11 @@ export default function AddOffer() {
                       src={
                         existingOffer.image
                       }
-                      alt={
-                        existingOffer.title ||
-                        "Active Offer"
-                      }
-                      className="h-56 w-full object-cover"
+                      alt="Active SBC Offer"
+                      className="aspect-video w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-40 items-center justify-center bg-gray-100 text-5xl">
+                    <div className="flex aspect-video items-center justify-center bg-gray-100 text-5xl">
                       🎁
                     </div>
                   )}
@@ -635,33 +567,20 @@ export default function AddOffer() {
 
                     {existingOffer.category && (
                       <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                        {
-                          existingOffer.category
-                        }
+                        {existingOffer.category}
                       </span>
                     )}
 
-                    <h3 className="mt-4 text-2xl font-bold text-gray-900">
-                      {
-                        existingOffer.title ||
-                        "Active Offer"
-                      }
-                    </h3>
-
-                    <p className="mt-3 text-3xl font-extrabold text-green-600">
-                      {
-                        existingOffer.discount
-                      }
-                    </p>
+                    {existingOffer.description && (
+                      <p className="mt-4 text-sm leading-6 text-gray-600">
+                        {existingOffer.description}
+                      </p>
+                    )}
 
                   </div>
-
                 </div>
 
-                {/* ACTION */}
-
                 <div className="mt-7">
-
                   <button
                     type="button"
                     onClick={() =>
@@ -678,24 +597,20 @@ export default function AddOffer() {
                     Edit or delete your current
                     offer from My Offers.
                   </p>
-
                 </div>
 
               </div>
-
             </div>
-
           </div>
-
         </main>
       </BusinessProtected>
     );
   }
 
   /*
-   * ==========================================
+   * ==========================================================
    * NORMAL ADD OFFER PAGE
-   * ==========================================
+   * ==========================================================
    */
 
   return (
@@ -710,9 +625,19 @@ export default function AddOffer() {
 
             <div className="mb-8 flex items-center justify-between gap-4">
 
-              <h1 className="text-3xl font-bold text-green-700">
-                ➕ Add New Offer
-              </h1>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-green-600">
+                  SBC Business Portal
+                </p>
+
+                <h1 className="mt-1 text-3xl font-bold text-slate-900">
+                  ➕ Add New Offer
+                </h1>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  Upload your offer image and add a short description.
+                </p>
+              </div>
 
               <button
                 type="button"
@@ -730,56 +655,11 @@ export default function AddOffer() {
 
             {/* FORM */}
 
-            <div className="space-y-5">
-
-              {/* TITLE */}
-
-              <div>
-
-                <label className="mb-2 block font-semibold text-gray-800">
-                  Offer Title
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="Offer Title"
-                  value={title}
-                  onChange={(e) =>
-                    setTitle(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-                />
-
-              </div>
-
-              {/* DISCOUNT */}
-
-              <div>
-
-                <label className="mb-2 block font-semibold text-gray-800">
-                  Discount
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="Discount (Example: 20% OFF)"
-                  value={discount}
-                  onChange={(e) =>
-                    setDiscount(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-                />
-
-              </div>
+            <div className="space-y-6">
 
               {/* CATEGORY */}
 
               <div>
-
                 <label className="mb-2 block font-semibold text-gray-800">
                   Category
                 </label>
@@ -791,9 +671,8 @@ export default function AddOffer() {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                 >
-
                   <option value="">
                     Select Category
                   </option>
@@ -808,9 +687,7 @@ export default function AddOffer() {
                       </option>
                     )
                   )}
-
                 </select>
-
               </div>
 
               {/* SHORT DESCRIPTION */}
@@ -838,7 +715,7 @@ export default function AddOffer() {
                 </div>
 
                 <textarea
-                  placeholder="Briefly describe your offer..."
+                  placeholder="Example: Special student combo at ₹299..."
                   value={description}
                   maxLength={
                     MAX_DESCRIPTION_LENGTH
@@ -848,18 +725,16 @@ export default function AddOffer() {
                       e.target.value
                     )
                   }
-                  className="h-28 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="h-24 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                 />
 
                 <p className="mt-1 text-xs text-gray-400">
-                  Keep it short and clear. Maximum{" "}
-                  {MAX_DESCRIPTION_LENGTH}{" "}
-                  characters.
+                  Maximum 80 characters. Keep it short and clear.
                 </p>
 
               </div>
 
-              {/* IMAGE */}
+              {/* OFFER IMAGE */}
 
               <div>
 
@@ -867,37 +742,71 @@ export default function AddOffer() {
                   Offer Image
                 </label>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleImageChange(
-                      e.target.files?.[0] ||
-                        null
-                    )
-                  }
-                  className="w-full rounded-xl border border-gray-300 bg-white p-4"
-                />
+                <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-4">
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      handleImageChange(
+                        e.target.files?.[0] ||
+                          null
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white p-4 text-sm"
+                  />
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    Recommended image ratio: 16:9
+                  </p>
+
+                </div>
 
               </div>
 
-              {/* PREVIEW */}
+              {/* IMAGE PREVIEW */}
 
               {preview && (
                 <div>
 
-                  <p className="mb-2 text-sm font-semibold text-gray-700">
-                    Image Preview
-                  </p>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-700">
+                      Image Preview
+                    </p>
 
-                  <img
-                    src={preview}
-                    alt="Offer Preview"
-                    className="h-64 w-full rounded-xl object-cover"
-                  />
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                      16:9 Display
+                    </span>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-slate-50 shadow-sm">
+
+                    <img
+                      src={preview}
+                      alt="Offer Preview"
+                      className="aspect-video w-full object-cover"
+                    />
+
+                  </div>
 
                 </div>
               )}
+
+              {/* INFO */}
+
+              <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+
+                <p className="text-sm font-bold text-green-800">
+                  💡 Offer Display
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-green-700">
+                  Students will mainly see your offer image,
+                  business name, address and short description.
+                  Keep the important offer details inside the image.
+                </p>
+
+              </div>
 
               {/* SAVE */}
 
@@ -905,19 +814,16 @@ export default function AddOffer() {
                 type="button"
                 onClick={addOffer}
                 disabled={saving}
-                className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving
-                  ? "Uploading & Saving..."
+                  ? "⏳ Uploading & Saving..."
                   : "💾 Add Offer"}
               </button>
 
             </div>
-
           </div>
-
         </div>
-
       </main>
     </BusinessProtected>
   );
