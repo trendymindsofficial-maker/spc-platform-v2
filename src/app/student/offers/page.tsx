@@ -1940,7 +1940,7 @@ export default function StudentOffers() {
                             </p>
 
                             <p className="mt-1 text-lg font-black text-[#07111f]">
-                              Used {usedCount} times
+                              {usedCount} / {MAX_REDEMPTIONS} Redemptions Used
                             </p>
 
                           </div>
@@ -1948,7 +1948,7 @@ export default function StudentOffers() {
                           <div
                             className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base font-extrabold text-[#8a680c]"
                           >
-                            {usedCount}
+                            {usedCount}/{MAX_REDEMPTIONS}
                           </div>
 
                         </div>
@@ -1956,7 +1956,7 @@ export default function StudentOffers() {
                         <p className="mt-1 text-xs text-[#8a680c]">
                           {usedCount >= MAX_REDEMPTIONS
                             ? "You have reached the maximum 4 redemptions for this business."
-                            : `You can redeem this business ${MAX_REDEMPTIONS - usedCount} more time${MAX_REDEMPTIONS - usedCount === 1 ? "" : "s"}.`}
+                            : `${MAX_REDEMPTIONS - usedCount} redemption${MAX_REDEMPTIONS - usedCount === 1 ? "" : "s"} remaining for this business.`}
                         </p>
 
                       </div>
