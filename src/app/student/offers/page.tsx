@@ -89,6 +89,15 @@ export default function StudentOffers() {
   const [rejectedOffer, setRejectedOffer] =
     useState<Offer | null>(null);
 
+  /*
+   * ==========================================
+   * FULL OFFER DETAILS MODAL
+   * ==========================================
+   */
+
+  const [detailsOffer, setDetailsOffer] =
+    useState<Offer | null>(null);
+
   const [pendingRequestId, setPendingRequestId] =
     useState<string | null>(null);
 
@@ -999,6 +1008,16 @@ export default function StudentOffers() {
    * ==========================================
    */
 
+  const openOfferDetails =
+    (offer: Offer) => {
+      setDetailsOffer(offer);
+    };
+
+  const closeOfferDetails =
+    () => {
+      setDetailsOffer(null);
+    };
+
   const callBusiness =
     (
       offer: Offer
@@ -1891,34 +1910,6 @@ export default function StudentOffers() {
                           "SBC Partner Business"}
                       </p>
 
-                      <div className="mt-1 min-h-[28px]">
-
-                        {offer.businessAddress ? (
-
-                          <p className="flex items-start gap-1 text-xs text-slate-500">
-
-                            <span>
-                              📍
-                            </span>
-
-                            <span className="line-clamp-1">
-                              {
-                                offer.businessAddress
-                              }
-                            </span>
-
-                          </p>
-
-                        ) : (
-
-                          <p className="text-xs text-slate-400">
-                            📍 Address not available
-                          </p>
-
-                        )}
-
-                      </div>
-
                       <h2 className="mt-2 min-h-[44px] text-xl font-black text-[#b18a16]">
                         {offer.title}
                       </h2>
@@ -1961,13 +1952,21 @@ export default function StudentOffers() {
 
                       </div>
 
-                      <p className="mt-3 line-clamp-2 min-h-[40px] text-xs leading-5 text-gray-600">
-                        {offer.description}
-                      </p>
+                      {/* FULL DETAILS */}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openOfferDetails(offer)
+                        }
+                        className="mt-3 w-full rounded-xl border border-[#d4af37]/40 bg-[#fffdf5] py-3 text-xs font-black text-[#8a680c] transition hover:border-[#d4af37] hover:bg-[#fff8df]"
+                      >
+                        👁️ View Full Details
+                      </button>
 
                       {/* BUTTONS */}
 
-                      <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
+                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
 
                         <button
                           onClick={() =>
@@ -2055,6 +2054,226 @@ export default function StudentOffers() {
         )}
 
       </div>
+
+      {/* ==========================================
+          FULL OFFER DETAILS MODAL
+      =========================================== */}
+
+      {detailsOffer && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm"
+          onClick={closeOfferDetails}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            {/* IMAGE */}
+
+            <div className="relative h-56 overflow-hidden bg-[#07111f] sm:h-64">
+
+              {detailsOffer.image ? (
+
+                <img
+                  src={detailsOffer.image}
+                  alt={detailsOffer.title || "Offer"}
+                  className="h-full w-full object-cover"
+                />
+
+              ) : (
+
+                <div className="flex h-full items-center justify-center text-7xl text-[#f1cf63]">
+                  🎁
+                </div>
+
+              )}
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                aria-label="Close full details"
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white backdrop-blur transition hover:bg-black/80"
+              >
+                ✕
+              </button>
+
+              <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
+
+                <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                  {detailsOffer.category || "Other"}
+                </span>
+
+                <span className="rounded-full border border-[#d4af37]/50 bg-[#fff8df] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
+                  🔥 SBC Exclusive
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* FULL DETAILS */}
+
+            <div className="p-6 sm:p-7">
+
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+                🏢 Business
+              </p>
+
+              <h2 className="mt-1 text-lg font-black text-[#07111f]">
+                {detailsOffer.businessName || "SBC Partner Business"}
+              </h2>
+
+              {/* ADDRESS */}
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  📍 Full Business Address
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6 text-slate-700">
+                  {detailsOffer.businessAddress || "Address not available"}
+                </p>
+
+              </div>
+
+              {/* OFFER */}
+
+              <div className="mt-5">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  🎁 Offer
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black leading-tight text-[#b18a16]">
+                  {detailsOffer.title || "SBC Offer"}
+                </h3>
+
+                {detailsOffer.discount && (
+                  <p className="mt-2 text-3xl font-black text-[#b18a16]">
+                    {detailsOffer.discount}
+                  </p>
+                )}
+
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                  📝 Offer Full Details
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                  {detailsOffer.description || "No additional offer details available."}
+                </p>
+
+              </div>
+
+              {/* USAGE */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-4">
+
+                <div className="flex items-center justify-between gap-4">
+
+                  <div>
+
+                    <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                      🎟️ Your Usage at this Business
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-[#07111f]">
+                      {getUsageCount(detailsOffer.businessId)} / {MAX_REDEMPTIONS} Redemptions Used
+                    </p>
+
+                  </div>
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-[#8a680c]">
+                    {getUsageCount(detailsOffer.businessId)}/{MAX_REDEMPTIONS}
+                  </div>
+
+                </div>
+
+                <p className="mt-2 text-xs font-semibold text-[#8a680c]">
+                  {getUsageCount(detailsOffer.businessId) >= MAX_REDEMPTIONS
+                    ? "You have reached the maximum 4 redemptions for this business."
+                    : `${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId)} redemption${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId) === 1 ? "" : "s"} remaining for this business.`}
+                </p>
+
+              </div>
+
+              {/* CONTACT */}
+
+              {detailsOffer.businessMobile && (
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    📞 Business Contact
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-[#07111f]">
+                    {detailsOffer.businessMobile}
+                  </p>
+
+                </div>
+
+              )}
+
+              {/* ACTIONS */}
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    callBusiness(detailsOffer)
+                  }
+                  className="rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e]"
+                >
+                  📞 Call Us
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeOfferDetails();
+                    openRedeemVerification(detailsOffer);
+                  }}
+                  disabled={
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                  }
+                  className={`rounded-xl py-3.5 text-sm font-black transition ${
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                      ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                      : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                  }`}
+                >
+                  {getUsageCount(detailsOffer.businessId) >=
+                  MAX_REDEMPTIONS
+                    ? "🚫 Limit Reached"
+                    : "🎁 Redeem Offer"}
+                </button>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* ==========================================
           BUSINESS VERIFICATION MODAL
