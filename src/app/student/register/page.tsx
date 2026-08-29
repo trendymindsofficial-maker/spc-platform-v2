@@ -159,9 +159,7 @@ export default function StudentRegister() {
    * CHECK MOBILE BEFORE OTP
    * ============================================================
    *
-   * VERY IMPORTANT:
-   *
-   * Existing mobile:
+   * Existing registered mobile:
    *      STOP
    *      NO OTP
    *
@@ -278,7 +276,7 @@ export default function StudentRegister() {
 
       /*
        * ======================================================
-       * FIRST CHECK DATABASE
+       * FIRST CHECK DATABASE / AUTH
        * ======================================================
        *
        * This happens BEFORE Firebase OTP.
@@ -563,6 +561,21 @@ export default function StudentRegister() {
       try {
         setLoading(true);
 
+        /*
+         * ======================================================
+         * CURRENT FIREBASE USER
+         * ======================================================
+         *
+         * IMPORTANT:
+         *
+         * After OTP verification Firebase Auth has already
+         * created / signed in the phone-auth user.
+         *
+         * Therefore currentUser.uid must be passed to the
+         * duplicate-check API so that the API does NOT
+         * consider this same user as another registered user.
+         */
+
         const currentUser =
           auth.currentUser;
 
@@ -576,13 +589,24 @@ export default function StudentRegister() {
           return;
         }
 
+        console.log(
+          "👤 Current OTP Firebase UID:",
+          currentUser.uid
+        );
+
         /*
          * ======================================================
          * SECOND SAFETY CHECK
          * ======================================================
          *
-         * Even though we checked before OTP,
-         * check again before account creation.
+         * This checks again immediately before account creation.
+         *
+         * IMPORTANT:
+         *
+         * excludeUid tells the API:
+         *
+         * "If the Firebase Auth user belongs to this same UID,
+         * do NOT treat it as a duplicate."
          */
 
         const duplicateCheck =
@@ -599,6 +623,12 @@ export default function StudentRegister() {
               body: JSON.stringify({
                 mobile:
                   cleanedMobile,
+
+                /*
+                 * THIS IS THE IMPORTANT FIX
+                 */
+                excludeUid:
+                  currentUser.uid,
               }),
             }
           );
@@ -606,8 +636,19 @@ export default function StudentRegister() {
         const duplicateData =
           await duplicateCheck.json();
 
+        if (!duplicateCheck.ok) {
+          throw new Error(
+            duplicateData.error ||
+              "Unable to verify mobile registration status."
+          );
+        }
+
+        /*
+         * If another student / another Firebase Auth account
+         * already owns this mobile, stop registration.
+         */
+
         if (
-          duplicateCheck.ok &&
           duplicateData.exists === true
         ) {
           alert(
@@ -620,6 +661,7 @@ export default function StudentRegister() {
 
           setOtpSent(false);
           setOtpVerified(false);
+
           confirmationResultRef.current =
             null;
 
@@ -645,6 +687,11 @@ export default function StudentRegister() {
          * ======================================================
          * LINK PHONE AUTH + EMAIL/PASSWORD
          * ======================================================
+         *
+         * Firebase phone user already exists because OTP
+         * was verified.
+         *
+         * We now attach email/password login to that same UID.
          */
 
         const linkedUser =
@@ -655,6 +702,11 @@ export default function StudentRegister() {
 
         const uid =
           linkedUser.user.uid;
+
+        console.log(
+          "✅ Phone + Email credential linked. UID:",
+          uid
+        );
 
         /*
          * ======================================================
@@ -714,6 +766,11 @@ export default function StudentRegister() {
             createdAt:
               serverTimestamp(),
           }
+        );
+
+        console.log(
+          "✅ Student document created:",
+          uid
         );
 
         /*

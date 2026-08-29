@@ -10,6 +10,10 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 
+import {
+  getAuth,
+} from "firebase-admin/auth";
+
 export const runtime = "nodejs";
 
 function getAdminApp() {
@@ -65,6 +69,17 @@ export async function POST(
         ? body.mobile.replace(/\D/g, "").trim()
         : "";
 
+    /*
+     * When this check is made AFTER OTP verification,
+     * Firebase Auth has already created the current phone user.
+     *
+     * We must NOT treat that same user as a duplicate.
+     */
+    const excludeUid =
+      typeof body.excludeUid === "string"
+        ? body.excludeUid.trim()
+        : "";
+
     if (
       !/^[6-9]\d{9}$/.test(mobile)
     ) {
@@ -86,47 +101,43 @@ export async function POST(
       getFirestore(adminApp);
 
     /*
-     * Check students collection.
-     *
-     * Mobile is stored as:
-     * 9876543210
+     * ============================================================
+     * CHECK STUDENTS COLLECTION
+     * ============================================================
      */
 
     const snapshot =
       await db
         .collection("students")
         .where("mobile", "==", mobile)
-        .limit(1)
+        .limit(10)
         .get();
 
-    if (!snapshot.empty) {
-      return NextResponse.json({
-        success: true,
-        exists: true,
-        message:
-          "This mobile number is already registered.",
-      });
-    }
-
     /*
-     * Also check Firebase Auth.
+     * If a student document exists, it is a real registered
+     * SBC student.
      *
-     * Existing phone-auth user should
-     * not be allowed to start a new
-     * registration.
+     * We still allow the current Firebase Auth user when there
+     * is no corresponding student record.
      */
 
-    try {
-      const authUser =
-        await (
-          await import(
-            "firebase-admin/auth"
-          )
-        ).getAuth(adminApp).getUserByPhoneNumber(
-          `+91${mobile}`
-        );
+    if (!snapshot.empty) {
+      const matchingStudent =
+        snapshot.docs.find((item) => {
+          const data = item.data();
 
-      if (authUser) {
+          const studentUid =
+            typeof data.uid === "string"
+              ? data.uid
+              : item.id;
+
+          return (
+            !excludeUid ||
+            studentUid !== excludeUid
+          );
+        });
+
+      if (matchingStudent) {
         return NextResponse.json({
           success: true,
           exists: true,
@@ -134,13 +145,45 @@ export async function POST(
             "This mobile number is already registered.",
         });
       }
+    }
+
+    /*
+     * ============================================================
+     * CHECK FIREBASE AUTH
+     * ============================================================
+     */
+
+    try {
+      const authUser =
+        await getAuth(adminApp).getUserByPhoneNumber(
+          `+91${mobile}`
+        );
+
+      /*
+       * IMPORTANT:
+       *
+       * If this is the same Firebase Auth user that just
+       * completed OTP verification, it is NOT a duplicate.
+       *
+       * Only another UID should be treated as registered.
+       */
+
+      if (
+        authUser &&
+        authUser.uid !== excludeUid
+      ) {
+        return NextResponse.json({
+          success: true,
+          exists: true,
+          message:
+            "This mobile number is already registered.",
+        });
+      }
+
     } catch (authError: any) {
       /*
-       * auth/user-not-found means the
-       * phone number is not registered
-       * in Firebase Auth.
-       *
-       * That is OK.
+       * auth/user-not-found is expected for a completely
+       * new mobile number.
        */
 
       if (
@@ -156,10 +199,17 @@ export async function POST(
       }
     }
 
+    /*
+     * ============================================================
+     * MOBILE AVAILABLE
+     * ============================================================
+     */
+
     return NextResponse.json({
       success: true,
       exists: false,
     });
+
   } catch (error) {
     console.error(
       "Student mobile check error:",
