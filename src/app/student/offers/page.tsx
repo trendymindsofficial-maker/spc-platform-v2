@@ -1904,19 +1904,35 @@ export default function StudentOffers() {
 
                       </div>
 
-                      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.10em] text-slate-500">
-                        🏢{" "}
-                        {offer.businessName ||
-                          "SBC Partner Business"}
-                      </p>
+                      <div className="mt-3 rounded-2xl border border-slate-200 bg-[#fbfaf6] p-3">
 
-                      <h2 className="mt-2 min-h-[44px] text-xl font-black text-[#b18a16]">
-                        {offer.title}
-                      </h2>
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                          🏢 Business
+                        </p>
 
-                      <h3 className="mt-2 min-h-[38px] text-3xl font-black text-[#b18a16]">
-                        {offer.discount}
-                      </h3>
+                        <p className="mt-1 text-sm font-black leading-5 text-[#07111f]">
+                          {offer.businessName ||
+                            "SBC Partner Business"}
+                        </p>
+
+                        <p className="mt-2 whitespace-pre-line break-words text-xs font-semibold leading-5 text-slate-500">
+                          📍 {offer.businessAddress ||
+                            "Address not available"}
+                        </p>
+
+                      </div>
+
+                      <div className="mt-4">
+
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                          🎁 Offer
+                        </p>
+
+                        <h2 className="mt-1 min-h-[48px] text-xl font-black leading-6 text-[#b18a16]">
+                          {offer.title || "SBC Offer"}
+                        </h2>
+
+                      </div>
 
                       {/* USAGE */}
 
@@ -2150,11 +2166,6 @@ export default function StudentOffers() {
                   {detailsOffer.title || "SBC Offer"}
                 </h3>
 
-                {detailsOffer.discount && (
-                  <p className="mt-2 text-3xl font-black text-[#b18a16]">
-                    {detailsOffer.discount}
-                  </p>
-                )}
 
               </div>
 
