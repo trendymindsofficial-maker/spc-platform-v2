@@ -1376,17 +1376,6 @@ export default function StudentDashboard() {
 
   const logout =
     async () => {
-      /*
-       * Immediately stop showing the dashboard.
-       * This prevents the old student UI from
-       * flashing while Firebase signs out.
-       */
-      setLoading(true);
-      setStudent(null);
-      setError("");
-      setNotificationsReady(false);
-      setShowNotificationPrompt(false);
-
       try {
         const user =
           auth.currentUser;
@@ -1395,41 +1384,27 @@ export default function StudentDashboard() {
           const sessionPromptKey =
             `sbc_notification_prompt_shown_${user.uid}`;
 
-          try {
-            sessionStorage.removeItem(
-              sessionPromptKey
-            );
-          } catch (storageError) {
-            console.error(
-              "Logout session cleanup error:",
-              storageError
-            );
-          }
+          sessionStorage.removeItem(
+            sessionPromptKey
+          );
         }
 
-        /*
-         * Sign out first. The auth listener will also
-         * redirect if it receives the signed-out state.
-         */
-        await signOut(auth);
+        setNotificationsReady(
+          false
+        );
 
-        /*
-         * Use replace so the dashboard is removed from
-         * browser history and cannot be returned to with
-         * the Back button.
-         */
-        router.replace("/student/login");
+        await signOut(
+          auth
+        );
+
+        router.replace(
+          "/student/login"
+        );
       } catch (error) {
         console.error(
           "Logout error:",
           error
         );
-
-        /*
-         * Even if Firebase signOut throws, don't leave
-         * the user on the student dashboard.
-         */
-        router.replace("/student/login");
       }
     };
 
