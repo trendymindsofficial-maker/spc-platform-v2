@@ -19,31 +19,19 @@ interface EditOfferProps {
   }>;
 }
 
-const MAX_DESCRIPTION_LENGTH = 80;
-
 export default function EditOffer({
   params,
 }: EditOfferProps) {
   const router = useRouter();
-
   const { id: offerId } = use(params);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [description, setDescription] = useState("");
-
   const [oldImage, setOldImage] = useState("");
   const [preview, setPreview] = useState("");
-
-  const [imageFile, setImageFile] =
-    useState<File | null>(null);
-
-  /*
-   * ============================================================
-   * LOAD OFFER
-   * ============================================================
-   */
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!offerId) {
@@ -65,15 +53,8 @@ export default function EditOffer({
         return;
       }
 
-      const offerRef = doc(
-        db,
-        "offers",
-        offerId
-      );
-
-      const offerSnap = await getDoc(
-        offerRef
-      );
+      const offerRef = doc(db, "offers", offerId);
+      const offerSnap = await getDoc(offerRef);
 
       if (!offerSnap.exists()) {
         alert("❌ Offer Not Found");
@@ -83,77 +64,27 @@ export default function EditOffer({
 
       const data = offerSnap.data();
 
-      /*
-       * SECURITY:
-       * Business can edit only its own offer.
-       */
-
       if (data.businessId !== user.uid) {
-        alert(
-          "❌ You are not authorized to edit this offer."
-        );
-
+        alert("❌ You are not authorized to edit this offer.");
         router.replace("/business/my-offers");
         return;
       }
 
-      /*
-       * Load only the fields used by
-       * the new simplified UI.
-       */
-
-      setDescription(
-        String(data.description || "").slice(
-          0,
-          MAX_DESCRIPTION_LENGTH
-        )
-      );
-
+      setDescription(String(data.description || ""));
       setOldImage(data.image || "");
       setPreview(data.image || "");
     } catch (error) {
-      console.error(
-        "Offer loading error:",
-        error
-      );
+      console.error("Offer loading error:", error);
 
       alert("❌ Failed to load offer.");
-
       router.replace("/business/my-offers");
     } finally {
       setLoading(false);
     }
   };
 
-  /*
-   * ============================================================
-   * DESCRIPTION
-   * ============================================================
-   */
-
-  const handleDescriptionChange = (
-    value: string
-  ) => {
-    setDescription(
-      value.slice(
-        0,
-        MAX_DESCRIPTION_LENGTH
-      )
-    );
-  };
-
-  /*
-   * ============================================================
-   * IMAGE CHANGE
-   * ============================================================
-   */
-
-  const handleImageChange = (
-    file: File | null
-  ) => {
-    if (!file) {
-      return;
-    }
+  const handleImageChange = (file: File | null) => {
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       alert("❌ Please select an image file.");
@@ -161,114 +92,53 @@ export default function EditOffer({
     }
 
     setImageFile(file);
-
-    const url = URL.createObjectURL(file);
-
-    setPreview(url);
+    setPreview(URL.createObjectURL(file));
   };
-
-  /*
-   * ============================================================
-   * UPDATE OFFER
-   * ============================================================
-   */
 
   const updateOffer = async () => {
     if (!description.trim()) {
-      alert(
-        "Please enter a short description."
-      );
-      return;
-    }
-
-    if (
-      description.trim().length >
-      MAX_DESCRIPTION_LENGTH
-    ) {
-      alert(
-        `Short description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
-      );
+      alert("Please enter an offer description.");
       return;
     }
 
     if (!imageFile && !oldImage) {
-      alert(
-        "Please upload an offer image."
-      );
+      alert("Please upload an offer image.");
       return;
     }
 
     const user = auth.currentUser;
 
     if (!user) {
-      alert(
-        "❌ Business login required."
-      );
+      alert("❌ Business login required.");
       return;
     }
 
     try {
       setSaving(true);
 
-      /*
-       * ======================================================
-       * FINAL OWNERSHIP CHECK
-       * ======================================================
-       */
-
-      const offerRef = doc(
-        db,
-        "offers",
-        offerId
-      );
-
-      const offerSnap = await getDoc(
-        offerRef
-      );
+      const offerRef = doc(db, "offers", offerId);
+      const offerSnap = await getDoc(offerRef);
 
       if (!offerSnap.exists()) {
         alert("❌ Offer not found.");
         return;
       }
 
-      const currentData =
-        offerSnap.data();
+      const currentData = offerSnap.data();
 
-      if (
-        currentData.businessId !==
-        user.uid
-      ) {
-        alert(
-          "❌ You are not authorized to edit this offer."
-        );
+      if (currentData.businessId !== user.uid) {
+        alert("❌ You are not authorized to edit this offer.");
         return;
       }
-
-      /*
-       * ======================================================
-       * IMAGE
-       * ======================================================
-       */
 
       let image = oldImage;
 
       if (imageFile) {
         const formData = new FormData();
 
-        formData.append(
-          "file",
-          imageFile
-        );
-
-        formData.append(
-          "upload_preset",
-          "spc_offers"
-        );
-
-        formData.append(
-          "public_id",
-          uuid()
-        );
+        formData.append("file", imageFile);
+        formData.append("upload_preset", "spc_offers");
+        formData.append("public_id", uuid());
 
         const upload = await fetch(
           "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
@@ -279,61 +149,27 @@ export default function EditOffer({
         );
 
         if (!upload.ok) {
-          throw new Error(
-            "Cloudinary upload failed."
-          );
+          throw new Error("Cloudinary upload failed.");
         }
 
-        const uploaded =
-          await upload.json();
+        const uploaded = await upload.json();
 
         if (!uploaded.secure_url) {
-          throw new Error(
-            "Image upload failed."
-          );
+          throw new Error("Image upload failed.");
         }
 
-        image =
-          uploaded.secure_url;
+        image = uploaded.secure_url;
       }
 
-      /*
-       * ======================================================
-       * UPDATE ONLY NEW FIELDS
-       * ======================================================
-       *
-       * IMPORTANT:
-       * Existing title / discount / category
-       * are NOT changed.
-       */
+      await updateDoc(offerRef, {
+        description: description.trim(),
+        image,
+      });
 
-      await updateDoc(
-        offerRef,
-        {
-          description:
-            description
-              .trim()
-              .slice(
-                0,
-                MAX_DESCRIPTION_LENGTH
-              ),
-
-          image,
-        }
-      );
-
-      alert(
-        "✅ Offer Updated Successfully"
-      );
-
-      router.replace(
-        "/business/my-offers"
-      );
+      alert("✅ Offer Updated Successfully");
+      router.replace("/business/my-offers");
     } catch (error) {
-      console.error(
-        "Offer update error:",
-        error
-      );
+      console.error("Offer update error:", error);
 
       alert(
         error instanceof Error
@@ -344,12 +180,6 @@ export default function EditOffer({
       setSaving(false);
     }
   };
-
-  /*
-   * ============================================================
-   * LOADING
-   * ============================================================
-   */
 
   if (loading) {
     return (
@@ -371,19 +201,11 @@ export default function EditOffer({
     );
   }
 
-  /*
-   * ============================================================
-   * PAGE
-   * ============================================================
-   */
-
   return (
     <BusinessProtected>
       <main className="min-h-screen bg-[#f5f7f4] px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-xl">
           <div className="overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_20px_70px_rgba(0,0,0,0.10)]">
-
-            {/* HEADER */}
 
             <div className="border-b border-black/5 bg-[#07111f] px-6 py-6 text-white sm:px-8">
               <div className="flex items-center justify-between gap-4">
@@ -397,16 +219,14 @@ export default function EditOffer({
                   </h1>
 
                   <p className="mt-1 text-sm text-white/50">
-                    Update your offer image and short description.
+                    Update your offer image and description.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() =>
-                    router.push(
-                      "/business/my-offers"
-                    )
+                    router.push("/business/my-offers")
                   }
                   disabled={saving}
                   className="shrink-0 rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15 disabled:opacity-50"
@@ -416,52 +236,29 @@ export default function EditOffer({
               </div>
             </div>
 
-            {/* FORM */}
-
             <div className="space-y-7 p-6 sm:p-8">
 
-              {/* SHORT DESCRIPTION */}
-
               <div>
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2">
                   <label className="text-sm font-black text-gray-800">
-                    Short Description
+                    Offer Description
                   </label>
-
-                  <span
-                    className={`text-xs font-black ${
-                      description.length >=
-                      MAX_DESCRIPTION_LENGTH
-                        ? "text-red-600"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {description.length}/
-                    {MAX_DESCRIPTION_LENGTH}
-                  </span>
                 </div>
 
                 <textarea
                   value={description}
                   onChange={(e) =>
-                    handleDescriptionChange(
-                      e.target.value
-                    )
-                  }
-                  maxLength={
-                    MAX_DESCRIPTION_LENGTH
+                    setDescription(e.target.value)
                   }
                   placeholder="Briefly describe your offer..."
                   disabled={saving}
-                  className="h-28 w-full resize-none rounded-2xl border border-gray-200 bg-[#fafbf9] p-4 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-gray-100"
+                  className="min-h-36 w-full resize-y rounded-2xl border border-gray-200 bg-[#fafbf9] p-4 text-sm font-medium leading-6 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-gray-100"
                 />
 
                 <p className="mt-2 text-xs text-gray-400">
-                  Maximum 80 characters. Keep it short and clear.
+                  Add the important details students should know.
                 </p>
               </div>
-
-              {/* IMAGE */}
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -476,9 +273,7 @@ export default function EditOffer({
 
                 <label className="flex cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-[#fafbf9] px-5 py-8 text-center transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
                   <div>
-                    <div className="text-3xl">
-                      🖼️
-                    </div>
+                    <div className="text-3xl">🖼️</div>
 
                     <p className="mt-2 text-sm font-black text-gray-700">
                       Change Offer Image
@@ -494,8 +289,7 @@ export default function EditOffer({
                     accept="image/*"
                     onChange={(e) =>
                       handleImageChange(
-                        e.target.files?.[0] ||
-                          null
+                        e.target.files?.[0] || null
                       )
                     }
                     disabled={saving}
@@ -503,8 +297,6 @@ export default function EditOffer({
                   />
                 </label>
               </div>
-
-              {/* PREVIEW */}
 
               {preview && (
                 <div>
@@ -532,27 +324,22 @@ export default function EditOffer({
                 </div>
               )}
 
-              {/* INFO */}
-
               <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
                 <p className="text-sm font-black text-[#8a680c]">
                   💡 Offer Display
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-gray-500">
-                  Students will see your uploaded offer image in a fixed-size card. Your short description will be shown with the offer.
+                  Students will see your offer image and description
+                  in a fixed-size offer card.
                 </p>
               </div>
-
-              {/* BUTTONS */}
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
                   onClick={() =>
-                    router.push(
-                      "/business/my-offers"
-                    )
+                    router.push("/business/my-offers")
                   }
                   disabled={saving}
                   className="flex-1 rounded-2xl border border-gray-200 bg-white py-4 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
@@ -572,8 +359,6 @@ export default function EditOffer({
                 </button>
               </div>
             </div>
-
-            {/* FOOTER */}
 
             <div className="border-t border-black/5 bg-[#fafbf9] px-6 py-4 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">

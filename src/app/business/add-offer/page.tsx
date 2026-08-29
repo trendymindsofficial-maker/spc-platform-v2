@@ -27,7 +27,6 @@ interface ExistingOffer {
   description: string;
 }
 
-const MAX_DESCRIPTION_LENGTH = 80;
 
 export default function AddOffer() {
   const router = useRouter();
@@ -210,12 +209,7 @@ export default function AddOffer() {
   const handleDescriptionChange = (
     value: string
   ) => {
-    setDescription(
-      value.slice(
-        0,
-        MAX_DESCRIPTION_LENGTH
-      )
-    );
+    setDescription(value);
   };
 
   /*
@@ -233,16 +227,6 @@ export default function AddOffer() {
     if (!description.trim()) {
       alert(
         "Please enter a short description."
-      );
-      return;
-    }
-
-    if (
-      description.trim().length >
-      MAX_DESCRIPTION_LENGTH
-    ) {
-      alert(
-        `Short description must be ${MAX_DESCRIPTION_LENGTH} characters or less.`
       );
       return;
     }
@@ -420,13 +404,7 @@ export default function AddOffer() {
 
           category,
 
-          description:
-            description
-              .trim()
-              .slice(
-                0,
-                MAX_DESCRIPTION_LENGTH
-              ),
+          description: description.trim(),
 
           image:
             uploaded.secure_url,
@@ -508,11 +486,11 @@ export default function AddOffer() {
   if (existingOffer) {
     return (
       <BusinessProtected>
-        <main className="min-h-screen bg-slate-100 p-6">
-          <div className="mx-auto max-w-2xl">
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
+        <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)] p-6 sm:p-8">
 
-              <div className="mb-8 flex items-center justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-white via-white to-green-50/70 px-6 py-6 sm:px-8">
                 <h1 className="text-3xl font-bold text-green-700">
                   ➕ Add New Offer
                 </h1>
@@ -524,7 +502,7 @@ export default function AddOffer() {
                       "/business/dashboard"
                     )
                   }
-                  className="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-300"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
                 >
                   ← Back
                 </button>
@@ -615,11 +593,11 @@ export default function AddOffer() {
 
   return (
     <BusinessProtected>
-      <main className="min-h-screen bg-slate-100 p-6">
+      <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 sm:px-6 lg:px-8">
 
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-3xl">
 
-          <div className="rounded-3xl bg-white p-8 shadow-xl">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.10)]">
 
             {/* HEADER */}
 
@@ -630,7 +608,7 @@ export default function AddOffer() {
                   SBC Business Portal
                 </p>
 
-                <h1 className="mt-1 text-3xl font-bold text-slate-900">
+                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
                   ➕ Add New Offer
                 </h1>
 
@@ -655,7 +633,7 @@ export default function AddOffer() {
 
             {/* FORM */}
 
-            <div className="space-y-6">
+            <div className="space-y-6 px-6 py-7 sm:px-8 sm:py-8">
 
               {/* CATEGORY */}
 
@@ -671,7 +649,7 @@ export default function AddOffer() {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
                 >
                   <option value="">
                     Select Category
@@ -694,42 +672,23 @@ export default function AddOffer() {
 
               <div>
 
-                <div className="mb-2 flex items-center justify-between">
-
-                  <label className="font-semibold text-gray-800">
-                    Short Description
-                  </label>
-
-                  <span
-                    className={`text-xs font-bold ${
-                      description.length >=
-                      MAX_DESCRIPTION_LENGTH
-                        ? "text-red-600"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {description.length}/
-                    {MAX_DESCRIPTION_LENGTH}
-                  </span>
-
-                </div>
+                <label className="mb-2 block font-semibold text-gray-800">
+                  Short Description
+                </label>
 
                 <textarea
                   placeholder="Example: Special student combo at ₹299..."
                   value={description}
-                  maxLength={
-                    MAX_DESCRIPTION_LENGTH
-                  }
                   onChange={(e) =>
                     handleDescriptionChange(
                       e.target.value
                     )
                   }
-                  className="h-24 w-full resize-none rounded-xl border border-gray-300 bg-white p-4 text-gray-900 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-100"
                 />
 
-                <p className="mt-1 text-xs text-gray-400">
-                  Maximum 80 characters. Keep it short and clear.
+                <p className="mt-2 text-xs text-slate-400">
+                  Add the important offer details students should know. No character limit.
                 </p>
 
               </div>
@@ -742,7 +701,7 @@ export default function AddOffer() {
                   Offer Image
                 </label>
 
-                <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-4">
+                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 transition hover:border-green-300 hover:bg-green-50/30">
 
                   <input
                     type="file"
@@ -753,7 +712,7 @@ export default function AddOffer() {
                           null
                       )
                     }
-                    className="w-full rounded-xl border border-gray-300 bg-white p-4 text-sm"
+                    className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-green-300"
                   />
 
                   <p className="mt-2 text-xs text-gray-500">
@@ -814,7 +773,7 @@ export default function AddOffer() {
                 type="button"
                 onClick={addOffer}
                 disabled={saving}
-                className="w-full rounded-xl bg-green-600 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-2xl bg-slate-900 py-4 text-base font-black text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving
                   ? "⏳ Uploading & Saving..."
