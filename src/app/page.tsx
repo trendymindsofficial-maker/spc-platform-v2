@@ -26,6 +26,7 @@ export default function Home() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#07111f] to-[#b18a16] text-lg font-black text-white shadow-lg">
                 SBC
               </div>
+
               <div className="text-left">
                 <p className="text-sm font-black tracking-[0.18em] text-[#07111f]">
                   STUDENT BENEFIT CARD
@@ -50,10 +51,10 @@ export default function Home() {
               </div>
 
               <h1 className="text-5xl font-black leading-[0.98] tracking-tight text-[#07111f] sm:text-6xl lg:text-7xl">
-                Unlock Benefits.
+                Student Benefit Card.
                 <br />
                 <span className="bg-gradient-to-r from-[#8a680c] via-[#b18a16] to-[#d4af37] bg-clip-text text-transparent">
-                  Explore Opportunities.
+                  More Benefits. More Savings.
                 </span>
               </h1>
 
@@ -72,6 +73,7 @@ export default function Home() {
                   </p>
                   <p className="text-[10px] text-slate-500">Offers</p>
                 </div>
+
                 <div className="rounded-2xl border border-white bg-white/75 p-4 shadow-sm backdrop-blur">
                   <p className="text-xl">🏪</p>
                   <p className="mt-2 text-xs font-black text-[#07111f]">
@@ -79,6 +81,7 @@ export default function Home() {
                   </p>
                   <p className="text-[10px] text-slate-500">Businesses</p>
                 </div>
+
                 <div className="rounded-2xl border border-white bg-white/75 p-4 shadow-sm backdrop-blur">
                   <p className="text-xl">🛡️</p>
                   <p className="mt-2 text-xs font-black text-[#07111f]">
@@ -86,6 +89,7 @@ export default function Home() {
                   </p>
                   <p className="text-[10px] text-slate-500">Platform</p>
                 </div>
+
                 <div className="rounded-2xl border border-white bg-white/75 p-4 shadow-sm backdrop-blur">
                   <p className="text-xl">⭐</p>
                   <p className="mt-2 text-xs font-black text-[#07111f]">
@@ -110,6 +114,7 @@ export default function Home() {
                   <h2 className="mt-4 text-3xl font-black text-[#07111f]">
                     SBC Platform
                   </h2>
+
                   <p className="mt-1 text-sm font-medium text-slate-500">
                     Student Benefit Card
                   </p>
@@ -124,6 +129,7 @@ export default function Home() {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg">
                         🎓
                       </span>
+
                       <span>
                         <span className="block text-sm font-black">
                           Student Login
@@ -132,6 +138,7 @@ export default function Home() {
                           Access your SBC benefits
                         </span>
                       </span>
+
                       <span className="ml-auto text-lg opacity-70 transition group-hover:translate-x-1">
                         →
                       </span>
@@ -145,6 +152,7 @@ export default function Home() {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#07111f]/10 text-lg">
                         📝
                       </span>
+
                       <span>
                         <span className="block text-sm font-black">
                           Student Registration
@@ -153,6 +161,7 @@ export default function Home() {
                           Create your SBC account
                         </span>
                       </span>
+
                       <span className="ml-auto text-lg opacity-50 transition group-hover:translate-x-1">
                         →
                       </span>
@@ -174,6 +183,7 @@ export default function Home() {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg">
                         🏢
                       </span>
+
                       <span>
                         <span className="block text-sm font-black">
                           Business Login
@@ -182,6 +192,7 @@ export default function Home() {
                           Manage your SBC partnership
                         </span>
                       </span>
+
                       <span className="ml-auto text-lg opacity-70 transition group-hover:translate-x-1">
                         →
                       </span>
@@ -195,6 +206,7 @@ export default function Home() {
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#07111f]/10 text-lg">
                         📝
                       </span>
+
                       <span>
                         <span className="block text-sm font-black">
                           Business Registration
@@ -203,6 +215,7 @@ export default function Home() {
                           Become an SBC partner
                         </span>
                       </span>
+
                       <span className="ml-auto text-lg opacity-50 transition group-hover:translate-x-1">
                         →
                       </span>
