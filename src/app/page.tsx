@@ -240,6 +240,97 @@ export default function Home() {
             </div>
           </section>
 
+          {/* SEO CONTENT */}
+          <section className="border-t border-black/10 py-12 sm:py-16">
+            <div className="mx-auto max-w-5xl">
+              <div className="rounded-[2rem] border border-white/80 bg-white/80 p-7 shadow-sm backdrop-blur sm:p-10">
+                <div className="max-w-3xl">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8a680c]">
+                    Student Discounts • Offers • Benefits
+                  </p>
+
+                  <h2 className="mt-3 text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
+                    Student Discounts and Exclusive Offers
+                  </h2>
+
+                  <p className="mt-5 text-sm leading-7 text-slate-600 sm:text-base">
+                    Student Benefit Card (SBC) is a student benefits platform
+                    that helps students discover exclusive discounts, offers,
+                    rewards and savings from partner businesses.
+                  </p>
+
+                  <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                    Students can explore offers from restaurants, cafes,
+                    salons, shopping stores and other student-friendly
+                    businesses, then use their SBC account to access eligible
+                    benefits.
+                  </p>
+
+                  <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                    SBC is also helping local businesses connect with students
+                    through a simple digital platform for student offers and
+                    benefits.
+                  </p>
+                </div>
+
+                <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl bg-[#fff8df] p-5">
+                    <p className="text-2xl">🍽️</p>
+                    <h3 className="mt-3 text-sm font-black text-[#07111f]">
+                      Restaurants
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Discover student-friendly food offers and discounts.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#fff8df] p-5">
+                    <p className="text-2xl">☕</p>
+                    <h3 className="mt-3 text-sm font-black text-[#07111f]">
+                      Cafes & Drinks
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Find exclusive offers for coffee, shakes and more.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#fff8df] p-5">
+                    <p className="text-2xl">💇</p>
+                    <h3 className="mt-3 text-sm font-black text-[#07111f]">
+                      Salons & Beauty
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Explore student offers from salons and beauty partners.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#fff8df] p-5">
+                    <p className="text-2xl">🛍️</p>
+                    <h3 className="mt-3 text-sm font-black text-[#07111f]">
+                      Shopping & More
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Save more with offers from participating local stores.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 rounded-2xl border border-[#d4af37]/25 bg-[#fbfaf6] p-6">
+                  <h3 className="text-lg font-black text-[#07111f]">
+                    Student Offers in Nellore
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    SBC is building a growing network of student offers in
+                    Nellore, connecting college students with local
+                    restaurants, cafes, salons, shops and other partner
+                    businesses.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* FOOTER */}
           <footer className="border-t border-black/10/80 py-5 text-center">
             <p className="text-xs font-bold text-slate-500">
