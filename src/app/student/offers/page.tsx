@@ -369,143 +369,42 @@ export default function StudentOffers() {
 
   const loadOffers = async () => {
     try {
-      const offerQuery =
-        query(
-          collection(
-            db,
-            "offers"
-          ),
-          where(
-            "status",
-            "==",
-            "active"
-          )
-        );
-
-      const offerSnap =
-        await getDocs(
-          offerQuery
-        );
-
-      const businessSnap =
-        await getDocs(
-          collection(
-            db,
-            "businesses"
-          )
-        );
-
-      const businessMap =
-        new Map<
-          string,
-          {
-            name: string;
-            mobile: string;
-            address: string;
-          }
-        >();
-
-      businessSnap.docs.forEach(
-        (businessDoc) => {
-          const data =
-            businessDoc.data();
-
-          businessMap.set(
-            businessDoc.id,
-            {
-              name:
-                data.businessName ||
-                "",
-
-              mobile:
-                data.mobile ||
-                data.phone ||
-                data.businessMobile ||
-                data.ownerMobile ||
-                "",
-
-              address:
-                data.address ||
-                data.businessAddress ||
-                data.location ||
-                data.fullAddress ||
-                "",
-            }
-          );
-        }
+      const offerQuery = query(
+        collection(db, "offers"),
+        where("status", "==", "active")
       );
 
-      const data: Offer[] =
-        offerSnap.docs.map(
-          (item) => {
-            const offerData =
-              item.data();
+      const offerSnap = await getDocs(offerQuery);
 
-            const businessId =
-              String(
-                offerData.businessId ||
-                ""
-              );
+      const data: Offer[] = offerSnap.docs.map((item) => {
+        const offerData = item.data();
 
-            const business =
-              businessMap.get(
-                businessId
-              );
-
-            return {
-              id:
-                item.id,
-
-              title:
-                offerData.title ||
-                "",
-
-              discount:
-                offerData.discount ||
-                "",
-
-              description:
-                offerData.description ||
-                "",
-
-              category:
-                offerData.category ||
-                "Other",
-
-              image:
-                offerData.image ||
-                offerData.imageUrl ||
-                "",
-
-              businessId,
-
-              businessName:
-                offerData.businessName ||
-                business?.name ||
-                "SBC Partner Business",
-
-              businessMobile:
-                offerData.businessMobile ||
-                business?.mobile ||
-                "",
-
-              businessAddress:
-                offerData.businessAddress ||
-                offerData.address ||
-                business?.address ||
-                "",
-
-              status:
-                offerData.status ||
-                "active",
-            };
-          }
+        const businessId = String(
+          offerData.businessId || ""
         );
 
-      setOffers(
-        data
-      );
+        return {
+          id: item.id,
+          title: offerData.title || "",
+          discount: offerData.discount || "",
+          description: offerData.description || "",
+          category: offerData.category || "Other",
+          image: offerData.image || offerData.imageUrl || "",
+          businessId,
+          businessName:
+            offerData.businessName ||
+            "SBC Partner Business",
+          businessMobile:
+            offerData.businessMobile || "",
+          businessAddress:
+            offerData.businessAddress ||
+            offerData.address ||
+            "",
+          status: offerData.status || "active",
+        };
+      });
 
+      setOffers(data);
     } catch (error) {
       console.error(
         "Offer loading error:",

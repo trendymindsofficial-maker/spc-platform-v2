@@ -24,7 +24,8 @@ service cloud.firestore {
     // ADMINS
     // =========================
     match /admins/{adminId} {
-      allow read, write: if isAdmin();
+      allow read: if signedIn() && request.auth.uid == adminId;
+      allow write: if isAdmin();
     }
 
     // =========================
@@ -43,6 +44,14 @@ service cloud.firestore {
       allow create: if signedIn();
       allow read, update: if isBusiness(businessId) || isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // =========================
+    // CATEGORIES
+    // =========================
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
 
     // =========================
@@ -70,6 +79,71 @@ service cloud.firestore {
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
+    }
+
+    // =========================
+    // BUSINESS STUDENT USAGE
+    // =========================
+    match /businessStudentUsage/{usageId} {
+      allow read: if isAdmin()
+        || (
+          signedIn() &&
+          resource.data.studentId == request.auth.uid
+        )
+        || (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+
+      allow create, update: if isAdmin()
+        || (
+          signedIn() &&
+          request.resource.data.businessId == request.auth.uid
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // STUDENT POINTS
+    // =========================
+    match /studentPoints/{studentId} {
+      allow read: if isAdmin() || isStudent(studentId);
+
+      allow create, update: if isAdmin()
+        || (
+          signedIn() &&
+          request.resource.data.studentId == studentId &&
+          request.resource.data.lastPointsBusinessId == request.auth.uid
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // REDEMPTION REQUESTS
+    // =========================
+    match /redemptionRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.studentId == request.auth.uid;
+
+      allow read: if isAdmin()
+        || (
+          signedIn() &&
+          resource.data.studentId == request.auth.uid
+        )
+        || (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+
+      allow update: if isAdmin()
+        || (
+          signedIn() &&
+          resource.data.businessId == request.auth.uid
+        );
+
+      allow delete: if isAdmin();
     }
 
     // =========================
