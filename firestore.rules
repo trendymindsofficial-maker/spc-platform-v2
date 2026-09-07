@@ -37,23 +37,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-   match /businessStudentUsage/{usageId} {
-  allow read: if isAdmin()
-    || (
-      signedIn() &&
-      usageId.split("_")[0] == request.auth.uid
-    )
-    || (
-      signedIn() &&
-      resource.data.studentId == request.auth.uid
-    );
+    match /businesses/{businessId} {
+  // Students need to read business details
+  // when verifying an SBC Business ID / QR.
+  allow read: if signedIn();
 
-  allow create, update: if isAdmin()
-    || (
-      signedIn() &&
-      request.resource.data.businessId == request.auth.uid
-    );
+  // Business registration
+  allow create: if signedIn();
 
+  // Only the business owner or admin can update.
+  allow update: if isBusiness(businessId) || isAdmin();
+
+  // Only admin can delete.
   allow delete: if isAdmin();
 }
 
