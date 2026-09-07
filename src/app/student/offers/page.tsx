@@ -1530,7 +1530,21 @@ export default function StudentOffers() {
         let studentCardNumber =
           "";
 
+        let studentMobile =
+          "";
+
         try {
+          /*
+           * LOAD THE REAL SBC STUDENT PROFILE
+           *
+           * Primary: students/{Auth UID}
+           * Fallback: students where uid == Auth UID
+           *
+           * Some older student records use a different
+           * Firestore document ID.
+           */
+
+          let studentData: any = null;
 
           const studentRef =
             doc(
@@ -1547,13 +1561,41 @@ export default function StudentOffers() {
           if (
             studentSnap.exists()
           ) {
-
-            const studentData =
+            studentData =
               studentSnap.data();
+          }
 
+          if (!studentData) {
+            const studentQuery =
+              query(
+                collection(
+                  db,
+                  "students"
+                ),
+                where(
+                  "uid",
+                  "==",
+                  studentUid
+                )
+              );
+
+            const studentQuerySnap =
+              await getDocs(
+                studentQuery
+              );
+
+            if (
+              !studentQuerySnap.empty
+            ) {
+              studentData =
+                studentQuerySnap.docs[0].data();
+            }
+          }
+
+          if (studentData) {
             studentName =
-              studentData.name ||
               studentData.fullName ||
+              studentData.name ||
               studentData.studentName ||
               "SBC Student";
 
@@ -1562,15 +1604,28 @@ export default function StudentOffers() {
               studentData.studentCardNumber ||
               "";
 
+            studentMobile =
+              studentData.mobile ||
+              studentData.phone ||
+              studentData.phoneNumber ||
+              "";
           }
 
-        } catch (error) {
+          console.log(
+            "✅ Redemption student profile loaded:",
+            {
+              studentUid,
+              studentName,
+              studentCardNumber,
+              studentMobile,
+            }
+          );
 
+        } catch (error) {
           console.error(
             "Student profile loading error:",
             error
           );
-
         }
 
         /*
@@ -1601,6 +1656,8 @@ export default function StudentOffers() {
               studentName,
 
               studentCardNumber,
+
+              studentMobile,
 
               // Offers and business dashboard use the Firebase Auth UID.
               businessId:

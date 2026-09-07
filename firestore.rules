@@ -37,14 +37,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // =========================
-    // BUSINESSES
-    // =========================
     match /businesses/{businessId} {
-      allow create: if signedIn();
-      allow read, update: if isBusiness(businessId) || isAdmin();
-      allow delete: if isAdmin();
-    }
+  // Students need to read business details
+  // when verifying an SBC Business ID / QR.
+  allow read: if signedIn();
+
+  // Business registration
+  allow create: if signedIn();
+
+  // Only the business owner or admin can update.
+  allow update: if isBusiness(businessId) || isAdmin();
+
+  // Only admin can delete.
+  allow delete: if isAdmin();
+}
 
     // =========================
     // CATEGORIES
