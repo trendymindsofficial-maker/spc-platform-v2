@@ -1,4 +1,4 @@
-"use client";
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -23,6 +23,7 @@ import {
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 
 import QRCode from "qrcode";
@@ -52,6 +53,20 @@ interface PendingRedemption {
 
   createdAt?: any;
 }
+
+const MAX_REDEMPTIONS = 4;
+
+/*
+ * SBC REDEMPTION POINTS
+ *
+ * 1st redemption = 20 points
+ * 2nd redemption = 10 points
+ * 3rd redemption = 5 points
+ * 4th redemption = 5 points
+ *
+ * Maximum points from one business = 40.
+ */
+const REDEMPTION_POINTS = [20, 10, 5, 5];
 
 export default function BusinessDashboard() {
   const router = useRouter();
@@ -88,14 +103,6 @@ export default function BusinessDashboard() {
 
   const [loadingBusinessQr, setLoadingBusinessQr] =
     useState(true);
-
-  const [successRedemption, setSuccessRedemption] = useState<{
-    businessName: string;
-    offerTitle: string;
-    discount: string;
-    pointsAwarded: number;
-    totalPoints: number;
-  } | null>(null);
 
   /*
    * ==========================================
@@ -770,9 +777,11 @@ export default function BusinessDashboard() {
    * 2. Verify business
    * 3. Verify offer
    * 4. Check 4-use limit
-   * 5. Increase business usage
-   * 6. Create redemptions document
-   * 7. Mark request approved
+   * 5. Calculate redemption points
+   * 6. Increase business usage
+   * 7. Update student points
+   * 8. Create redemptions document
+   * 9. Mark request approved
    *
    * Student can then listen to
    * redemptionRequests in real time.
@@ -872,9 +881,8 @@ export default function BusinessDashboard() {
 
         /*
          * Student document.
-         *
-         * request.studentId is the Firestore students
-         * document ID used by the redemption request.
+         * Points are maintained on the student's
+         * document and updated only after approval.
          */
         const studentRef =
           doc(
@@ -884,11 +892,16 @@ export default function BusinessDashboard() {
           );
 
         /*
-         * Cumulative student points document.
+         * ========================================
+         * STUDENT REWARD POINTS DOCUMENT
+         * ========================================
          *
-         * Keep this in sync with students/{studentId}
-         * because the Student Dashboard reads the
-         * cumulative total from this document.
+         * The student dashboard listens to:
+         *
+         * studentPoints/{studentId}.totalPoints
+         *
+         * Keep this document synchronized with
+         * students/{studentId}.points.
          */
         const studentPointsRef =
           doc(
@@ -989,16 +1002,6 @@ export default function BusinessDashboard() {
             const offerSnap =
               await transaction.get(
                 offerRef
-              );
-
-            const studentSnap =
-              await transaction.get(
-                studentRef
-              );
-
-            const studentPointsSnap =
-              await transaction.get(
-                studentPointsRef
               );
 
             /*
@@ -1120,73 +1123,52 @@ export default function BusinessDashboard() {
 
             /*
              * ======================================
-             * UNLIMITED BUSINESS-WISE USAGE
+             * HARD 4-USE LIMIT
              * ======================================
-             *
-             * There is NO 4-use blocking limit.
-             * We only keep the cumulative usage count
-             * so the business/student can see:
-             *
-             * Used 1 time
-             * Used 2 times
-             * Used 3 times
-             * ...
-             *
-             * The count is business + student based,
-             * not offer based.
              */
+
+            if (
+              currentUsageCount >=
+              MAX_REDEMPTIONS
+            ) {
+              throw new Error(
+                "LIMIT_REACHED"
+              );
+            }
+
             finalUsageCount =
               currentUsageCount + 1;
 
             /*
              * ======================================
-             * CALCULATE REWARD POINTS
+             * CALCULATE REDEMPTION POINTS
              * ======================================
              *
-             * 1st redemption  = 20 points
-             * 2nd redemption  = 10 points
-             * 3rd onward      = 5 points
-             *
-             * IMPORTANT:
-             * This continues forever because usage is
-             * unlimited. There is NO 4-use cutoff.
+             * 1 -> 20
+             * 2 -> 10
+             * 3 -> 5
+             * 4 -> 5
              */
-            if (finalUsageCount === 1) {
-              pointsAwarded = 20;
-            } else if (finalUsageCount === 2) {
-              pointsAwarded = 10;
-            } else {
-              pointsAwarded = 5;
-            }
+            pointsAwarded =
+              REDEMPTION_POINTS[
+                finalUsageCount - 1
+              ] || 0;
 
             /*
-             * Read the highest existing cumulative total
-             * from either points location so an older
-             * data format can never reset the student's
-             * points.
+             * ======================================
+             * CUMULATIVE STUDENT POINTS
+             * ======================================
+             *
+             * Keep the higher value if an older
+             * studentPoints document is behind the
+             * student's main points field.
              */
-            const studentDocumentPoints =
-              studentSnap.exists()
-                ? Number(
-                    studentSnap.data().points || 0
-                  )
-                : 0;
-
-            const studentPointsDocumentTotal =
-              studentPointsSnap.exists()
-                ? Number(
-                    studentPointsSnap.data().totalPoints || 0
-                  )
-                : 0;
-
-            const currentStudentPoints =
-              Math.max(
-                studentDocumentPoints,
-                studentPointsDocumentTotal
-              );
-
+            /*
+             * Do not read private student points documents
+             * from the business transaction.
+             * Update points atomically instead.
+             */
             newStudentPoints =
-              currentStudentPoints +
               pointsAwarded;
 
             /*
@@ -1209,9 +1191,7 @@ export default function BusinessDashboard() {
                   finalUsageCount,
 
                 maxAllowed:
-                  null,
-                unlimited:
-                  true,
+                  MAX_REDEMPTIONS,
 
                 updatedAt:
                   serverTimestamp(),
@@ -1226,19 +1206,16 @@ export default function BusinessDashboard() {
              * ======================================
              * UPDATE STUDENT POINTS
              * ======================================
-             *
-             * Keep BOTH documents synchronized.
-             * This prevents the Student Dashboard from
-             * showing 0 or an old total.
              */
+
             transaction.set(
               studentRef,
               {
                 points:
-                  newStudentPoints,
+                  increment(pointsAwarded),
 
                 totalPointsEarned:
-                  newStudentPoints,
+                  increment(pointsAwarded),
 
                 lastPointsEarned:
                   pointsAwarded,
@@ -1264,6 +1241,18 @@ export default function BusinessDashboard() {
               }
             );
 
+            /*
+             * ======================================
+             * UPDATE STUDENT POINTS DOCUMENT
+             * ======================================
+             *
+             * The student dashboard reads:
+             *
+             * studentPoints/{studentId}.totalPoints
+             *
+             * Therefore keep this document in sync
+             * with students/{studentId}.points.
+             */
             transaction.set(
               studentPointsRef,
               {
@@ -1271,7 +1260,10 @@ export default function BusinessDashboard() {
                   request.studentId,
 
                 totalPoints:
-                  newStudentPoints,
+                  increment(pointsAwarded),
+
+                pointsAwarded:
+                  pointsAwarded,
 
                 lastPointsEarned:
                   pointsAwarded,
@@ -1283,7 +1275,7 @@ export default function BusinessDashboard() {
                   requestData.businessName ||
                   businessName,
 
-                lastRedemptionId:
+                lastPointsRedemptionId:
                   redemptionRef.id,
 
                 updatedAt:
@@ -1348,8 +1340,6 @@ export default function BusinessDashboard() {
                 redemptionNumber:
                   finalUsageCount,
 
-                studentPointsAfterRedemption:
-                  newStudentPoints,
 
                 redeemedAt:
                   serverTimestamp(),
@@ -1387,8 +1377,6 @@ export default function BusinessDashboard() {
                 pointsAwarded:
                   pointsAwarded,
 
-                studentPointsAfterRedemption:
-                  newStudentPoints,
               }
             );
           }
@@ -1416,20 +1404,29 @@ export default function BusinessDashboard() {
          * ========================================
          */
 
-        setSuccessRedemption({
-          businessName:
-            request.businessName ||
-            businessName,
-          offerTitle:
-            request.offerTitle ||
-            "SBC Offer",
-          discount:
-            request.discount ||
-            "",
-          pointsAwarded,
-          totalPoints:
-            newStudentPoints,
-        });
+        if (
+          finalUsageCount ===
+          1
+        ) {
+          alert(
+            `🌟 First Time Use\n\nRedemption approved successfully!\n\nUsed: 1/4\nPoints Earned: +${pointsAwarded}`
+          );
+        } else if (
+          finalUsageCount ===
+          MAX_REDEMPTIONS
+        ) {
+          alert(
+            `🏆 Final Use (4/4)\n\nRedemption approved successfully!\n\nThis student has reached the maximum 4 uses at this business.\n\nPoints Earned: +${pointsAwarded}`
+          );
+        } else {
+          alert(
+            `✅ Redemption Approved!\n\nUsed: ${finalUsageCount}/4\n\nPoints Earned: +${pointsAwarded}\nRemaining: ${
+              MAX_REDEMPTIONS -
+              finalUsageCount
+            }`
+          );
+        }
+
       } catch (error: any) {
         console.error(
           "Approve redemption error:",
@@ -1437,6 +1434,13 @@ export default function BusinessDashboard() {
         );
 
         if (
+          error?.message ===
+          "LIMIT_REACHED"
+        ) {
+          alert(
+            "❌ Limit Reached\n\nThis student has already used the SBC benefit 4/4 times at this business."
+          );
+        } else if (
           error?.message ===
           "REQUEST_ALREADY_PROCESSED"
         ) {
@@ -1637,316 +1641,361 @@ export default function BusinessDashboard() {
   return (
     <BusinessProtected>
 
-      <main className="min-h-screen bg-[#f5f3ed] text-slate-900">
+      <main className="min-h-screen bg-slate-100 p-8">
 
-        {/* PREMIUM TOP NAV */}
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07111f]/95 text-white shadow-lg backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-sm font-black text-[#f1cf63]">
-                SBC
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#f1cf63]">
-                  Student Benefit Card
-                </p>
-                <p className="text-sm font-medium text-white/55">
-                  Business Partner Portal
-                </p>
-              </div>
+        <div className="mx-auto max-w-6xl">
+
+          {/* HEADER */}
+
+          <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <h1 className="text-4xl font-bold text-green-700">
+                👋 Welcome {businessName}
+              </h1>
+
+              <p className="mt-2 text-gray-600">
+                Business Dashboard
+              </p>
+
             </div>
 
             <button
-              onClick={logout}
-              className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+              onClick={
+                logout
+              }
+              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700"
             >
               Logout
             </button>
+
           </div>
-        </header>
 
-        <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
+          {/* =====================================
+              BUSINESS QR CARD
+          ====================================== */}
 
-          {/* HERO */}
-          <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-10">
-            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
-            <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="mb-8 rounded-3xl bg-white p-8 shadow-xl">
 
-            <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-                  ✦ Verified SBC Business
-                </div>
+            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
 
-                <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl">
-                  Welcome,
-                  <span className="block text-[#f1cf63]">
-                    {businessName}
-                  </span>
-                </h1>
+              <div className="flex-1">
 
-                <p className="mt-3 max-w-2xl text-base leading-7 text-white/60">
-                  Manage your SBC offers, verify students and approve redemption requests from one premium dashboard.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/[0.06] px-6 py-5 backdrop-blur-xl">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-                  Business ID
-                </p>
-                <p className="mt-2 break-all text-xl font-black tracking-wide text-[#f1cf63]">
-                  {loadingBusinessQr ? "Generating..." : businessId || "Not available"}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* BUSINESS QR */}
-          <section className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
-
-            <div className="relative overflow-hidden rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
-              <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#d4af37]/10 blur-3xl" />
-
-              <div className="relative">
-                <div className="inline-flex rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#a37b0d]">
+                <div className="inline-flex rounded-full bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
                   🎓 SBC Business Verification
                 </div>
 
-                <h2 className="mt-4 text-3xl font-black tracking-tight text-[#07111f]">
+                <h2 className="mt-4 text-3xl font-extrabold text-slate-800">
                   Your Business QR
                 </h2>
 
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                  Students can scan this QR to verify your business before redeeming an SBC benefit.
+                <p className="mt-3 text-gray-600">
+                  Students can scan this QR to
+                  verify your business before
+                  redeeming an SBC benefit.
                 </p>
 
-                <div className="mt-6 rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    SBC Business ID
+                <div className="mt-6 rounded-2xl bg-yellow-50 p-5">
+
+                  <p className="text-sm font-bold text-gray-500">
+                    SBC BUSINESS ID
                   </p>
-                  <p className="mt-2 break-all text-2xl font-black tracking-wide text-[#07111f]">
-                    {loadingBusinessQr ? "Generating..." : businessId || "Not available"}
+
+                  <p className="mt-2 break-all text-2xl font-extrabold tracking-wide text-green-700">
+                    {loadingBusinessQr
+                      ? "Generating..."
+                      : businessId ||
+                        "Not available"}
                   </p>
+
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-3">
+
                   <button
-                    onClick={() => setShowBusinessQr(true)}
-                    disabled={!businessQr}
-                    className="rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-white transition hover:bg-[#10243b] disabled:cursor-not-allowed disabled:bg-slate-300"
+                    onClick={() =>
+                      setShowBusinessQr(
+                        true
+                      )
+                    }
+                    disabled={
+                      !businessQr
+                    }
+                    className="rounded-xl bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                   >
                     📷 View QR
                   </button>
 
                   <button
-                    onClick={downloadBusinessQr}
-                    disabled={!businessQr}
-                    className="rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-5 py-3 text-sm font-black text-[#8a680c] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={
+                      downloadBusinessQr
+                    }
+                    disabled={
+                      !businessQr
+                    }
+                    className="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                   >
-                    ⬇️ Download
+                    ⬇️ Download QR
                   </button>
 
                   <button
-                    onClick={printBusinessQr}
-                    disabled={!businessQr}
-                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-[#d4af37]/50 hover:text-[#8a680c] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={
+                      printBusinessQr
+                    }
+                    disabled={
+                      !businessQr
+                    }
+                    className="rounded-xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                   >
-                    🖨️ Print
+                    🖨️ Print QR
                   </button>
+
                 </div>
+
               </div>
-            </div>
 
-            <div className="flex items-center justify-center rounded-[2rem] bg-[#07111f] p-7 shadow-[0_20px_60px_rgba(7,17,31,0.16)] sm:p-9">
-              {loadingBusinessQr ? (
-                <div className="flex h-64 w-64 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.05]">
-                  <div className="text-center">
-                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-[#f1cf63]" />
-                    <p className="mt-3 text-sm font-semibold text-white/50">
-                      Creating QR...
+              {/* QR PREVIEW */}
+
+              <div className="flex justify-center">
+
+                {loadingBusinessQr ? (
+
+                  <div className="flex h-64 w-64 items-center justify-center rounded-3xl bg-gray-100">
+
+                    <div className="text-center">
+
+                      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600" />
+
+                      <p className="mt-3 text-sm text-gray-500">
+                        Creating QR...
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                ) : businessQr ? (
+
+                  <div className="rounded-3xl border-4 border-green-100 bg-white p-5 shadow-lg">
+
+                    <img
+                      src={
+                        businessQr
+                      }
+                      alt="SBC Business QR"
+                      className="h-56 w-56"
+                    />
+
+                    <p className="mt-3 text-center text-xs font-bold text-gray-500">
+                      Scan to verify business
                     </p>
+
                   </div>
-                </div>
-              ) : businessQr ? (
-                <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-white p-5 shadow-2xl">
-                  <img
-                    src={businessQr}
-                    alt="SBC Business QR"
-                    className="h-56 w-56"
-                  />
-                  <p className="mt-3 text-center text-xs font-black uppercase tracking-wider text-slate-500">
-                    Scan to verify business
-                  </p>
-                </div>
-              ) : (
-                <div className="flex h-64 w-64 items-center justify-center rounded-3xl bg-red-50 text-center text-sm font-bold text-red-600">
-                  Unable to generate QR
-                </div>
-              )}
+
+                ) : (
+
+                  <div className="flex h-64 w-64 items-center justify-center rounded-3xl bg-red-50 text-center text-sm font-bold text-red-600">
+                    Unable to generate QR
+                  </div>
+
+                )}
+
+              </div>
+
             </div>
 
-          </section>
+          </div>
 
-          {/* PENDING ALERT */}
-          {pendingRedemptions.length > 0 && (
-            <section className="mt-7 rounded-[2rem] border border-[#d4af37]/30 bg-gradient-to-r from-[#fffdf5] to-[#f7f1dd] p-6 shadow-[0_20px_60px_rgba(120,90,20,0.08)] sm:p-7">
+          {/* =====================================
+              PENDING ALERT
+          ====================================== */}
+
+          {pendingRedemptions.length >
+            0 && (
+
+            <div className="mb-8 rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-6 shadow-lg">
+
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
                 <div>
-                  <div className="inline-flex rounded-full bg-[#d4af37]/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#8a680c]">
-                    🔔 Action Required
-                  </div>
-                  <h2 className="mt-3 text-2xl font-black text-[#07111f]">
-                    Pending SBC Redemptions
+
+                  <h2 className="text-2xl font-extrabold text-yellow-800">
+                    🔔 Pending SBC Redemptions
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+
+                  <p className="mt-2 text-yellow-700">
+
                     You have{" "}
-                    <span className="font-black text-[#07111f]">
-                      {pendingRedemptions.length}
+
+                    <span className="font-extrabold">
+                      {
+                        pendingRedemptions.length
+                      }
                     </span>{" "}
+
                     student redemption request
-                    {pendingRedemptions.length === 1 ? "" : "s"} waiting for approval.
+                    {
+                      pendingRedemptions.length ===
+                      1
+                        ? ""
+                        : "s"
+                    }{" "}
+                    waiting for approval.
+
                   </p>
+
                 </div>
 
                 <button
-                  onClick={() => setShowPendingPopup(true)}
-                  className="rounded-xl bg-[#07111f] px-6 py-3 text-sm font-black text-white transition hover:bg-[#10243b]"
+                  onClick={() =>
+                    setShowPendingPopup(
+                      true
+                    )
+                  }
+                  className="rounded-xl bg-yellow-500 px-6 py-3 font-bold text-white hover:bg-yellow-600"
                 >
                   🔔 View Requests
                 </button>
+
               </div>
-            </section>
+
+            </div>
           )}
 
-          {/* STATISTICS */}
-          <section className="mt-7 grid gap-5 md:grid-cols-3">
+          {/* =====================================
+              STATISTICS
+          ====================================== */}
 
-            <div className="rounded-[1.5rem] bg-[#07111f] p-6 text-white shadow-[0_18px_50px_rgba(7,17,31,0.14)]">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">
+          <div className="grid gap-6 md:grid-cols-3">
+
+            <div className="rounded-3xl bg-white p-8 shadow-xl">
+
+              <p className="text-gray-500">
                 🎁 Total Offers
               </p>
-              <div className="mt-4 flex items-end justify-between">
-                <h2 className="text-4xl font-black text-[#f1cf63]">{totalOffers}</h2>
-                <span className="text-2xl">🎁</span>
-              </div>
+
+              <h2 className="mt-4 text-5xl font-bold text-green-700">
+                {totalOffers}
+              </h2>
+
             </div>
 
-            <div className="rounded-[1.5rem] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)]">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            <div className="rounded-3xl bg-white p-8 shadow-xl">
+
+              <p className="text-gray-500">
                 📷 Total Scans
               </p>
-              <div className="mt-4 flex items-end justify-between">
-                <h2 className="text-4xl font-black text-[#07111f]">{totalScans}</h2>
-                <span className="text-2xl">📷</span>
-              </div>
+
+              <h2 className="mt-4 text-5xl font-bold text-blue-700">
+                {totalScans}
+              </h2>
+
             </div>
 
-            <div className="rounded-[1.5rem] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)]">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            <div className="rounded-3xl bg-white p-8 shadow-xl">
+
+              <p className="text-gray-500">
                 🎉 Total Redeemed
               </p>
-              <div className="mt-4 flex items-end justify-between">
-                <h2 className="text-4xl font-black text-[#07111f]">{totalRedeemed}</h2>
-                <span className="text-2xl">✓</span>
-              </div>
-            </div>
 
-          </section>
-
-          {/* QUICK ACTIONS */}
-          <section className="mt-7">
-            <div className="mb-5">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a37b0d]">
-                Business Tools
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-[#07111f]">
-                Quick Actions
+              <h2 className="mt-4 text-5xl font-bold text-orange-600">
+                {totalRedeemed}
               </h2>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-
-              <Link
-                href="/business/add-offer"
-                className="group rounded-[1.5rem] bg-[#07111f] p-6 text-white shadow-[0_18px_50px_rgba(7,17,31,0.12)] transition hover:-translate-y-1"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d4af37]/10 text-xl text-[#f1cf63]">
-                  ➕
-                </div>
-                <h2 className="mt-5 text-xl font-black">Add Offer</h2>
-                <p className="mt-2 text-sm leading-6 text-white/50">
-                  Create a new student benefit.
-                </p>
-              </Link>
-
-              <Link
-                href="/business/my-offers"
-                className="group rounded-[1.5rem] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)] transition hover:-translate-y-1"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d4af37]/10 text-xl">
-                  🎁
-                </div>
-                <h2 className="mt-5 text-xl font-black text-[#07111f]">My Offers</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  View and manage your offers.
-                </p>
-              </Link>
-
-              <Link
-                href="/business/history"
-                className="group rounded-[1.5rem] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)] transition hover:-translate-y-1"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d4af37]/10 text-xl">
-                  📊
-                </div>
-                <h2 className="mt-5 text-xl font-black text-[#07111f]">History</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  View all redeemed offers.
-                </p>
-              </Link>
 
             </div>
-          </section>
 
-          {/* PORTAL INFO */}
-          <section className="mt-7 rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-8">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f1cf63]">
-                  SBC Business Portal
-                </p>
-                <h2 className="mt-2 text-2xl font-black">
-                  Everything in one place.
-                </h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/50">
-                  Manage offers, display your Business QR, receive student redemption requests and track your redemptions securely.
-                </p>
-              </div>
-              <div className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-4 text-center">
-                <p className="text-lg font-black text-[#f1cf63]">SBC</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">
-                  2026
-                </p>
-              </div>
-            </div>
-          </section>
+          </div>
 
-          {/* FOOTER */}
-          <footer className="mt-8 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-black text-[#07111f]">Student Benefit Card</p>
-              <p className="mt-1">One card. More benefits. More savings.</p>
-            </div>
+          {/* =====================================
+              QUICK ACTIONS
+          ====================================== */}
 
-            <button
-              onClick={logout}
-              className="w-fit rounded-full border border-slate-300 px-5 py-2.5 font-bold text-slate-700 transition hover:border-[#b18a16] hover:text-[#8a680c]"
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+
+            <Link
+              href="/business/add-offer"
+              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105"
             >
-              Logout
-            </button>
-          </footer>
+
+              <h2 className="text-2xl font-bold text-green-700">
+                ➕ Add Offer
+              </h2>
+
+              <p className="mt-3 text-gray-600">
+                Create new offers for students.
+              </p>
+
+            </Link>
+
+            <Link
+              href="/business/my-offers"
+              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105"
+            >
+
+              <h2 className="text-2xl font-bold text-blue-700">
+                🎁 My Offers
+              </h2>
+
+              <p className="mt-3 text-gray-600">
+                View and manage your offers.
+              </p>
+
+            </Link>
+
+            <Link
+              href="/business/scan"
+              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105"
+            >
+
+              <h2 className="text-2xl font-bold text-purple-700">
+                📷 Redeem Student Offer
+              </h2>
+
+              <p className="mt-3 text-gray-600">
+                Redeem Student Offer here.
+              </p>
+
+            </Link>
+
+            <Link
+              href="/business/history"
+              className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105"
+            >
+
+              <h2 className="text-2xl font-bold text-orange-700">
+                📊 Redemption History
+              </h2>
+
+              <p className="mt-3 text-gray-600">
+                View all redeemed offer history.
+              </p>
+
+            </Link>
+
+          </div>
+
+          {/* =====================================
+              PORTAL INFO
+          ====================================== */}
+
+          <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
+
+            <h2 className="text-3xl font-bold text-green-700">
+              🚀 SBC Business Portal
+            </h2>
+
+            <p className="mt-4 text-lg text-gray-600">
+              Manage your offers, display your
+              Business QR, receive student
+              redemption requests and track all
+              redemptions from one secure dashboard.
+            </p>
+
+          </div>
 
         </div>
+
       </main>
 
       {/* ==========================================
@@ -2037,82 +2086,6 @@ export default function BusinessDashboard() {
 
           </div>
         )}
-
-      {/* ==========================================
-          REDEMPTION SUCCESS POPUP
-          UI ONLY — redemption logic is unchanged.
-      =========================================== */}
-
-      {successRedemption && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setSuccessRedemption(null)}
-              aria-label="Close"
-              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-500 hover:bg-gray-200"
-            >
-              ✕
-            </button>
-
-            <div className="p-6 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl font-black text-green-600">
-                ✓
-              </div>
-
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#a37b0d]">
-                SBC Redemption
-              </p>
-
-              <h2 className="mt-1 text-2xl font-black text-green-700">
-                Approved Successfully!
-              </h2>
-
-              <p className="mt-1 text-sm font-extrabold text-gray-700">
-                {successRedemption.businessName}
-              </p>
-
-              <div className="mt-4 rounded-xl bg-green-50 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                  Benefit Redeemed
-                </p>
-                <p className="mt-1 text-base font-extrabold text-green-700">
-                  🎁 {successRedemption.offerTitle}
-                </p>
-                {successRedemption.discount && (
-                  <p className="mt-1 text-sm font-black text-blue-600">
-                    {successRedemption.discount}
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-3 rounded-xl bg-purple-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-purple-600">
-                  ⭐ Reward Points Earned
-                </p>
-                <p className="mt-1 text-3xl font-black text-purple-700">
-                  +{successRedemption.pointsAwarded}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-gray-500">
-                  Total Student Points: {successRedemption.totalPoints}
-                </p>
-              </div>
-
-              <p className="mt-3 text-xs font-semibold text-gray-400">
-                The student can now see the approved redemption.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => setSuccessRedemption(null)}
-                className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white hover:bg-[#10243b]"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ==========================================
           PENDING REDEMPTION POPUP
