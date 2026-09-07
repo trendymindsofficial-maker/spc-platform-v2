@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -226,10 +225,14 @@ export default function StudentDashboard() {
     authUid: string
   ): Promise<string> => {
     try {
-      const possibleDocIds =
-        new Set<string>();
+      /*
+       * IMPORTANT:
+       * Do not choose the highest duplicate studentPoints
+       * document. The points document must belong to the
+       * same student document used for the student profile.
+       */
 
-      possibleDocIds.add(authUid);
+      let pointsDocumentId = authUid;
 
       try {
         const studentUidQuery =
@@ -250,13 +253,33 @@ export default function StudentDashboard() {
             studentUidQuery
           );
 
-        studentUidSnap.docs.forEach(
-          (studentDoc) => {
-            possibleDocIds.add(
-              studentDoc.id
-            );
-          }
-        );
+        /*
+         * Prefer the complete student profile document.
+         * This prevents an incomplete duplicate record from
+         * being used just because it appears first.
+         */
+        const completeStudentDoc =
+          studentUidSnap.docs.find(
+            (studentDoc) => {
+              const data =
+                studentDoc.data();
+
+              return Boolean(
+                data.fullName &&
+                data.cardNumber
+              );
+            }
+          );
+
+        if (completeStudentDoc) {
+          pointsDocumentId =
+            completeStudentDoc.id;
+        } else if (
+          studentUidSnap.docs.length > 0
+        ) {
+          pointsDocumentId =
+            studentUidSnap.docs[0].id;
+        }
       } catch (
         studentLookupError
       ) {
@@ -266,60 +289,25 @@ export default function StudentDashboard() {
         );
       }
 
-      let bestPoints = 0;
-      let bestDocId = authUid;
+      const pointsSnap =
+        await getDoc(
+          doc(
+            db,
+            "studentPoints",
+            pointsDocumentId
+          )
+        );
 
-      for (
-        const pointsDocId of possibleDocIds
-      ) {
-        try {
-          const pointsSnap =
-            await getDoc(
-              doc(
-                db,
-                "studentPoints",
-                pointsDocId
-              )
-            );
-
-          if (
-            pointsSnap.exists()
-          ) {
-            const storedPoints =
-              Number(
-                pointsSnap.data()
-                  .totalPoints || 0
-              );
-
-            if (
-              storedPoints >=
-              bestPoints
-            ) {
-              bestPoints =
-                storedPoints;
-
-              bestDocId =
-                pointsDocId;
-            }
-
-            console.log(
-              "⭐ studentPoints document found:",
-              pointsDocId,
-              storedPoints
-            );
-          }
-        } catch (
-          singlePointsError
-        ) {
-          console.error(
-            `Unable to read studentPoints/${pointsDocId}:`,
-            singlePointsError
-          );
-        }
-      }
+      const storedPoints =
+        pointsSnap.exists()
+          ? Number(
+              pointsSnap.data()
+                .totalPoints || 0
+            )
+          : 0;
 
       setTotalPoints(
-        bestPoints
+        storedPoints
       );
 
       setStudent(
@@ -330,7 +318,7 @@ export default function StudentDashboard() {
 
           const updated = {
             ...current,
-            points: bestPoints,
+            points: storedPoints,
           };
 
           saveStudentToCache(
@@ -346,13 +334,13 @@ export default function StudentDashboard() {
         {
           authUid,
           pointsDocument:
-            bestDocId,
+            pointsDocumentId,
           totalPoints:
-            bestPoints,
+            storedPoints,
         }
       );
 
-      return bestDocId;
+      return pointsDocumentId;
     } catch (error) {
       console.error(
         "Student points load error:",
@@ -409,22 +397,36 @@ export default function StudentDashboard() {
         const data =
           snap.data();
 
-        const studentData =
-          buildStudentData(
-            data,
-            uid,
-            email
+        /*
+         * If a duplicate document exists at students/{uid}
+         * but does not contain the actual student profile,
+         * continue to the UID-field lookup below.
+         */
+        if (
+          data.fullName &&
+          data.cardNumber
+        ) {
+          const studentData =
+            buildStudentData(
+              data,
+              uid,
+              email
+            );
+
+          console.log(
+            "✅ STUDENT FOUND BY DOCUMENT ID"
           );
 
-        console.log(
-          "✅ STUDENT FOUND BY DOCUMENT ID"
-        );
+          applyStudent(
+            studentData
+          );
 
-        applyStudent(
-          studentData
-        );
+          return true;
+        }
 
-        return true;
+        console.warn(
+          "⚠️ Direct student document is incomplete. Continuing with UID-field lookup."
+        );
       }
     } catch (error) {
       console.error(
@@ -471,7 +473,17 @@ export default function StudentDashboard() {
         !uidSnap.empty
       ) {
         const studentDoc =
-          uidSnap.docs[0];
+          uidSnap.docs.find(
+            (doc) => {
+              const data =
+                doc.data();
+
+              return Boolean(
+                data.fullName &&
+                data.cardNumber
+              );
+            }
+          ) || uidSnap.docs[0];
 
         const data =
           studentDoc.data();
