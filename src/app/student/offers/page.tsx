@@ -1171,20 +1171,54 @@ export default function StudentOffers() {
         const businessData =
           businessDoc.data();
 
+        /*
+         * IMPORTANT SBC ID RULE
+         * ---------------------
+         * Firebase business document ID is the Auth UID.
+         * The actual SBC Business ID is stored inside
+         * businesses.businessId (for example SBC-BIZ-44053).
+         *
+         * Never compare the entered SBC Business ID with
+         * businessDoc.id because that is the Firebase UID.
+         */
         const actualBusinessId =
-          businessDoc.id;
+          String(
+            businessData.businessId ||
+            ""
+          ).trim();
+
+        const expectedBusinessId =
+          String(
+            selectedOffer.businessId ||
+            ""
+          ).trim();
 
         if (
-          actualBusinessId !==
-          selectedOffer.businessId
+          !actualBusinessId ||
+          actualBusinessId.toUpperCase() !==
+            cleanBusinessId.toUpperCase()
         ) {
-
           setVerifiedBusiness(
             null
           );
 
           setVerificationError(
-            `❌ This Business QR/ID belongs to "${businessData.businessName || "another business"}", not "${selectedOffer.businessName || "this offer's business"}".`
+            `❌ This Business ID belongs to "${businessData.businessName || "another business"}", but this offer belongs to "${selectedOffer.businessName || "another business"}".`
+          );
+
+          return;
+        }
+
+        if (
+          actualBusinessId.toUpperCase() !==
+          expectedBusinessId.toUpperCase()
+        ) {
+          setVerifiedBusiness(
+            null
+          );
+
+          setVerificationError(
+            "❌ This Business ID does not match the selected offer."
           );
 
           return;
@@ -1200,16 +1234,71 @@ export default function StudentOffers() {
             "SBC Partner Business",
         });
 
-      } catch (error) {
+      } catch (error: any) {
 
         console.error(
           "Business verification error:",
           error
         );
 
-        setVerificationError(
-          "❌ Unable to verify business. Please try again."
-        );
+        /*
+         * FALLBACK
+         * --------
+         * Some Firebase rules allow the student to read offers
+         * but do not allow a collection query on businesses.
+         * In that case, the selected offer already contains the
+         * authoritative SBC Business ID. If the entered/scanned
+         * ID exactly matches the offer's businessId, allow the
+         * verification to continue instead of blocking the user
+         * with a generic Firestore error.
+         *
+         * This fallback does NOT accept another business ID.
+         */
+        const fallbackBusinessId =
+          String(
+            selectedOffer.businessId ||
+            ""
+          ).trim();
+
+        if (
+          fallbackBusinessId &&
+          fallbackBusinessId.toUpperCase() ===
+            cleanBusinessId.toUpperCase()
+        ) {
+          setVerifiedBusiness({
+            businessId:
+              fallbackBusinessId,
+
+            businessName:
+              selectedOffer.businessName ||
+              "SBC Partner Business",
+          });
+
+          setVerificationError(
+            ""
+          );
+
+          return;
+        }
+
+        const firebaseCode =
+          String(
+            error?.code ||
+            ""
+          );
+
+        if (
+          firebaseCode ===
+          "permission-denied"
+        ) {
+          setVerificationError(
+            "❌ Business verification is blocked by Firebase permissions. Please contact SBC Admin."
+          );
+        } else {
+          setVerificationError(
+            `❌ Unable to verify business. Please try again. ${firebaseCode ? `(${firebaseCode})` : ""}`.trim()
+          );
+        }
 
       } finally {
 
@@ -1378,9 +1467,23 @@ export default function StudentOffers() {
         return;
       }
 
+      const verifiedBusinessId =
+        String(
+          verifiedBusiness.businessId ||
+          ""
+        ).trim();
+
+      const offerBusinessId =
+        String(
+          selectedOffer.businessId ||
+          ""
+        ).trim();
+
       if (
-        verifiedBusiness.businessId !==
-        selectedOffer.businessId
+        !verifiedBusinessId ||
+        !offerBusinessId ||
+        verifiedBusinessId.toUpperCase() !==
+          offerBusinessId.toUpperCase()
       ) {
 
         alert(
@@ -1507,13 +1610,13 @@ export default function StudentOffers() {
               studentCardNumber,
 
               businessId:
-                selectedOffer.businessId,
+                verifiedBusinessId,
 
               businessName:
                 verifiedBusiness.businessName,
 
               businessVerificationId:
-                verifiedBusiness.businessId,
+                verifiedBusinessId,
 
               offerId:
                 selectedOffer.id,
