@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,6 +23,7 @@ import {
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 
 import QRCode from "qrcode";
@@ -95,7 +95,7 @@ export default function BusinessDashboard() {
     offerTitle: string;
     discount: string;
     pointsAwarded: number;
-    totalPoints: number;
+    totalPoints: number | null;
   } | null>(null);
 
   /*
@@ -872,11 +872,25 @@ export default function BusinessDashboard() {
           );
 
         /*
-         * Student document.
+         * ========================================
+         * STUDENT REWARD POINTS
+         * ========================================
          *
-         * request.studentId is the Firestore students
-         * document ID used by the redemption request.
+         * IMPORTANT:
+         *
+         * A business must NOT read students/{studentId}
+         * or studentPoints/{studentId}.
+         *
+         * Firebase rules intentionally keep the student's
+         * private profile/points unreadable by businesses.
+         *
+         * Therefore this approval transaction uses
+         * Firestore increment() for the points update.
+         *
+         * This removes the permission-denied error caused by
+         * transaction.get(students/{studentId}).
          */
+
         const studentRef =
           doc(
             db,
@@ -884,13 +898,6 @@ export default function BusinessDashboard() {
             request.studentId
           );
 
-        /*
-         * Cumulative student points document.
-         *
-         * Keep this in sync with students/{studentId}
-         * because the Student Dashboard reads the
-         * cumulative total from this document.
-         */
         const studentPointsRef =
           doc(
             db,
@@ -957,8 +964,19 @@ export default function BusinessDashboard() {
         let pointsAwarded =
           0;
 
-        let newStudentPoints =
-          0;
+        /*
+         * We cannot read the student's cumulative
+         * points from a business account.
+         *
+         * The actual total is calculated atomically
+         * by Firestore using increment().
+         *
+         * Keep null here so the success popup never
+         * displays a fake or stale total.
+         */
+        let newStudentPoints:
+          number | null =
+          null;
 
         /*
          * ========================================
@@ -973,8 +991,15 @@ export default function BusinessDashboard() {
           ) => {
             /*
              * ======================================
-             * ALL READS FIRST
+             * ALL TRANSACTION READS FIRST
              * ======================================
+             *
+             * DO NOT READ:
+             *
+             * students/{studentId}
+             * studentPoints/{studentId}
+             *
+             * Both are private to the student/admin.
              */
 
             const requestSnap =
@@ -990,11 +1015,6 @@ export default function BusinessDashboard() {
             const offerSnap =
               await transaction.get(
                 offerRef
-              );
-
-            const studentSnap =
-              await transaction.get(
-                studentRef
               );
 
             /*
@@ -1120,17 +1140,11 @@ export default function BusinessDashboard() {
              * ======================================
              *
              * There is NO 4-use blocking limit.
-             * We only keep the cumulative usage count
-             * so the business/student can see:
-             *
-             * Used 1 time
-             * Used 2 times
-             * Used 3 times
-             * ...
              *
              * The count is business + student based,
              * not offer based.
              */
+
             finalUsageCount =
               currentUsageCount + 1;
 
@@ -1147,42 +1161,27 @@ export default function BusinessDashboard() {
              * This continues forever because usage is
              * unlimited. There is NO 4-use cutoff.
              */
-            if (finalUsageCount === 1) {
-              pointsAwarded = 20;
-            } else if (finalUsageCount === 2) {
-              pointsAwarded = 10;
+
+            if (
+              finalUsageCount ===
+              1
+            ) {
+              pointsAwarded =
+                20;
+            } else if (
+              finalUsageCount ===
+              2
+            ) {
+              pointsAwarded =
+                10;
             } else {
-              pointsAwarded = 5;
+              pointsAwarded =
+                5;
             }
 
             /*
-             * Calculate the next cumulative total from the
-             * student profile document.
-             *
-             * IMPORTANT:
-             * Do NOT read studentPoints/{studentId} here.
-             * Business accounts are not allowed to read that
-             * private collection, and the approval transaction
-             * was failing with permission-denied.
-             *
-             * The student profile is already readable for the
-             * business approval flow and remains the source for
-             * the current cumulative total.
-             */
-            const currentStudentPoints =
-              studentSnap.exists()
-                ? Number(
-                    studentSnap.data().points || 0
-                  )
-                : 0;
-
-            newStudentPoints =
-              currentStudentPoints +
-              pointsAwarded;
-
-            /*
              * ======================================
-             * UPDATE USAGE
+             * UPDATE BUSINESS + STUDENT USAGE
              * ======================================
              */
 
@@ -1201,6 +1200,7 @@ export default function BusinessDashboard() {
 
                 maxAllowed:
                   null,
+
                 unlimited:
                   true,
 
@@ -1215,21 +1215,33 @@ export default function BusinessDashboard() {
 
             /*
              * ======================================
-             * UPDATE STUDENT POINTS
+             * UPDATE STUDENT PROFILE POINTS
              * ======================================
              *
-             * Keep BOTH documents synchronized.
-             * This prevents the Student Dashboard from
-             * showing 0 or an old total.
+             * IMPORTANT:
+             *
+             * No transaction.get(studentRef).
+             *
+             * Firestore increment() updates the existing
+             * value atomically without exposing the current
+             * value to the business account.
+             *
+             * The security rule permits only these reward
+             * fields to be changed by the approving business.
              */
+
             transaction.set(
               studentRef,
               {
                 points:
-                  newStudentPoints,
+                  increment(
+                    pointsAwarded
+                  ),
 
                 totalPointsEarned:
-                  newStudentPoints,
+                  increment(
+                    pointsAwarded
+                  ),
 
                 lastPointsEarned:
                   pointsAwarded,
@@ -1255,6 +1267,16 @@ export default function BusinessDashboard() {
               }
             );
 
+            /*
+             * ======================================
+             * UPDATE STUDENT POINTS DOCUMENT
+             * ======================================
+             *
+             * This is also write-only from the business
+             * side. Firestore atomically increments the
+             * student's existing totalPoints.
+             */
+
             transaction.set(
               studentPointsRef,
               {
@@ -1262,7 +1284,9 @@ export default function BusinessDashboard() {
                   request.studentId,
 
                 totalPoints:
-                  newStudentPoints,
+                  increment(
+                    pointsAwarded
+                  ),
 
                 lastPointsEarned:
                   pointsAwarded,
@@ -1327,6 +1351,7 @@ export default function BusinessDashboard() {
 
                 discount:
                   requestData.discount ||
+                  requestData.offerDiscount ||
                   offerData.discount ||
                   "",
 
@@ -1339,8 +1364,13 @@ export default function BusinessDashboard() {
                 redemptionNumber:
                   finalUsageCount,
 
+                /*
+                 * The exact cumulative total is private
+                 * and is updated atomically by Firestore.
+                 * Do not write a guessed value here.
+                 */
                 studentPointsAfterRedemption:
-                  newStudentPoints,
+                  null,
 
                 redeemedAt:
                   serverTimestamp(),
@@ -1378,8 +1408,14 @@ export default function BusinessDashboard() {
                 pointsAwarded:
                   pointsAwarded,
 
+                /*
+                 * The student dashboard reads the actual
+                 * cumulative points from its private points
+                 * document. The business does not need to
+                 * read that private value.
+                 */
                 studentPointsAfterRedemption:
-                  newStudentPoints,
+                  null,
               }
             );
           }
@@ -1405,19 +1441,28 @@ export default function BusinessDashboard() {
          * ========================================
          * SUCCESS MESSAGE
          * ========================================
+         *
+         * We intentionally do not show a cumulative
+         * total here because the business account is not
+         * allowed to read the student's private points.
          */
 
         setSuccessRedemption({
           businessName:
             request.businessName ||
             businessName,
+
           offerTitle:
             request.offerTitle ||
             "SBC Offer",
+
           discount:
             request.discount ||
+            (request as any).offerDiscount ||
             "",
+
           pointsAwarded,
+
           totalPoints:
             newStudentPoints,
         });
@@ -1468,6 +1513,13 @@ export default function BusinessDashboard() {
         ) {
           alert(
             "❌ This offer does not belong to your business."
+          );
+        } else if (
+          error?.code ===
+          "permission-denied"
+        ) {
+          alert(
+            "❌ Permission denied while approving redemption. Please refresh and try again."
           );
         } else {
           alert(
@@ -2084,9 +2136,11 @@ export default function BusinessDashboard() {
                 <p className="mt-1 text-3xl font-black text-purple-700">
                   +{successRedemption.pointsAwarded}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-gray-500">
-                  Total Student Points: {successRedemption.totalPoints}
-                </p>
+                {successRedemption.totalPoints !== null && (
+                  <p className="mt-1 text-xs font-semibold text-gray-500">
+                    Total Student Points: {successRedemption.totalPoints}
+                  </p>
+                )}
               </div>
 
               <p className="mt-3 text-xs font-semibold text-gray-400">
