@@ -33,38 +33,7 @@ service cloud.firestore {
     // =========================
     match /students/{studentId} {
       allow create: if signedIn();
-
-      // Student/admin can read normally.
-      allow read: if isStudent(studentId) || isAdmin();
-
-      // Student/admin can update normally.
-      // A business may update ONLY the reward fields as part of
-      // an approved redemption transaction. The redemption itself
-      // must be created in the same atomic transaction.
-      allow update: if isAdmin()
-        || isStudent(studentId)
-        || (
-          signedIn() &&
-          request.resource.data.lastPointsBusinessId == request.auth.uid &&
-          request.resource.data.lastPointsRedemptionId != null &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.studentId == studentId &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.businessId == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "points",
-            "totalPointsEarned",
-            "lastPointsEarned",
-            "lastPointsEarnedAt",
-            "lastPointsBusinessId",
-            "lastPointsBusinessName",
-            "lastPointsRedemptionId",
-            "updatedAt"
-          ])
-        );
-
+      allow read, update: if isStudent(studentId) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -72,13 +41,8 @@ service cloud.firestore {
     // BUSINESSES
     // =========================
     match /businesses/{businessId} {
-      // Needed for SBC Business ID / QR verification.
-      allow read: if signedIn();
-
       allow create: if signedIn();
-
-      allow update: if isBusiness(businessId) || isAdmin();
-
+      allow read, update: if isBusiness(businessId) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -94,19 +58,24 @@ service cloud.firestore {
     // OFFERS
     // =========================
     match /offers/{offerId} {
+
+      // Students & Businesses can read offers
       allow read: if signedIn();
 
+      // Business creates only its own offer
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
 
-      allow update: if isAdmin()
-        || (
+      // Business updates only its own offer
+      allow update: if isAdmin() ||
+        (
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
 
-      allow delete: if isAdmin()
-        || (
+      // Business deletes only its own offer
+      allow delete: if isAdmin() ||
+        (
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
@@ -116,33 +85,20 @@ service cloud.firestore {
     // BUSINESS STUDENT USAGE
     // =========================
     match /businessStudentUsage/{usageId} {
-
-      // usageId format:
-      // {businessAuthUid}_{studentId}
-      //
-      // Business can read only its own usage documents.
       allow read: if isAdmin()
         || (
           signedIn() &&
-          usageId.matches('^' + request.auth.uid + '_.*$')
+          resource.data.studentId == request.auth.uid
         )
         || (
           signedIn() &&
-          resource.data.studentId == request.auth.uid
+          resource.data.businessId == request.auth.uid
         );
 
-      allow create: if isAdmin()
+      allow create, update: if isAdmin()
         || (
           signedIn() &&
-          request.resource.data.businessId == request.auth.uid &&
-          usageId.matches('^' + request.auth.uid + '_.*$')
-        );
-
-      allow update: if isAdmin()
-        || (
-          signedIn() &&
-          request.resource.data.businessId == request.auth.uid &&
-          usageId.matches('^' + request.auth.uid + '_.*$')
+          request.resource.data.businessId == request.auth.uid
         );
 
       allow delete: if isAdmin();
@@ -152,48 +108,13 @@ service cloud.firestore {
     // STUDENT POINTS
     // =========================
     match /studentPoints/{studentId} {
-      // Only the student/admin can read cumulative points.
-      // Business approval does NOT need to read this document.
       allow read: if isAdmin() || isStudent(studentId);
 
-      allow create: if isAdmin()
-        || isStudent(studentId)
+      allow create, update: if isAdmin()
         || (
           signedIn() &&
           request.resource.data.studentId == studentId &&
-          request.resource.data.lastPointsBusinessId == request.auth.uid &&
-          request.resource.data.lastPointsRedemptionId != null &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.studentId == studentId &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.businessId == request.auth.uid
-        );
-
-      allow update: if isAdmin()
-        || isStudent(studentId)
-        || (
-          signedIn() &&
-          request.resource.data.studentId == studentId &&
-          request.resource.data.lastPointsBusinessId == request.auth.uid &&
-          request.resource.data.lastPointsRedemptionId != null &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.studentId == studentId &&
-          getAfter(
-            /databases/$(database)/documents/redemptions/$(request.resource.data.lastPointsRedemptionId)
-          ).data.businessId == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            "studentId",
-            "totalPoints",
-            "pointsAwarded",
-            "lastPointsEarned",
-            "lastPointsBusinessId",
-            "lastPointsBusinessName",
-            "lastPointsRedemptionId",
-            "updatedAt"
-          ])
+          request.resource.data.lastPointsBusinessId == request.auth.uid
         );
 
       allow delete: if isAdmin();
@@ -229,20 +150,12 @@ service cloud.firestore {
     // REDEMPTIONS
     // =========================
     match /redemptions/{redeemId} {
-      allow create: if signedIn()
-        && request.resource.data.businessId == request.auth.uid
-        && request.resource.data.requestId != null
-        && getAfter(
-          /databases/$(database)/documents/redemptionRequests/$(request.resource.data.requestId)
-        ).data.businessId == request.auth.uid
-        && getAfter(
-          /databases/$(database)/documents/redemptionRequests/$(request.resource.data.requestId)
-        ).data.status == "approved"
-        && request.resource.data.studentId ==
-          getAfter(
-            /databases/$(database)/documents/redemptionRequests/$(request.resource.data.requestId)
-          ).data.studentId;
 
+      // Business creates redemption
+      allow create: if signedIn()
+        && request.resource.data.businessId == request.auth.uid;
+
+      // Student sees only own history
       allow read: if isAdmin()
         || (
           signedIn() &&
