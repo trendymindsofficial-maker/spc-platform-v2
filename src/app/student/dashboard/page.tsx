@@ -142,6 +142,23 @@ export default function StudentDashboard() {
         return null;
       }
 
+      // Never restore an incomplete/legacy cache as the active student.
+      // A stale cache can otherwise overwrite a valid Firestore profile.
+      if (
+        !parsed.fullName ||
+        !parsed.cardNumber
+      ) {
+        console.warn(
+          "Ignoring incomplete cached student profile."
+        );
+
+        sessionStorage.removeItem(
+          getCacheKey(uid)
+        );
+
+        return null;
+      }
+
       return parsed;
     } catch (error) {
       console.error(
@@ -409,22 +426,39 @@ export default function StudentDashboard() {
         const data =
           snap.data();
 
-        const studentData =
-          buildStudentData(
-            data,
-            uid,
-            email
+        // Ignore an incomplete legacy students/{uid} document.
+        // Continue to the uid/email lookup so a complete student
+        // profile cannot be overwritten by an empty record.
+        const hasUsableProfile =
+          Boolean(
+            data.fullName &&
+            data.cardNumber
           );
 
-        console.log(
-          "✅ STUDENT FOUND BY DOCUMENT ID"
-        );
+        if (
+          hasUsableProfile
+        ) {
+          const studentData =
+            buildStudentData(
+              data,
+              uid,
+              email
+            );
 
-        applyStudent(
-          studentData
-        );
+          console.log(
+            "✅ STUDENT FOUND BY DOCUMENT ID"
+          );
 
-        return true;
+          applyStudent(
+            studentData
+          );
+
+          return true;
+        }
+
+        console.warn(
+          "⚠️ students/{uid} exists but is incomplete. Continuing with UID/email lookup."
+        );
       }
     } catch (error) {
       console.error(
@@ -479,7 +513,7 @@ export default function StudentDashboard() {
         const studentData =
           buildStudentData(
             data,
-            studentDoc.id,
+            uid,
             email
           );
 
@@ -569,7 +603,7 @@ export default function StudentDashboard() {
           const studentData =
             buildStudentData(
               data,
-              studentDoc.id,
+              uid,
               email
             );
 
