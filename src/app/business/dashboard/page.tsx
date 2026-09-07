@@ -992,12 +992,9 @@ export default function BusinessDashboard() {
                 offerRef
               );
 
-            // Student profile is intentionally not read during approval.
-            // Business approval uses request data + studentPoints only.
-
-            const studentPointsSnap =
+            const studentSnap =
               await transaction.get(
-                studentPointsRef
+                studentRef
               );
 
             /*
@@ -1159,20 +1156,25 @@ export default function BusinessDashboard() {
             }
 
             /*
-             * Read the highest existing cumulative total
-             * from either points location so an older
-             * data format can never reset the student's
-             * points.
+             * Calculate the next cumulative total from the
+             * student profile document.
+             *
+             * IMPORTANT:
+             * Do NOT read studentPoints/{studentId} here.
+             * Business accounts are not allowed to read that
+             * private collection, and the approval transaction
+             * was failing with permission-denied.
+             *
+             * The student profile is already readable for the
+             * business approval flow and remains the source for
+             * the current cumulative total.
              */
-            const studentPointsDocumentTotal =
-              studentPointsSnap.exists()
+            const currentStudentPoints =
+              studentSnap.exists()
                 ? Number(
-                    studentPointsSnap.data().totalPoints || 0
+                    studentSnap.data().points || 0
                   )
                 : 0;
-
-            const currentStudentPoints =
-              studentPointsDocumentTotal;
 
             newStudentPoints =
               currentStudentPoints +
@@ -1213,19 +1215,45 @@ export default function BusinessDashboard() {
 
             /*
              * ======================================
-             * STUDENT PROFILE UPDATE REMOVED
+             * UPDATE STUDENT POINTS
              * ======================================
              *
-             * Do not write to students/{studentId} from the
-             * business approval transaction. The business account
-             * is not permitted to update the student profile.
-             *
-             * Student profile fields remain untouched.
-             * The cumulative reward total is maintained in
-             * studentPoints, which is the Student Dashboard source.
-             *
-             * This is a permission-only fix. No UI is changed.
+             * Keep BOTH documents synchronized.
+             * This prevents the Student Dashboard from
+             * showing 0 or an old total.
              */
+            transaction.set(
+              studentRef,
+              {
+                points:
+                  newStudentPoints,
+
+                totalPointsEarned:
+                  newStudentPoints,
+
+                lastPointsEarned:
+                  pointsAwarded,
+
+                lastPointsEarnedAt:
+                  serverTimestamp(),
+
+                lastPointsBusinessId:
+                  businessUser.uid,
+
+                lastPointsBusinessName:
+                  requestData.businessName ||
+                  businessName,
+
+                lastPointsRedemptionId:
+                  redemptionRef.id,
+
+                updatedAt:
+                  serverTimestamp(),
+              },
+              {
+                merge: true,
+              }
+            );
 
             transaction.set(
               studentPointsRef,
