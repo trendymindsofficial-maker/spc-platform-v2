@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -991,10 +992,8 @@ export default function BusinessDashboard() {
                 offerRef
               );
 
-            const studentSnap =
-              await transaction.get(
-                studentRef
-              );
+            // Student profile is intentionally not read during approval.
+            // Business approval uses request data + studentPoints only.
 
             const studentPointsSnap =
               await transaction.get(
@@ -1165,13 +1164,6 @@ export default function BusinessDashboard() {
              * data format can never reset the student's
              * points.
              */
-            const studentDocumentPoints =
-              studentSnap.exists()
-                ? Number(
-                    studentSnap.data().points || 0
-                  )
-                : 0;
-
             const studentPointsDocumentTotal =
               studentPointsSnap.exists()
                 ? Number(
@@ -1180,10 +1172,7 @@ export default function BusinessDashboard() {
                 : 0;
 
             const currentStudentPoints =
-              Math.max(
-                studentDocumentPoints,
-                studentPointsDocumentTotal
-              );
+              studentPointsDocumentTotal;
 
             newStudentPoints =
               currentStudentPoints +
@@ -1224,45 +1213,19 @@ export default function BusinessDashboard() {
 
             /*
              * ======================================
-             * UPDATE STUDENT POINTS
+             * STUDENT PROFILE UPDATE REMOVED
              * ======================================
              *
-             * Keep BOTH documents synchronized.
-             * This prevents the Student Dashboard from
-             * showing 0 or an old total.
+             * Do not write to students/{studentId} from the
+             * business approval transaction. The business account
+             * is not permitted to update the student profile.
+             *
+             * Student profile fields remain untouched.
+             * The cumulative reward total is maintained in
+             * studentPoints, which is the Student Dashboard source.
+             *
+             * This is a permission-only fix. No UI is changed.
              */
-            transaction.set(
-              studentRef,
-              {
-                points:
-                  newStudentPoints,
-
-                totalPointsEarned:
-                  newStudentPoints,
-
-                lastPointsEarned:
-                  pointsAwarded,
-
-                lastPointsEarnedAt:
-                  serverTimestamp(),
-
-                lastPointsBusinessId:
-                  businessUser.uid,
-
-                lastPointsBusinessName:
-                  requestData.businessName ||
-                  businessName,
-
-                lastPointsRedemptionId:
-                  redemptionRef.id,
-
-                updatedAt:
-                  serverTimestamp(),
-              },
-              {
-                merge: true,
-              }
-            );
 
             transaction.set(
               studentPointsRef,

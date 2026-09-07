@@ -28,14 +28,38 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // =========================
-    // STUDENTS
-    // =========================
-    match /students/{studentId} {
-      allow create: if signedIn();
-      allow read, update: if isStudent(studentId) || isAdmin();
-      allow delete: if isAdmin();
-    }
+    /// =========================
+// STUDENTS
+// =========================
+match /students/{studentId} {
+
+  // Student can create their own profile
+  allow create: if signedIn();
+
+  // Student/Admin can read
+  // Business can update ONLY reward-point fields
+  allow read: if isStudent(studentId) || isAdmin();
+
+  allow update: if isStudent(studentId)
+    || isAdmin()
+    || (
+      signedIn() &&
+      isBusiness(request.auth.uid) &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        "points",
+        "totalPointsEarned",
+        "lastPointsEarned",
+        "lastPointsEarnedAt",
+        "lastPointsBusinessId",
+        "lastPointsBusinessName",
+        "lastPointsRedemptionId",
+        "updatedAt"
+      ]) &&
+      request.resource.data.lastPointsBusinessId == request.auth.uid
+    );
+
+  allow delete: if isAdmin();
+}
 
     match /businesses/{businessId} {
   // Students need to read business details
