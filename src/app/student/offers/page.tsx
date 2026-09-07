@@ -38,7 +38,13 @@ interface Offer {
 }
 
 interface BusinessInfo {
+  // Firebase Auth UID / businesses document ID.
+  // This is the identifier used by offers and redemptionRequests.
   businessId: string;
+
+  // Public SBC Business ID shown on the QR/manual verification UI.
+  sbcBusinessId: string;
+
   businessName: string;
 }
 
@@ -1098,12 +1104,12 @@ export default function StudentOffers() {
 
       const cleanBusinessId =
         enteredBusinessId
-          .trim();
+          .trim()
+          .toUpperCase();
 
       if (
         !cleanBusinessId
       ) {
-
         setVerificationError(
           "Please enter a Business ID."
         );
@@ -1114,7 +1120,6 @@ export default function StudentOffers() {
       if (
         !selectedOffer.businessId
       ) {
-
         setVerificationError(
           "Offer business information is missing."
         );
@@ -1132,6 +1137,19 @@ export default function StudentOffers() {
           ""
         );
 
+        /*
+         * IMPORTANT SBC ID ARCHITECTURE
+         * -----------------------------
+         * businesses/{documentId} uses the Firebase Auth UID.
+         * businesses.businessId contains the public SBC ID, e.g.
+         * SBC-BIZ-44053.
+         *
+         * offers.businessId stores the Firebase Auth UID.
+         * redemptionRequests.businessId also stores the Firebase Auth UID.
+         *
+         * Therefore: enter/scan SBC ID -> find business document ->
+         * compare businessDoc.id with selectedOffer.businessId.
+         */
         const businessQuery =
           query(
             collection(
@@ -1153,7 +1171,6 @@ export default function StudentOffers() {
         if (
           businessSnap.empty
         ) {
-
           setVerifiedBusiness(
             null
           );
@@ -1171,62 +1188,79 @@ export default function StudentOffers() {
         const businessData =
           businessDoc.data();
 
-        /*
-         * IMPORTANT SBC ID RULE
-         * ---------------------
-         * Firebase business document ID is the Auth UID.
-         * The actual SBC Business ID is stored inside
-         * businesses.businessId (for example SBC-BIZ-44053).
-         *
-         * Never compare the entered SBC Business ID with
-         * businessDoc.id because that is the Firebase UID.
-         */
-        const actualBusinessId =
+        const sbcBusinessId =
           String(
             businessData.businessId ||
             ""
           ).trim();
 
-        const expectedBusinessId =
+        const businessAuthUid =
+          businessDoc.id;
+
+        if (
+          !sbcBusinessId
+        ) {
+          setVerifiedBusiness(
+            null
+          );
+
+          setVerificationError(
+            "❌ This business does not have a valid SBC Business ID."
+          );
+
+          return;
+        }
+
+        /*
+         * First verify the entered public SBC Business ID.
+         */
+        if (
+          sbcBusinessId.toUpperCase() !==
+          cleanBusinessId
+        ) {
+          setVerifiedBusiness(
+            null
+          );
+
+          setVerificationError(
+            "❌ Business ID verification failed. Please check the ID and try again."
+          );
+
+          return;
+        }
+
+        /*
+         * Then verify that this business owns the selected offer.
+         * selectedOffer.businessId is the Firebase Auth UID.
+         */
+        const offerBusinessUid =
           String(
             selectedOffer.businessId ||
             ""
           ).trim();
 
         if (
-          !actualBusinessId ||
-          actualBusinessId.toUpperCase() !==
-            cleanBusinessId.toUpperCase()
+          businessAuthUid !==
+          offerBusinessUid
         ) {
           setVerifiedBusiness(
             null
           );
 
           setVerificationError(
-            `❌ This Business ID belongs to "${businessData.businessName || "another business"}", but this offer belongs to "${selectedOffer.businessName || "another business"}".`
-          );
-
-          return;
-        }
-
-        if (
-          actualBusinessId.toUpperCase() !==
-          expectedBusinessId.toUpperCase()
-        ) {
-          setVerifiedBusiness(
-            null
-          );
-
-          setVerificationError(
-            "❌ This Business ID does not match the selected offer."
+            `❌ This Business ID belongs to "${businessData.businessName || "another business"}", but the selected offer belongs to "${selectedOffer.businessName || "another business"}".`
           );
 
           return;
         }
 
         setVerifiedBusiness({
+          // Internal ID used by offers/redemptionRequests.
           businessId:
-            actualBusinessId,
+            businessAuthUid,
+
+          // Public ID shown to the student.
+          sbcBusinessId,
 
           businessName:
             businessData.businessName ||
@@ -1241,46 +1275,6 @@ export default function StudentOffers() {
           error
         );
 
-        /*
-         * FALLBACK
-         * --------
-         * Some Firebase rules allow the student to read offers
-         * but do not allow a collection query on businesses.
-         * In that case, the selected offer already contains the
-         * authoritative SBC Business ID. If the entered/scanned
-         * ID exactly matches the offer's businessId, allow the
-         * verification to continue instead of blocking the user
-         * with a generic Firestore error.
-         *
-         * This fallback does NOT accept another business ID.
-         */
-        const fallbackBusinessId =
-          String(
-            selectedOffer.businessId ||
-            ""
-          ).trim();
-
-        if (
-          fallbackBusinessId &&
-          fallbackBusinessId.toUpperCase() ===
-            cleanBusinessId.toUpperCase()
-        ) {
-          setVerifiedBusiness({
-            businessId:
-              fallbackBusinessId,
-
-            businessName:
-              selectedOffer.businessName ||
-              "SBC Partner Business",
-          });
-
-          setVerificationError(
-            ""
-          );
-
-          return;
-        }
-
         const firebaseCode =
           String(
             error?.code ||
@@ -1292,7 +1286,7 @@ export default function StudentOffers() {
           "permission-denied"
         ) {
           setVerificationError(
-            "❌ Business verification is blocked by Firebase permissions. Please contact SBC Admin."
+            "❌ Business verification is blocked by Firebase permissions. Please deploy the updated Firestore rules."
           );
         } else {
           setVerificationError(
@@ -1307,7 +1301,6 @@ export default function StudentOffers() {
         );
 
       }
-
     };
 
   /*
@@ -1467,23 +1460,23 @@ export default function StudentOffers() {
         return;
       }
 
-      const verifiedBusinessId =
+      const verifiedBusinessAuthUid =
         String(
           verifiedBusiness.businessId ||
           ""
         ).trim();
 
-      const offerBusinessId =
+      const offerBusinessAuthUid =
         String(
           selectedOffer.businessId ||
           ""
         ).trim();
 
       if (
-        !verifiedBusinessId ||
-        !offerBusinessId ||
-        verifiedBusinessId.toUpperCase() !==
-          offerBusinessId.toUpperCase()
+        !verifiedBusinessAuthUid ||
+        !offerBusinessAuthUid ||
+        verifiedBusinessAuthUid !==
+          offerBusinessAuthUid
       ) {
 
         alert(
@@ -1609,14 +1602,16 @@ export default function StudentOffers() {
 
               studentCardNumber,
 
+              // Offers and business dashboard use the Firebase Auth UID.
               businessId:
-                verifiedBusinessId,
+                verifiedBusinessAuthUid,
 
               businessName:
                 verifiedBusiness.businessName,
 
+              // Keep the public SBC Business ID for audit/display.
               businessVerificationId:
-                verifiedBusinessId,
+                verifiedBusiness.sbcBusinessId,
 
               offerId:
                 selectedOffer.id,
@@ -2295,7 +2290,7 @@ export default function StudentOffers() {
 
                     <p className="mt-1 text-sm text-green-700">
                       Business ID:{" "}
-                      {verifiedBusiness.businessId}
+                      {verifiedBusiness.sbcBusinessId}
                     </p>
 
                   </div>
