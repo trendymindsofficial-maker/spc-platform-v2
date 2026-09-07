@@ -250,13 +250,13 @@ export default function StudentDashboard() {
             studentUidQuery
           );
 
-        if (
-          !studentUidSnap.empty
-        ) {
-          possibleDocIds.add(
-            studentUidSnap.docs[0].id
-          );
-        }
+        studentUidSnap.docs.forEach(
+          (studentDoc) => {
+            possibleDocIds.add(
+              studentDoc.id
+            );
+          }
+        );
       } catch (
         studentLookupError
       ) {
