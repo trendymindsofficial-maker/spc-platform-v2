@@ -88,28 +88,35 @@ service cloud.firestore {
     }
 
     // =========================
-    // BUSINESS STUDENT USAGE
-    // =========================
-    match /businessStudentUsage/{usageId} {
-      allow read: if isAdmin()
-        || (
-          signedIn() &&
-          resource.data.studentId == request.auth.uid
-        )
-        || (
-          signedIn() &&
-          resource.data.businessId == request.auth.uid
-        );
+// BUSINESS STUDENT USAGE
+// =========================
+match /businessStudentUsage/{usageId} {
 
-      allow create, update: if isAdmin()
-        || (
-          signedIn() &&
-          request.resource.data.businessId == request.auth.uid
-        );
+  // Business can read its own usage document.
+  // Document ID format:
+  // businessAuthUID_studentUID
+  //
+  // This also works for the FIRST redemption,
+  // when the usage document does not exist yet.
+  allow read: if isAdmin()
+    || (
+      signedIn() &&
+      usageId.split("_")[0] == request.auth.uid
+    )
+    || (
+      signedIn() &&
+      resource.data.studentId == request.auth.uid
+    );
 
-      allow delete: if isAdmin();
-    }
+  // Business can create/update only its own usage record.
+  allow create, update: if isAdmin()
+    || (
+      signedIn() &&
+      request.resource.data.businessId == request.auth.uid
+    );
 
+  allow delete: if isAdmin();
+}
     // =========================
     // STUDENT POINTS
     // =========================

@@ -1,5 +1,5 @@
-"use client";
 
+"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -137,23 +137,6 @@ export default function StudentDashboard() {
       if (parsed.uid !== uid) {
         console.warn(
           "Cached student UID does not match current auth UID."
-        );
-
-        return null;
-      }
-
-      // Never restore an incomplete/legacy cache as the active student.
-      // A stale cache can otherwise overwrite a valid Firestore profile.
-      if (
-        !parsed.fullName ||
-        !parsed.cardNumber
-      ) {
-        console.warn(
-          "Ignoring incomplete cached student profile."
-        );
-
-        sessionStorage.removeItem(
-          getCacheKey(uid)
         );
 
         return null;
@@ -426,39 +409,22 @@ export default function StudentDashboard() {
         const data =
           snap.data();
 
-        // Ignore an incomplete legacy students/{uid} document.
-        // Continue to the uid/email lookup so a complete student
-        // profile cannot be overwritten by an empty record.
-        const hasUsableProfile =
-          Boolean(
-            data.fullName &&
-            data.cardNumber
+        const studentData =
+          buildStudentData(
+            data,
+            uid,
+            email
           );
 
-        if (
-          hasUsableProfile
-        ) {
-          const studentData =
-            buildStudentData(
-              data,
-              uid,
-              email
-            );
-
-          console.log(
-            "✅ STUDENT FOUND BY DOCUMENT ID"
-          );
-
-          applyStudent(
-            studentData
-          );
-
-          return true;
-        }
-
-        console.warn(
-          "⚠️ students/{uid} exists but is incomplete. Continuing with UID/email lookup."
+        console.log(
+          "✅ STUDENT FOUND BY DOCUMENT ID"
         );
+
+        applyStudent(
+          studentData
+        );
+
+        return true;
       }
     } catch (error) {
       console.error(
@@ -513,7 +479,7 @@ export default function StudentDashboard() {
         const studentData =
           buildStudentData(
             data,
-            uid,
+            studentDoc.id,
             email
           );
 
@@ -603,7 +569,7 @@ export default function StudentDashboard() {
           const studentData =
             buildStudentData(
               data,
-              uid,
+              studentDoc.id,
               email
             );
 
@@ -1268,9 +1234,10 @@ export default function StudentDashboard() {
            * LOAD POINTS
            */
 
-          await loadStudentPoints(
-            user.uid
-          );
+          const pointsDocumentId =
+            await loadStudentPoints(
+              user.uid
+            );
 
           if (!mounted) {
             return;
@@ -1294,7 +1261,7 @@ export default function StudentDashboard() {
               doc(
                 db,
                 "studentPoints",
-                user.uid
+                pointsDocumentId
               ),
               (
                 pointsSnap
