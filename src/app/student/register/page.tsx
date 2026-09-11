@@ -674,11 +674,12 @@ export default function StudentRegister() {
       if (
         !orderResponse.ok ||
         !orderData?.success ||
-        !orderData?.order?.id
+        !orderData?.order?.id ||
+        !orderData?.keyId
       ) {
         throw new Error(
           orderData?.error ||
-            "Unable to create payment order."
+            "Unable to create payment order. Razorpay Key ID is missing."
         );
       }
 
