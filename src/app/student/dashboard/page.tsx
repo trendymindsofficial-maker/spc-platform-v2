@@ -40,6 +40,10 @@ interface Student {
   email?: string;
   status?: string;
   points?: number;
+  referralCode?: string;
+  successfulReferrals?: number;
+  pendingReferrals?: number;
+  referralRewardUnlocked?: boolean;
 }
 
 export default function StudentDashboard() {
@@ -64,6 +68,8 @@ export default function StudentDashboard() {
 
   /* Cumulative points */
   const [totalPoints, setTotalPoints] = useState(0);
+
+  const referralCode = student?.referralCode || "";
 
   /*
    * ==========================================
@@ -195,6 +201,18 @@ export default function StudentDashboard() {
 
       points:
         Number(data.points || 0),
+
+      referralCode:
+        data.referralCode || uid.slice(0, 8).toUpperCase(),
+
+      successfulReferrals:
+        Number(data.successfulReferrals || 0),
+
+      pendingReferrals:
+        Number(data.pendingReferrals || 0),
+
+      referralRewardUnlocked:
+        Boolean(data.referralRewardUnlocked || false),
     };
   };
 
@@ -2077,6 +2095,36 @@ export default function StudentDashboard() {
 
           </div>
 
+        </section>
+
+        {/* REFER & EARN */}
+
+        <section className="mt-7">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#0d1928] to-[#15120a] p-7 text-white shadow-[0_25px_70px_rgba(7,17,31,0.16)] sm:p-9">
+            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#d4af37]/15 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">🎁 Refer & Earn</div>
+                <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Refer 10 students.<span className="block text-[#f1cf63]">Earn ₹250.</span></h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/60 sm:text-base">Only students who successfully complete their SBC payment will count as successful referrals.</p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button type="button" onClick={() => { const u = `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`; const m = `🎓 Join SBC - Student Benefit Card\n\nRegister using my referral link:\n${u}`; window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank', 'noopener,noreferrer'); }} className="rounded-xl bg-[#d4af37] px-5 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]">Share on WhatsApp</button>
+                  <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`); alert('Referral link copied!'); } catch {} }} className="rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-bold text-white transition hover:border-[#d4af37]/50 hover:bg-[#d4af37]/10">Copy Referral Link</button>
+                </div>
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Your Referral Code</p>
+                  <p className="mt-1 text-lg font-black tracking-wider text-[#f1cf63]">{referralCode}</p>
+                </div>
+              </div>
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Successful Referrals</p>
+                <div className="mt-2 flex items-end justify-between gap-4"><p className="text-5xl font-black text-[#f1cf63]">{Math.min(student.successfulReferrals || 0, 10)}<span className="text-2xl text-white/35">/10</span></p><div className="rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3 text-center"><p className="text-xl font-black text-white">₹250</p><p className="text-[10px] font-bold uppercase tracking-wider text-[#f1cf63]">Reward</p></div></div>
+                <div className="mt-6 h-2.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#b18a16] via-[#d4af37] to-[#f1cf63]" style={{width: `${Math.min(((student.successfulReferrals || 0) / 10) * 100, 100)}%`}} /></div>
+                <div className="mt-4 flex justify-between text-xs"><span className="font-semibold text-white/45">{(student.successfulReferrals || 0) >= 10 ? 'Reward unlocked' : `${10 - Math.min(student.successfulReferrals || 0, 10)} more successful referrals`}</span><span className="font-bold text-white/60">{student.pendingReferrals || 0} pending</span></div>
+                <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 p-4"><p className="text-sm font-bold text-[#f1cf63]">{(student.successfulReferrals || 0) >= 10 ? '🎉 ₹250 reward unlocked!' : 'Invite friends and grow SBC together.'}</p><p className="mt-1 text-xs leading-5 text-white/50">A referral becomes successful only after the referred student completes the required SBC payment.</p></div>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ACTIONS */}
