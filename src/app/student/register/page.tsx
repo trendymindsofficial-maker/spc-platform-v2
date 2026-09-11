@@ -1,5 +1,5 @@
-
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
@@ -19,12 +19,44 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: {
+      key: string;
+      amount: number;
+      currency: string;
+      name: string;
+      description: string;
+      order_id: string;
+      prefill?: {
+        name?: string;
+        contact?: string;
+      };
+      theme?: {
+        color?: string;
+      };
+      modal?: {
+        ondismiss?: () => void;
+      };
+      handler: (response: {
+        razorpay_payment_id: string;
+        razorpay_order_id: string;
+        razorpay_signature: string;
+      }) => void;
+    }) => {
+      open: () => void;
+    };
+  }
+}
+
 export default function StudentRegister() {
   const router = useRouter();
 
   const [referralCode, setReferralCode] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [checkingMobile, setCheckingMobile] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -566,6 +598,244 @@ export default function StudentRegister() {
 
   /*
    * ============================================================
+   * RAZORPAY PAYMENT
+   * ============================================================
+   */
+
+  const loadRazorpay = async (): Promise<boolean> => {
+    if (typeof window === "undefined") return false;
+
+    if (window.Razorpay) return true;
+
+    return new Promise((resolve) => {
+      const existing = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+
+      if (existing) {
+        existing.addEventListener("load", () => resolve(true), {
+          once: true,
+        });
+        existing.addEventListener("error", () => resolve(false), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src =
+        "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const startPayment = async (): Promise<{
+    paymentId: string;
+    orderId: string;
+  } | null> => {
+    try {
+      setPaymentLoading(true);
+      setPaymentStatus("Creating secure payment...");
+
+      const scriptLoaded = await loadRazorpay();
+
+      if (!scriptLoaded || !window.Razorpay) {
+        throw new Error(
+          "Unable to load secure payment checkout. Please try again."
+        );
+      }
+
+      const orderResponse = await fetch(
+        "/api/payment/create-order",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: 199,
+            purpose: "SBC student membership",
+            mobile: mobile
+              .replace(/\D/g, "")
+              .trim(),
+            referralCode:
+              referralCode || null,
+          }),
+        }
+      );
+
+      const orderData =
+        await orderResponse.json();
+
+      if (
+        !orderResponse.ok ||
+        !orderData?.success ||
+        !orderData?.order?.id
+      ) {
+        throw new Error(
+          orderData?.error ||
+            "Unable to create payment order."
+        );
+      }
+
+      setPaymentStatus(
+        "Opening secure payment..."
+      );
+
+      return await new Promise(
+        (resolve) => {
+          let completed = false;
+
+          const finish = (
+            value:
+              | {
+                  paymentId: string;
+                  orderId: string;
+                }
+              | null
+          ) => {
+            if (completed) return;
+            completed = true;
+            resolve(value);
+          };
+
+          const RazorpayCheckout =
+            window.Razorpay;
+
+          if (!RazorpayCheckout) {
+            finish(null);
+            return;
+          }
+
+          const razorpay =
+            new RazorpayCheckout({
+              key: orderData.keyId,
+              amount:
+                orderData.order.amount,
+              currency:
+                orderData.order.currency,
+              name:
+                "Student Benefit Card",
+              description:
+                "SBC Student Membership",
+              order_id:
+                orderData.order.id,
+              prefill: {
+                name:
+                  fullName.trim(),
+                contact:
+                  mobile
+                    .replace(/\D/g, "")
+                    .trim(),
+              },
+              theme: {
+                color: "#07111f",
+              },
+              modal: {
+                ondismiss: () => {
+                  setPaymentStatus("");
+                  setPaymentLoading(false);
+                  finish(null);
+                },
+              },
+              handler: async (
+                response
+              ) => {
+                try {
+                  setPaymentStatus(
+                    "Verifying payment securely..."
+                  );
+
+                  const verifyResponse =
+                    await fetch(
+                      "/api/payment/verify",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type":
+                            "application/json",
+                        },
+                        body: JSON.stringify(
+                          {
+                            razorpay_order_id:
+                              response.razorpay_order_id,
+                            razorpay_payment_id:
+                              response.razorpay_payment_id,
+                            razorpay_signature:
+                              response.razorpay_signature,
+                          }
+                        ),
+                      }
+                    );
+
+                  const verifyData =
+                    await verifyResponse.json();
+
+                  if (
+                    !verifyResponse.ok ||
+                    !verifyData?.success
+                  ) {
+                    throw new Error(
+                      verifyData?.error ||
+                        "Payment verification failed."
+                    );
+                  }
+
+                  setPaymentStatus(
+                    "Payment verified successfully."
+                  );
+
+                  finish({
+                    paymentId:
+                      response.razorpay_payment_id,
+                    orderId:
+                      response.razorpay_order_id,
+                  });
+                } catch (error: any) {
+                  console.error(
+                    "Payment verification error:",
+                    error
+                  );
+
+                  alert(
+                    error?.message ||
+                      "❌ Payment verification failed. Please contact SBC support."
+                  );
+
+                  setPaymentStatus("");
+                  finish(null);
+                } finally {
+                  setPaymentLoading(false);
+                }
+              },
+            });
+
+          razorpay.open();
+        }
+      );
+    } catch (error: any) {
+      console.error(
+        "Payment error:",
+        error
+      );
+
+      alert(
+        error?.message ||
+          "❌ Unable to start payment."
+      );
+
+      setPaymentStatus("");
+      setPaymentLoading(false);
+
+      return null;
+    }
+  };
+
+  /*
+   * ============================================================
    * REGISTER STUDENT
    * ============================================================
    */
@@ -731,6 +1001,22 @@ export default function StudentRegister() {
 
         /*
          * ======================================================
+         * PAYMENT — ₹199
+         * ======================================================
+         *
+         * The payment is verified on the server before the
+         * final SBC student document is created.
+         */
+
+        const payment =
+          await startPayment();
+
+        if (!payment) {
+          return;
+        }
+
+        /*
+         * ======================================================
          * CREATE LOGIN EMAIL
          * ======================================================
          */
@@ -824,18 +1110,34 @@ export default function StudentRegister() {
             phoneVerified:
               true,
 
+            // This student's own referral code is separate
+            // from the code used to refer them.
+            referralCode:
+              uid.slice(0, 8).toUpperCase(),
+
             ...(referralCode
               ? {
-                  referralCode:
-                    referralCode,
                   referredBy:
                     referralCode,
                   referralStatus:
                     "pending",
                   referralPaymentStatus:
-                    "pending",
+                    "success",
                 }
               : {}),
+
+            paymentStatus:
+              "paid",
+            paymentAmount:
+              199,
+            paymentCurrency:
+              "INR",
+            razorpayPaymentId:
+              payment.paymentId,
+            razorpayOrderId:
+              payment.orderId,
+            paidAt:
+              serverTimestamp(),
 
             createdAt:
               serverTimestamp(),
@@ -861,7 +1163,7 @@ export default function StudentRegister() {
         resetRecaptcha();
 
         alert(
-          `✅ Student registration successful!\n\nYour SBC Card Number: ${cardNumber}\n\nYour account is waiting for admin approval.`
+          `✅ Payment successful & student registration completed!\n\nYour SBC Card Number: ${cardNumber}\n\nYour ₹199 payment has been verified. Your account is waiting for admin approval.`
         );
 
         router.replace(
@@ -1400,6 +1702,27 @@ export default function StudentRegister() {
 
                 </div>
 
+                {/* PAYMENT NOTE */}
+
+                {otpVerified && (
+                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#fffdf5] p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-black text-[#07111f]">
+                          SBC Membership Fee
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Secure payment powered by Razorpay Test Mode.
+                        </p>
+                      </div>
+
+                      <div className="text-xl font-black text-[#8a680c]">
+                        ₹199
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* REGISTER */}
 
                 <button
@@ -1409,15 +1732,19 @@ export default function StudentRegister() {
                   }
                   disabled={
                     loading ||
+                    paymentLoading ||
                     !otpVerified
                   }
                   className="w-full rounded-2xl bg-[#d4af37] py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading
-                    ? "⏳ Registering..."
+                  {paymentLoading
+                    ? paymentStatus ||
+                      "⏳ Processing Payment..."
+                    : loading
+                    ? "⏳ Completing Registration..."
                     : !otpVerified
                     ? "🔒 Verify Mobile First"
-                    : "🎓 Create SBC Account →"}
+                    : "💳 Pay ₹199 & Create SBC Account →"}
                 </button>
 
                 {/* LOGIN */}
