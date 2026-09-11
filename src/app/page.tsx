@@ -1,5 +1,6 @@
 
 "use client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = [
@@ -22,6 +23,7 @@ const offers = [
 
 export default function Home() {
   const router = useRouter();
+  const [portalRole, setPortalRole] = useState<"student" | "business">("student");
 
   const go = (path: string) => router.push(path);
 
@@ -224,79 +226,150 @@ export default function Home() {
               <h2 className="mt-4 text-2xl font-black">Access SBC Platform</h2>
               <p className="mt-1 text-xs text-slate-500">Choose your role to continue</p>
 
-              <div className="mt-5 flex rounded-full bg-slate-100 p-1 text-[10px] font-black">
-                <span className="flex-1 rounded-full bg-[#d4af37] px-2 py-2.5 text-white shadow-sm">Student</span>
-                <span className="flex-1 px-2 py-2.5 text-slate-500">Business</span>
-                <span className="flex-1 px-2 py-2.5 text-slate-500">Admin</span>
-              </div>
-
-              <div className="mt-4 space-y-2.5">
+              {/* ROLE SELECTOR */}
+              <div className="mt-5 grid grid-cols-3 rounded-2xl bg-slate-100 p-1 text-[10px] font-black">
                 <button
                   type="button"
-                  onClick={() => go("/student/login")}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white transition hover:-translate-y-0.5"
+                  onClick={() => setPortalRole("student")}
+                  className={`rounded-xl px-2 py-2.5 transition ${
+                    portalRole === "student"
+                      ? "bg-[#d4af37] text-white shadow-md"
+                      : "text-slate-500 hover:bg-white hover:text-[#07111f]"
+                  }`}
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">🎓</span>
-                  <span>
-                    <span className="block text-xs font-black">Student Login</span>
-                    <span className="block text-[10px] text-white/55">Access your benefits</span>
-                  </span>
-                  <span className="ml-auto">→</span>
+                  🎓 Student
                 </button>
-
                 <button
                   type="button"
-                  onClick={() => go("/student/register")}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-[#d4af37]/35 bg-[#fff8df] p-4 text-left text-[#8a680c]"
+                  onClick={() => setPortalRole("business")}
+                  className={`rounded-xl px-2 py-2.5 transition ${
+                    portalRole === "business"
+                      ? "bg-[#d4af37] text-white shadow-md"
+                      : "text-slate-500 hover:bg-white hover:text-[#07111f]"
+                  }`}
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d4af37]/15 text-lg">📝</span>
-                  <span>
-                    <span className="block text-xs font-black">Student Registration</span>
-                    <span className="block text-[10px] opacity-65">Create your SBC account</span>
-                  </span>
-                  <span className="ml-auto">→</span>
+                  🏪 Business
                 </button>
-
-                <div className="flex items-center gap-2 py-1">
-                  <div className="h-px flex-1 bg-slate-200" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Business</span>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => go("/business/login")}
-                  className="flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white transition hover:-translate-y-0.5"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">🏪</span>
-                  <span>
-                    <span className="block text-xs font-black">Business Login</span>
-                    <span className="block text-[10px] text-white/55">Manage your partnership</span>
-                  </span>
-                  <span className="ml-auto">→</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => go("/business/register")}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-black/10 bg-[#fbfaf6] p-4 text-left text-[#8a680c]"
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#07111f]/10 text-lg">🤝</span>
-                  <span>
-                    <span className="block text-xs font-black">Business Registration</span>
-                    <span className="block text-[10px] opacity-65">Become an SBC partner</span>
-                  </span>
-                  <span className="ml-auto">→</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={() => go("/admin/login")}
-                  className="w-full rounded-2xl border border-black/10 bg-white py-3 text-xs font-black text-slate-700"
+                  className="rounded-xl px-2 py-2.5 text-slate-500 transition hover:bg-white hover:text-[#07111f]"
                 >
-                  🔐 Admin Login
+                  🔐 Admin
                 </button>
               </div>
+
+              {/* ROLE-SPECIFIC ACCESS */}
+              {portalRole === "student" ? (
+                <div className="mt-4">
+                  <div className="mb-3 rounded-2xl bg-[#fff8df] px-4 py-3 text-left">
+                    <p className="text-xs font-black text-[#8a680c]">Student Access</p>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                      Login or register to explore exclusive offers and start saving.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => go("/student/login")}
+                      className="group flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
+                        ↪
+                      </span>
+                      <span>
+                        <span className="block text-xs font-black">Student Login</span>
+                        <span className="block text-[10px] text-white/55">Access your benefits</span>
+                      </span>
+                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => go("/student/register")}
+                      className="group flex w-full items-center gap-3 rounded-2xl border border-[#d4af37]/35 bg-white p-4 text-left text-[#8a680c] transition hover:-translate-y-0.5 hover:border-[#d4af37]/60 hover:bg-[#fffaf0]"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff3c8] text-lg">
+                        👤
+                      </span>
+                      <span>
+                        <span className="block text-xs font-black">Student Registration</span>
+                        <span className="block text-[10px] opacity-65">Create your SBC account</span>
+                      </span>
+                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-200" />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                      New to SBC?
+                    </span>
+                    <div className="h-px flex-1 bg-slate-200" />
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
+                      ▦
+                    </div>
+                    <div>
+                      <p className="text-xs font-black">Join SBC in seconds</p>
+                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                        Register and unlock student benefits.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <div className="mb-3 rounded-2xl bg-[#f0f3f7] px-4 py-3 text-left">
+                    <p className="text-xs font-black text-[#07111f]">Business Access</p>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                      Manage offers, redemptions and your SBC partnership.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => go("/business/login")}
+                      className="group flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
+                        ↪
+                      </span>
+                      <span>
+                        <span className="block text-xs font-black">Business Login</span>
+                        <span className="block text-[10px] text-white/55">Manage your partnership</span>
+                      </span>
+                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => go("/business/register")}
+                      className="group flex w-full items-center gap-3 rounded-2xl border border-[#d4af37]/35 bg-[#fff8df] p-4 text-left text-[#8a680c] transition hover:-translate-y-0.5 hover:border-[#d4af37]/60"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">
+                        🤝
+                      </span>
+                      <span>
+                        <span className="block text-xs font-black">Business Registration</span>
+                        <span className="block text-[10px] opacity-65">Become an SBC partner</span>
+                      </span>
+                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
+                    <p className="text-xs font-black">Grow with students</p>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                      Reach students with exclusive offers and a simple digital redemption flow.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-5 flex items-center gap-3 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">▦</div>
@@ -551,15 +624,18 @@ export default function Home() {
             key={label}
             type="button"
             onClick={() => go(path)}
-            className={`flex min-w-[52px] flex-col items-center rounded-xl px-2 py-1.5 ${
-              i === 0 ? "bg-[#fff4d2] text-[#8a680c]" : "text-slate-500"
+            className={`group flex min-w-[52px] flex-col items-center rounded-xl px-2 py-1.5 text-slate-500 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#fff4d2] hover:text-[#8a680c] ${
+              i === 0 ? "bg-[#fff4d2] text-[#8a680c]" : ""
             }`}
           >
-            <span className="text-base">{icon}</span>
+            <span className="text-base transition-transform duration-200 group-hover:scale-110">
+              {icon}
+            </span>
             <span className="mt-0.5 text-[8px] font-black">{label}</span>
           </button>
         ))}
       </div>
+
     </main>
   );
 }
