@@ -10,6 +10,7 @@ import {
   EmailAuthProvider,
   linkWithCredential,
   signOut,
+  deleteUser,
   ConfirmationResult,
 } from "firebase/auth";
 
@@ -735,9 +736,35 @@ export default function StudentRegister() {
                 color: "#07111f",
               },
               modal: {
-                ondismiss: () => {
+                ondismiss: async () => {
+                  // OTP creates a temporary Firebase phone-auth user.
+                  // If the student closes/cancels payment before success,
+                  // remove that temporary user so the mobile is reusable.
+                  try {
+                    const temporaryUser = auth.currentUser;
+                    if (temporaryUser) {
+                      await deleteUser(temporaryUser);
+                      console.log(
+                        "🧹 Temporary Firebase phone user removed after payment cancellation."
+                      );
+                    }
+                  } catch (cleanupError) {
+                    console.warn(
+                      "Temporary Firebase user cleanup skipped:",
+                      cleanupError
+                    );
+                    try {
+                      await signOut(auth);
+                    } catch {}
+                  }
+
                   setPaymentStatus("");
                   setPaymentLoading(false);
+                  setOtpSent(false);
+                  setOtpVerified(false);
+                  setOtp("");
+                  confirmationResultRef.current = null;
+                  resetRecaptcha();
                   finish(null);
                 },
               },
@@ -1012,6 +1039,31 @@ export default function StudentRegister() {
           await startPayment();
 
         if (!payment) {
+          // Payment did not complete. Remove the temporary phone-auth
+          // user so this mobile number is not falsely treated as registered.
+          try {
+            const temporaryUser = auth.currentUser;
+            if (temporaryUser) {
+              await deleteUser(temporaryUser);
+              console.log(
+                "🧹 Temporary Firebase phone user removed after unsuccessful payment."
+              );
+            }
+          } catch (cleanupError) {
+            console.warn(
+              "Temporary Firebase user cleanup after payment failure skipped:",
+              cleanupError
+            );
+            try {
+              await signOut(auth);
+            } catch {}
+          }
+
+          setOtpSent(false);
+          setOtpVerified(false);
+          setOtp("");
+          confirmationResultRef.current = null;
+          resetRecaptcha();
           return;
         }
 
