@@ -1,5 +1,5 @@
-
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -14,12 +14,7 @@ const categories = [
   ["•••", "More", "Discover", "bg-slate-50"],
 ];
 
-const offers = [
-  ["🍕", "Food & Dining", "20% OFF", "On selected orders", "2.1 km"],
-  ["☕", "Cafes & Drinks", "Flat ₹50 OFF", "On min. ₹200", "2.5 km"],
-  ["👕", "Shopping", "15% OFF", "Student exclusive", "1.8 km"],
-  ["🍨", "Desserts", "10% OFF", "On all items", "3.2 km"],
-];
+
 
 export default function Home() {
   const router = useRouter();
@@ -151,14 +146,13 @@ export default function Home() {
           <div className="relative mx-auto h-[480px] w-full max-w-[570px]">
             <div className="absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#f5d66f]/60 via-[#fff4c7]/60 to-transparent blur-xl" />
 
-            {/* Person illustration */}
-            <div className="absolute left-1/2 top-9 flex h-[380px] w-[300px] -translate-x-1/2 items-end justify-center">
-              <div className="absolute top-0 h-32 w-32 rounded-full bg-[#d69b72] shadow-[inset_-10px_-8px_15px_rgba(0,0,0,.08)]" />
-              <div className="absolute top-1 h-28 w-40 rounded-[55%] bg-[#4c3229]" />
-              <div className="absolute top-12 z-10 h-28 w-24 rounded-[46%] bg-[#dda27b]" />
-              <div className="absolute top-24 z-20 h-44 w-52 rounded-t-[90px] bg-gradient-to-b from-[#7891a5] to-[#526b7f]" />
-              <div className="absolute bottom-0 z-30 h-36 w-60 rounded-t-[110px] bg-[#dca07e]" />
-              <div className="absolute bottom-10 z-40 h-24 w-48 rotate-[-8deg] rounded-2xl bg-[#e6c39c] shadow-xl" />
+            {/* Real student photo */}
+            <div className="absolute left-1/2 top-2 z-30 h-[420px] w-[330px] -translate-x-1/2 sm:h-[445px] sm:w-[350px]">
+              <img
+                src="/images/sbc-student.png"
+                alt="SBC student"
+                className="h-full w-full object-contain object-center drop-shadow-[0_24px_35px_rgba(7,17,31,.18)]"
+              />
             </div>
 
             {/* Floating category pills */}
@@ -188,25 +182,13 @@ export default function Home() {
               <span className="ml-2 text-xs font-black">Education</span>
             </div>
 
-            {/* Digital SBC card */}
-            <div className="absolute bottom-2 left-1/2 z-50 w-[310px] -translate-x-1/2 rotate-[-7deg] overflow-hidden rounded-[25px] bg-gradient-to-br from-[#07111f] via-[#172231] to-[#8e6b13] p-5 text-white shadow-[0_28px_60px_rgba(7,17,31,.35)] sm:w-[350px]">
-              <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full border-[25px] border-[#d4af37]/30" />
-              <div className="absolute bottom-[-80px] right-[-30px] h-48 w-48 rounded-full bg-[#d4af37]/20 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-lg font-black tracking-wide">SBC</p>
-                    <p className="mt-0.5 text-[7px] tracking-[.2em] text-white/55">STUDENT BENEFIT CARD</p>
-                  </div>
-                  <span className="text-[9px] font-bold tracking-[.18em] text-[#f1cf63]">STUDENT</span>
-                </div>
-                <div className="mt-7 h-8 w-11 rounded-lg bg-gradient-to-br from-[#f5dc86] to-[#a87b16]" />
-                <p className="mt-5 text-sm tracking-[.2em] text-white/85">4821&nbsp; 7110&nbsp; 5678</p>
-                <div className="mt-4 flex items-end justify-between">
-                  <p className="text-[8px] uppercase tracking-[.18em] text-white/55">A brighter tomorrow</p>
-                  <p className="text-lg font-black">SBC</p>
-                </div>
-              </div>
+            {/* Premium SBC card image */}
+            <div className="absolute bottom-3 left-1/2 z-50 w-[330px] -translate-x-1/2 rotate-[-7deg] sm:w-[385px] lg:w-[410px]">
+              <img
+                src="/images/sbc-card.png"
+                alt="SBC Student Benefit Card"
+                className="block w-full rounded-[28px] object-contain drop-shadow-[0_30px_55px_rgba(7,17,31,.38)]"
+              />
             </div>
 
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rotate-[-2deg] text-center text-[15px] font-bold text-[#07111f]">
@@ -403,8 +385,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-
-       
 
         {/* HOW IT WORKS */}
         <section className="grid gap-5 lg:grid-cols-[1.65fr_.8fr]">
