@@ -1,5 +1,5 @@
-"use client";
 
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
@@ -22,6 +22,8 @@ import {
 export default function StudentRegister() {
   const router = useRouter();
 
+  const [referralCode, setReferralCode] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [checkingMobile, setCheckingMobile] = useState(false);
@@ -43,6 +45,65 @@ export default function StudentRegister() {
 
   const confirmationResultRef =
     useRef<ConfirmationResult | null>(null);
+
+  /*
+   * ============================================================
+   * REFERRAL CODE
+   * ============================================================
+   *
+   * Example:
+   * /student/register?ref=ABC123
+   *
+   * We only capture the referral code here.
+   * The referral becomes successful only after the referred
+   * student's eligible SBC payment is successfully completed.
+   */
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const urlReferralCode =
+      params.get("ref")?.trim() || "";
+
+    let storedReferralCode = "";
+
+    try {
+      storedReferralCode =
+        sessionStorage.getItem(
+          "sbc_referral_code"
+        )?.trim() || "";
+    } catch {}
+
+    const ref =
+      urlReferralCode || storedReferralCode;
+
+    if (ref) {
+      const normalizedRef =
+        ref.slice(0, 64);
+
+      setReferralCode(
+        normalizedRef
+      );
+
+      try {
+        sessionStorage.setItem(
+          "sbc_referral_code",
+          normalizedRef
+        );
+      } catch {}
+
+      console.log(
+        "🎁 SBC referral code captured:",
+        normalizedRef
+      );
+    }
+  }, []);
 
   /*
    * ============================================================
@@ -763,6 +824,19 @@ export default function StudentRegister() {
             phoneVerified:
               true,
 
+            ...(referralCode
+              ? {
+                  referralCode:
+                    referralCode,
+                  referredBy:
+                    referralCode,
+                  referralStatus:
+                    "pending",
+                  referralPaymentStatus:
+                    "pending",
+                }
+              : {}),
+
             createdAt:
               serverTimestamp(),
           }
@@ -1072,6 +1146,24 @@ export default function StudentRegister() {
                   </p>
 
                 </div>
+
+                {/* REFERRAL */}
+
+                {referralCode && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-black text-emerald-700">
+                      🎁 Referral Applied
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-700/80">
+                      You joined SBC using a referral link. Your friend&apos;s
+                      referral will be counted after you successfully complete
+                      the required SBC payment.
+                    </p>
+                    <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-emerald-800">
+                      Referral Code: {referralCode}
+                    </p>
+                  </div>
+                )}
 
                 {/* SEND OTP */}
 
