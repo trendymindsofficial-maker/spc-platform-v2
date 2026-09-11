@@ -404,53 +404,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* OFFERS NEAR YOU */}
-        <section className="py-14">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#8a680c]">Discover</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Offers Near You</h2>
-              <p className="mt-2 text-sm text-slate-500">Student-friendly savings from SBC partners.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="hidden text-xs font-black text-[#8a680c] sm:block"
-            >
-              View All →
-            </button>
-          </div>
-
-          <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {offers.map(([icon, category, discount, detail, distance]) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => go("/student/login")}
-                className="group overflow-hidden rounded-[1.8rem] border border-black/[.05] bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(7,17,31,.1)]"
-              >
-                <div className="flex h-32 items-center justify-center bg-gradient-to-br from-[#fff3df] to-[#f6eee3] text-6xl">
-                  {icon}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-[#fff3cc] px-2.5 py-1 text-[8px] font-black uppercase text-[#8a680c]">
-                      SBC Offer
-                    </span>
-                    <span className="text-slate-300">♡</span>
-                  </div>
-                  <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-slate-400">{category}</p>
-                  <h3 className="mt-1 text-xl font-black text-[#b18a16]">{discount}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{detail}</p>
-                  <div className="mt-4 flex justify-between border-t border-black/5 pt-3 text-[10px] font-bold text-slate-500">
-                    <span>⌖ {distance}</span>
-                    <span className="text-[#8a680c] group-hover:translate-x-1">View →</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
+       
 
         {/* HOW IT WORKS */}
         <section className="grid gap-5 lg:grid-cols-[1.65fr_.8fr]">
