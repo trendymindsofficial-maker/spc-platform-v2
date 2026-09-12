@@ -1157,8 +1157,10 @@ export default function StudentRegister() {
 
             cardNumber,
 
+            // Payment is successfully verified, so no admin approval
+            // is required for student activation.
             status:
-              "pending",
+              "active",
 
             phoneVerified:
               true,
@@ -1204,11 +1206,13 @@ export default function StudentRegister() {
 
         /*
          * ======================================================
-         * LOGOUT AFTER REGISTRATION
+         * AUTO LOGIN AFTER REGISTRATION
          * ======================================================
+         *
+         * Payment has already been verified and the student
+         * document is saved as ACTIVE. Keep the Firebase session
+         * signed in and send the student directly to the dashboard.
          */
-
-        await signOut(auth);
 
         confirmationResultRef.current =
           null;
@@ -1216,11 +1220,11 @@ export default function StudentRegister() {
         resetRecaptcha();
 
         alert(
-          `✅ Payment successful & student registration completed!\n\nYour SBC Card Number: ${cardNumber}\n\nYour ₹199 payment has been verified. Your account is waiting for admin approval.`
+          `✅ Payment successful & student registration completed!\n\nYour SBC Card Number: ${cardNumber}\n\nYour ₹199 payment has been verified. Your account is active now.`
         );
 
         router.replace(
-          "/student/login"
+          "/student/dashboard"
         );
       } catch (error: any) {
         console.error(
