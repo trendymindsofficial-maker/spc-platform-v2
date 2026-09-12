@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
+import StudentScanRedeem from "@/components/StudentScanRedeem";
 
 import { auth, db } from "@/lib/firebase";
 import { enableStudentNotifications } from "@/lib/firebase-messaging";
@@ -2174,6 +2175,11 @@ export default function StudentDashboard() {
 
         </section>
 
+        {/* SCAN & REDEEM */}
+        <div className="mt-7">
+          <StudentScanRedeem />
+        </div>
+
         {/* REWARD + GIFT */}
 
         <section className="mt-7 grid gap-7 lg:grid-cols-[0.85fr_1.15fr]">
@@ -2701,7 +2707,7 @@ export default function StudentDashboard() {
               logout
             }
             className="w-fit rounded-full border border-slate-300 px-5 py-2.5 font-bold text-slate-700 transition hover:border-[#b18a16] hover:text-[#8a680c]"
->
+          >
             Logout
           </button>
 

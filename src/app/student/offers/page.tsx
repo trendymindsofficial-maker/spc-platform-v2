@@ -1946,7 +1946,7 @@ export default function StudentOffers() {
 
                         <button
                           type="button"
-                          onClick={() => openRedeemVerification(offer)}
+                          onClick={() => router.push("/student/dashboard")}
                           disabled={usedCount >= MAX_REDEMPTIONS}
                           className={`rounded-xl py-3 text-xs font-black transition ${
                             usedCount >= MAX_REDEMPTIONS
@@ -1956,7 +1956,7 @@ export default function StudentOffers() {
                         >
                           {usedCount >= MAX_REDEMPTIONS
                             ? "🚫 Limit Reached"
-                            : "🎁 Redeem Offer"}
+                            : "📷 Scan & Redeem"}
                         </button>
                       </div>
 
@@ -2162,7 +2162,7 @@ export default function StudentOffers() {
                   type="button"
                   onClick={() => {
                     closeOfferDetails();
-                    openRedeemVerification(detailsOffer);
+                    router.push("/student/dashboard");
                   }}
                   disabled={
                     getUsageCount(detailsOffer.businessId) >=
@@ -2178,7 +2178,7 @@ export default function StudentOffers() {
                   {getUsageCount(detailsOffer.businessId) >=
                   MAX_REDEMPTIONS
                     ? "🚫 Limit Reached"
-                    : "🎁 Redeem Offer"}
+                    : "📷 Scan & Redeem"}
                 </button>
 
               </div>
@@ -2467,7 +2467,7 @@ export default function StudentOffers() {
                     >
                       {redeemLoading
                         ? "⏳ Sending Request..."
-                        : "🎁 REDEEM MY BENEFIT"}
+                        : "📷 Scan & Redeem"}
                     </button>
 
                   </div>
