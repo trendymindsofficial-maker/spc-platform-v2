@@ -1,5 +1,5 @@
-
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -149,34 +149,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      {/* MOBILE QUICK AUTH */}
-      <div className="border-b border-black/[.05] bg-white px-3 py-2 sm:hidden">
-        <div className="mx-auto flex w-full max-w-md items-center gap-2">
-          <button
-            type="button"
-            onClick={() => go("/student/register")}
-            className="flex-1 rounded-xl bg-[#1557d6] px-3 py-2.5 text-xs font-black text-white shadow-sm"
-          >
-            Student Register
-          </button>
-          <button
-            type="button"
-            onClick={() => go("/student/login")}
-            className="flex-1 rounded-xl border border-[#1557d6] bg-white px-3 py-2.5 text-xs font-black text-[#1557d6]"
-          >
-            Student Login
-          </button>
-          <button
-            type="button"
-            onClick={() => go("/admin/login")}
-            className="rounded-xl border border-black/10 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white"
-            aria-label="Admin Login"
-          >
-            Admin
-          </button>
-        </div>
-      </div>
 
       {/* HERO SLIDER */}
       <section className="relative overflow-hidden border-b border-black/[.04] bg-[#f7faff]">
