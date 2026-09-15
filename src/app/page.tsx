@@ -142,9 +142,9 @@ export default function Home() {
             <button
               type="button"
               onClick={() => go("/admin/login")}
-              className="hidden rounded-xl border border-black/10 bg-[#07111f] px-4 py-3 text-[10px] font-black text-white transition hover:bg-[#122033] md:block"
+              className="rounded-lg border border-black/10 bg-[#07111f] px-2.5 py-2.5 text-[10px] font-black text-white transition hover:bg-[#122033] sm:rounded-xl sm:px-4 sm:py-3"
             >
-              Admin Login
+              Admin
             </button>
           </div>
         </div>
