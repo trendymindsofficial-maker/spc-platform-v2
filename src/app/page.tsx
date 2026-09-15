@@ -107,6 +107,7 @@ export default function Home() {
               ["Offers", "/student/login"],
               ["How It Works", "#how-it-works"],
               ["About", "#about"],
+              ["Admin Login", "/admin/login"],
             ].map(([label, path], index) => (
               <button
                 key={label}
@@ -123,24 +124,59 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => go("/student/register")}
+              className="rounded-lg bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.18)] transition hover:-translate-y-0.5 sm:rounded-xl sm:px-5 sm:py-3 sm:text-xs"
+            >
+              Register
+            </button>
             <button
               type="button"
               onClick={() => go("/student/login")}
-              className="hidden rounded-xl border border-[#1557d6] px-5 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50 sm:block"
+              className="rounded-lg border border-[#1557d6] bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:rounded-xl sm:px-5 sm:py-3 sm:text-xs"
             >
               Login
             </button>
             <button
               type="button"
-              onClick={() => go("/student/register")}
-              className="rounded-xl bg-[#1557d6] px-5 py-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5"
+              onClick={() => go("/admin/login")}
+              className="hidden rounded-xl border border-black/10 bg-[#07111f] px-4 py-3 text-[10px] font-black text-white transition hover:bg-[#122033] md:block"
             >
-              Get Your SBC
+              Admin Login
             </button>
           </div>
         </div>
       </header>
+
+      {/* MOBILE QUICK AUTH */}
+      <div className="border-b border-black/[.05] bg-white px-3 py-2 sm:hidden">
+        <div className="mx-auto flex w-full max-w-md items-center gap-2">
+          <button
+            type="button"
+            onClick={() => go("/student/register")}
+            className="flex-1 rounded-xl bg-[#1557d6] px-3 py-2.5 text-xs font-black text-white shadow-sm"
+          >
+            Student Register
+          </button>
+          <button
+            type="button"
+            onClick={() => go("/student/login")}
+            className="flex-1 rounded-xl border border-[#1557d6] bg-white px-3 py-2.5 text-xs font-black text-[#1557d6]"
+          >
+            Student Login
+          </button>
+          <button
+            type="button"
+            onClick={() => go("/admin/login")}
+            className="rounded-xl border border-black/10 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white"
+            aria-label="Admin Login"
+          >
+            Admin
+          </button>
+        </div>
+      </div>
 
       {/* HERO SLIDER */}
       <section className="relative overflow-hidden border-b border-black/[.04] bg-[#f7faff]">
@@ -526,7 +562,7 @@ export default function Home() {
           ["⌂", "Home", "/"],
           ["◇", "Offers", "/student/login"],
           ["▣", "Business", "/business/login"],
-          ["♙", "Login", "/student/login"],
+          ["♙", "Register", "/student/register"],
         ].map(([icon, label, path], index) => (
           <button
             key={label}
