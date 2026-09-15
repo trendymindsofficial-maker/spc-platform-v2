@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   query,
-  serverTimestamp,
   where,
 } from "firebase/firestore";
 import { Html5Qrcode } from "html5-qrcode";
@@ -248,28 +246,33 @@ export default function StudentScanRedeem() {
       );
       const studentData = studentSnap.exists() ? studentSnap.data() : {};
 
-      const requestRef = await addDoc(collection(db, "redemptionRequests"), {
-        studentId: auth.currentUser.uid,
-        studentName:
-          studentData.name ||
-          studentData.fullName ||
-          studentData.studentName ||
-          "SBC Student",
-        studentCardNumber:
-          studentData.cardNumber ||
-          studentData.studentCardNumber ||
-          "",
-        businessId: business.businessId,
-        businessName: business.businessName,
-        businessVerificationId: business.sbcBusinessId,
-        offerId: offer.id,
-        offerTitle: offer.title || "SBC Offer",
-        offerDiscount: offer.discount || "",
-        status: "pending",
-        createdAt: serverTimestamp(),
+      const idToken = await auth.currentUser.getIdToken();
+
+      const response = await fetch("/api/redemption/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          businessId: business.businessId,
+          businessName: business.businessName,
+          businessVerificationId: business.sbcBusinessId,
+          offerId: offer.id,
+          offerTitle: offer.title || "SBC Offer",
+          offerDiscount: offer.discount || "",
+        }),
       });
 
-      setPendingRequestId(requestRef.id);
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result?.success || !result?.requestId) {
+        throw new Error(
+          result?.error || "Unable to send redemption request."
+        );
+      }
+
+      setPendingRequestId(String(result.requestId));
       setPendingOffer(offer);
       setSelectedOffer(null);
     } catch (error) {

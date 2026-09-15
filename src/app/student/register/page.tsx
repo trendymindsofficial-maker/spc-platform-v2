@@ -18,6 +18,7 @@ import {
   doc,
   setDoc,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 
 declare global {
@@ -636,6 +637,8 @@ export default function StudentRegister() {
   const startPayment = async (): Promise<{
     paymentId: string;
     orderId: string;
+    membershipStartDate: string;
+    membershipExpiryDate: string;
   } | null> => {
     try {
       setPaymentLoading(true);
@@ -696,6 +699,8 @@ export default function StudentRegister() {
               | {
                   paymentId: string;
                   orderId: string;
+                  membershipStartDate: string;
+                  membershipExpiryDate: string;
                 }
               | null
           ) => {
@@ -777,6 +782,15 @@ export default function StudentRegister() {
                     "Verifying payment securely..."
                   );
 
+                  const idToken =
+                    await auth.currentUser?.getIdToken();
+
+                  if (!idToken) {
+                    throw new Error(
+                      "Firebase authentication session expired. Please verify your mobile number again."
+                    );
+                  }
+
                   const verifyResponse =
                     await fetch(
                       "/api/payment/verify",
@@ -785,6 +799,8 @@ export default function StudentRegister() {
                         headers: {
                           "Content-Type":
                             "application/json",
+                          Authorization:
+                            `Bearer ${idToken}`,
                         },
                         body: JSON.stringify(
                           {
@@ -821,6 +837,16 @@ export default function StudentRegister() {
                       response.razorpay_payment_id,
                     orderId:
                       response.razorpay_order_id,
+                    membershipStartDate:
+                      String(
+                        verifyData.membershipStartDate ||
+                          ""
+                      ),
+                    membershipExpiryDate:
+                      String(
+                        verifyData.membershipExpiryDate ||
+                          ""
+                      ),
                   });
                 } catch (error: any) {
                   console.error(
@@ -1157,7 +1183,43 @@ export default function StudentRegister() {
 
             cardNumber,
 
-            // Payment is successfully verified, so no admin approval
+            /*
+             * Membership dates are calculated by the secure
+             * server-side payment verification API.
+             *
+             * The registration page only stores the dates returned
+             * by that verified payment response.
+             */
+            membershipStatus:
+              "active",
+
+            membershipStartDate:
+              Timestamp.fromDate(
+                new Date(
+                  payment.membershipStartDate
+                )
+              ),
+
+            membershipExpiryDate:
+              Timestamp.fromDate(
+                new Date(
+                  payment.membershipExpiryDate
+                )
+              ),
+
+            membershipPlan:
+              "1_year",
+
+            lastMembershipPaymentId:
+              payment.paymentId,
+
+            lastMembershipOrderId:
+              payment.orderId,
+
+            lastMembershipPaymentAt:
+              serverTimestamp(),
+
+            // Payment is successfully verified. No admin approval
             // is required for student activation.
             status:
               "active",
@@ -1220,7 +1282,7 @@ export default function StudentRegister() {
         resetRecaptcha();
 
         alert(
-          `✅ Payment successful & student registration completed!\n\nYour SBC Card Number: ${cardNumber}\n\nYour ₹199 payment has been verified. Your account is active now.`
+          `✅ Payment successful & student registration completed!\n\nYour SBC Card Number: ${cardNumber}\n\nYour ₹199 payment has been verified. Your SBC membership is active for 1 year.`
         );
 
         router.replace(

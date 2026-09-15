@@ -45,6 +45,14 @@ interface Student {
   successfulReferrals?: number;
   pendingReferrals?: number;
   referralRewardUnlocked?: boolean;
+
+  // Server-authoritative SBC membership fields
+  membershipStatus?: "active" | "expired" | string;
+  membershipStartDate?: string;
+  membershipExpiryDate?: string;
+  membershipPlan?: string;
+  lastMembershipPaymentId?: string;
+  lastMembershipOrderId?: string;
 }
 
 export default function StudentDashboard() {
@@ -235,6 +243,30 @@ export default function StudentDashboard() {
 
       referralRewardUnlocked:
         Boolean(data.referralRewardUnlocked || false),
+
+      membershipStatus:
+        data.membershipStatus || "",
+
+      membershipStartDate:
+        data.membershipStartDate?.toDate?.()?.toISOString?.() ||
+        (typeof data.membershipStartDate === "string"
+          ? data.membershipStartDate
+          : ""),
+
+      membershipExpiryDate:
+        data.membershipExpiryDate?.toDate?.()?.toISOString?.() ||
+        (typeof data.membershipExpiryDate === "string"
+          ? data.membershipExpiryDate
+          : ""),
+
+      membershipPlan:
+        data.membershipPlan || "",
+
+      lastMembershipPaymentId:
+        data.lastMembershipPaymentId || "",
+
+      lastMembershipOrderId:
+        data.lastMembershipOrderId || "",
     };
   };
 
@@ -1431,6 +1463,53 @@ export default function StudentDashboard() {
 
   /*
    * ==========================================
+   * MEMBERSHIP
+   * ==========================================
+   *
+   * Membership validity is determined from the server-authoritative
+   * membershipExpiryDate. We do not trust membershipStatus alone.
+   */
+
+  const membershipExpiry = student?.membershipExpiryDate
+    ? new Date(student.membershipExpiryDate)
+    : null;
+
+  const membershipStart = student?.membershipStartDate
+    ? new Date(student.membershipStartDate)
+    : null;
+
+  const membershipDateIsValid =
+    Boolean(
+      membershipExpiry &&
+      !Number.isNaN(membershipExpiry.getTime())
+    );
+
+  const membershipIsActive =
+    membershipDateIsValid &&
+    membershipExpiry!.getTime() > Date.now();
+
+  const membershipIsExpired =
+    membershipDateIsValid &&
+    membershipExpiry!.getTime() <= Date.now();
+
+  const formatMembershipDate = (date: Date | null) => {
+    if (!date || Number.isNaN(date.getTime())) {
+      return "—";
+    }
+
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const renewMembership = () => {
+    router.push("/student/renew");
+  };
+
+  /*
+   * ==========================================
    * LOGOUT
    * ==========================================
    */
@@ -1995,11 +2074,21 @@ export default function StudentDashboard() {
                     "—"}
                 </span>
 
-                <span className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                    membershipIsActive
+                      ? "bg-emerald-400/10 text-emerald-300"
+                      : membershipIsExpired
+                        ? "bg-red-400/10 text-red-300"
+                        : "bg-amber-400/10 text-amber-300"
+                  }`}
+                >
                   ●{" "}
-                  {student.status
-                    ? student.status.toUpperCase()
-                    : "PENDING"}
+                  {membershipIsActive
+                    ? "MEMBERSHIP ACTIVE"
+                    : membershipIsExpired
+                      ? "MEMBERSHIP EXPIRED"
+                      : "MEMBERSHIP STATUS UNAVAILABLE"}
                 </span>
 
               </div>
@@ -2139,37 +2228,70 @@ export default function StudentDashboard() {
 
               </div>
 
-              <div className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                Active
+              <div
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                  membershipIsActive
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {membershipIsActive ? "Active" : "Expired"}
               </div>
 
             </div>
 
-            <div className="mt-7 flex justify-center">
+            {membershipIsActive ? (
+              <>
+                <div className="mt-7 flex justify-center">
 
-              <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
+                  <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
 
-                <QRCode
-                  value={
-                    qrValue
-                  }
-                  size={
-                    205
-                  }
-                />
+                    <QRCode
+                      value={
+                        qrValue
+                      }
+                      size={
+                        205
+                      }
+                    />
 
+                  </div>
+
+                </div>
+
+                <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
+                  {student.cardNumber ||
+                    "—"}
+                </p>
+
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  Show this QR to an SBC Business Partner to redeem an offer.
+                </p>
+              </>
+            ) : (
+              <div className="mt-7 rounded-[1.5rem] border border-red-200 bg-red-50 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl">
+                  🔒
+                </div>
+
+                <p className="mt-4 text-base font-black text-red-700">
+                  Membership Expired
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-red-700/80">
+                  Your SBC benefits and redemption access are unavailable until
+                  your membership is renewed.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 rounded-xl bg-[#d4af37] px-5 py-3 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
               </div>
-
-            </div>
-
-            <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
-              {student.cardNumber ||
-                "—"}
-            </p>
-
-            <p className="mt-2 text-center text-xs text-slate-500">
-              Show this QR to an SBC Business Partner to redeem an offer.
-            </p>
+            )}
 
           </div>
 
@@ -2177,7 +2299,36 @@ export default function StudentDashboard() {
 
         {/* SCAN & REDEEM */}
         <div className="mt-7">
-          <StudentScanRedeem />
+          {membershipIsActive ? (
+            <StudentScanRedeem />
+          ) : (
+            <section className="rounded-[2rem] border border-red-200 bg-red-50 p-7 text-center shadow-[0_20px_60px_rgba(127,29,29,0.08)] sm:p-9">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
+                🔒
+              </div>
+
+              <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-red-600">
+                Redemption Locked
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black text-red-800">
+                Renew your SBC membership to redeem offers
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-red-700/80">
+                Your membership has expired, so offer redemption is currently
+                disabled.
+              </p>
+
+              <button
+                type="button"
+                onClick={renewMembership}
+                className="mt-5 rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+              >
+                Renew SBC Membership →
+              </button>
+            </section>
+          )}
         </div>
 
         {/* REWARD + GIFT */}
@@ -2660,26 +2811,88 @@ export default function StudentDashboard() {
               Membership Status
             </h2>
 
-            <div className="mt-6 flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+            <div
+              className={`mt-6 rounded-2xl border p-5 ${
+                membershipIsActive
+                  ? "border-emerald-100 bg-emerald-50"
+                  : membershipIsExpired
+                    ? "border-red-200 bg-red-50"
+                    : "border-amber-200 bg-amber-50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Membership Status
+                  </p>
 
-              <div>
+                  <p
+                    className={`mt-1 text-2xl font-black ${
+                      membershipIsActive
+                        ? "text-emerald-700"
+                        : membershipIsExpired
+                          ? "text-red-700"
+                          : "text-amber-700"
+                    }`}
+                  >
+                    {membershipIsActive
+                      ? "ACTIVE"
+                      : membershipIsExpired
+                        ? "EXPIRED"
+                        : "NOT AVAILABLE"}
+                  </p>
+                </div>
 
-                <p className="text-xs font-semibold text-slate-500">
-                  Current Status
-                </p>
-
-                <p className="mt-1 text-2xl font-black text-emerald-700">
-                  {student.status
-                    ? student.status.toUpperCase()
-                    : "PENDING"}
-                </p>
-
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                    membershipIsActive
+                      ? "bg-emerald-100 text-emerald-700"
+                      : membershipIsExpired
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {membershipIsActive ? "✓" : "!"}
+                </div>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                ✓
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Started
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipStart)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Valid Until
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipExpiry)}
+                  </p>
+                </div>
               </div>
 
+              {membershipIsExpired && (
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              )}
+
+              {!membershipDateIsValid && (
+                <p className="mt-4 text-xs leading-5 text-amber-700">
+                  Membership dates are not available for this account yet.
+                  Please refresh the dashboard after your membership payment is
+                  completed.
+                </p>
+              )}
             </div>
 
           </div>

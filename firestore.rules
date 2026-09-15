@@ -28,53 +28,66 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    /// =========================
-// STUDENTS
-// =========================
-match /students/{studentId} {
+    // =========================
+    // STUDENTS
+    // =========================
+    match /students/{studentId} {
 
-  // Student can create their own profile
-  allow create: if signedIn();
+      // Registration creates the student's own profile.
+      // Payment verification is performed server-side before the
+      // registration page writes the profile.
+      allow create: if isStudent(studentId);
 
-  // Student/Admin can read
-  // Business can update ONLY reward-point fields
-  allow read: if isStudent(studentId) || isAdmin();
+      // Student/Admin can read.
+      allow read: if isStudent(studentId) || isAdmin();
 
-  allow update: if isStudent(studentId)
-    || isAdmin()
-    || (
-      signedIn() &&
-      isBusiness(request.auth.uid) &&
-      request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        "points",
-        "totalPointsEarned",
-        "lastPointsEarned",
-        "lastPointsEarnedAt",
-        "lastPointsBusinessId",
-        "lastPointsBusinessName",
-        "lastPointsRedemptionId",
-        "updatedAt"
-      ]) &&
-      request.resource.data.lastPointsBusinessId == request.auth.uid
-    );
+      // Student can update normal profile fields, but MUST NOT
+      // change payment/membership authority fields from the browser.
+      allow update: if isAdmin()
+        || (
+          isStudent(studentId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "fullName",
+            "mobile",
+            "email",
+            "college",
+            "course",
+            "year",
+            "photoURL",
+            "profileImage",
+            "profileImageUrl",
+            "updatedAt",
+            "notificationsEnabled"
+          ])
+        )
+        || (
+          signedIn() &&
+          isBusiness(request.auth.uid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "points",
+            "totalPointsEarned",
+            "lastPointsEarned",
+            "lastPointsEarnedAt",
+            "lastPointsBusinessId",
+            "lastPointsBusinessName",
+            "lastPointsRedemptionId",
+            "updatedAt"
+          ]) &&
+          request.resource.data.lastPointsBusinessId == request.auth.uid
+        );
 
-  allow delete: if isAdmin();
-}
+      allow delete: if isAdmin();
+    }
 
+    // =========================
+    // BUSINESSES
+    // =========================
     match /businesses/{businessId} {
-  // Students need to read business details
-  // when verifying an SBC Business ID / QR.
-  allow read: if signedIn();
-
-  // Business registration
-  allow create: if signedIn();
-
-  // Only the business owner or admin can update.
-  allow update: if isBusiness(businessId) || isAdmin();
-
-  // Only admin can delete.
-  allow delete: if isAdmin();
-}
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.businessId == request.auth.uid;
+      allow update: if isBusiness(businessId) || isAdmin();
+      allow delete: if isAdmin();
+    }
 
     // =========================
     // CATEGORIES
@@ -88,22 +101,17 @@ match /students/{studentId} {
     // OFFERS
     // =========================
     match /offers/{offerId} {
-
-      // Students & Businesses can read offers
       allow read: if signedIn();
 
-      // Business creates only its own offer
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
 
-      // Business updates only its own offer
       allow update: if isAdmin() ||
         (
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
 
-      // Business deletes only its own offer
       allow delete: if isAdmin() ||
         (
           signedIn() &&
@@ -112,35 +120,29 @@ match /students/{studentId} {
     }
 
     // =========================
-// BUSINESS STUDENT USAGE
-// =========================
-match /businessStudentUsage/{usageId} {
+    // BUSINESS STUDENT USAGE
+    // =========================
+    match /businessStudentUsage/{usageId} {
 
-  // Business can read its own usage document.
-  // Document ID format:
-  // businessAuthUID_studentUID
-  //
-  // This also works for the FIRST redemption,
-  // when the usage document does not exist yet.
-  allow read: if isAdmin()
-    || (
-      signedIn() &&
-      usageId.split("_")[0] == request.auth.uid
-    )
-    || (
-      signedIn() &&
-      resource.data.studentId == request.auth.uid
-    );
+      allow read: if isAdmin()
+        || (
+          signedIn() &&
+          usageId.split("_")[0] == request.auth.uid
+        )
+        || (
+          signedIn() &&
+          resource.data.studentId == request.auth.uid
+        );
 
-  // Business can create/update only its own usage record.
-  allow create, update: if isAdmin()
-    || (
-      signedIn() &&
-      request.resource.data.businessId == request.auth.uid
-    );
+      allow create, update: if isAdmin()
+        || (
+          signedIn() &&
+          request.resource.data.businessId == request.auth.uid
+        );
 
-  allow delete: if isAdmin();
-}
+      allow delete: if isAdmin();
+    }
+
     // =========================
     // STUDENT POINTS
     // =========================
@@ -161,8 +163,17 @@ match /businessStudentUsage/{usageId} {
     // REDEMPTION REQUESTS
     // =========================
     match /redemptionRequests/{requestId} {
-      allow create: if signedIn()
-        && request.resource.data.studentId == request.auth.uid;
+
+      /*
+       * IMPORTANT:
+       * Redemption requests are now created ONLY by the
+       * authenticated server API (/api/redemption/create).
+       * Firebase Admin SDK bypasses Firestore client rules.
+       *
+       * This prevents an expired student from bypassing the
+       * membership check by writing directly to Firestore.
+       */
+      allow create: if false;
 
       allow read: if isAdmin()
         || (
@@ -174,10 +185,25 @@ match /businessStudentUsage/{usageId} {
           resource.data.businessId == request.auth.uid
         );
 
+      // Business can change ONLY the approval status.
+      // Student/business identity and offer details cannot be
+      // changed by the business client.
       allow update: if isAdmin()
         || (
           signedIn() &&
-          resource.data.businessId == request.auth.uid
+          resource.data.businessId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "status",
+            "updatedAt",
+            "rejectedAt",
+            "approvedAt",
+            "rejectionReason"
+          ]) &&
+          (
+            request.resource.data.status == "approved" ||
+            request.resource.data.status == "rejected" ||
+            request.resource.data.status == "pending"
+          )
         );
 
       allow delete: if isAdmin();
@@ -188,11 +214,10 @@ match /businessStudentUsage/{usageId} {
     // =========================
     match /redemptions/{redeemId} {
 
-      // Business creates redemption
+      // Business creates redemption after approving a request.
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
 
-      // Student sees only own history
       allow read: if isAdmin()
         || (
           signedIn() &&

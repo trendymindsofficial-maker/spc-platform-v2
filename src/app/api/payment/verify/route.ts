@@ -1,90 +1,458 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import Razorpay from "razorpay";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getAdminApp, requireUser } from "@/lib/admin-server";
 
-export async function POST(
-  request: Request
-) {
+export const runtime = "nodejs";
+
+const MEMBERSHIP_AMOUNT = 199;
+const MEMBERSHIP_PLAN = "1_year";
+
+function addOneYear(date: Date): Date {
+  const next = new Date(date.getTime());
+  next.setFullYear(next.getFullYear() + 1);
+  return next;
+}
+
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Timestamp) {
+    return value.toDate();
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate();
+  }
+
+  if (typeof value === "string") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+function errorResponse(message: string, status: number) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: message,
+    },
+    { status }
+  );
+}
+
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    /*
+     * ============================================================
+     * 1. AUTHENTICATE THE FIREBASE USER
+     * ============================================================
+     *
+     * Both registration and renewal now send the Firebase ID token.
+     * The UID from this verified token is the only student UID we trust.
+     */
+    let decodedUser;
 
-    const orderId =
-      String(body?.razorpay_order_id || "").trim();
-    const paymentId =
-      String(body?.razorpay_payment_id || "").trim();
-    const signature =
-      String(body?.razorpay_signature || "").trim();
+    try {
+      decodedUser = await requireUser(request);
+    } catch (error: any) {
+      const message =
+        error?.message === "FORBIDDEN"
+          ? "Access denied."
+          : "Unauthorized. Firebase ID token is required.";
+
+      return errorResponse(message, 401);
+    }
+
+    const uid = decodedUser.uid;
+
+    /*
+     * ============================================================
+     * 2. READ PAYMENT VERIFICATION DATA
+     * ============================================================
+     */
+    const body = await request.json().catch(() => ({}));
+
+    const orderId = String(
+      body?.razorpay_order_id || ""
+    ).trim();
+
+    const paymentId = String(
+      body?.razorpay_payment_id || ""
+    ).trim();
+
+    const signature = String(
+      body?.razorpay_signature || ""
+    ).trim();
 
     if (!orderId || !paymentId || !signature) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Missing Razorpay payment verification fields.",
-        },
-        { status: 400 }
+      return errorResponse(
+        "Missing Razorpay payment verification fields.",
+        400
       );
     }
 
-    const secret =
-      process.env.RAZORPAY_KEY_SECRET;
+    /*
+     * ============================================================
+     * 3. VERIFY RAZORPAY SIGNATURE
+     * ============================================================
+     */
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (!secret) {
+    if (!keyId || !keySecret) {
       console.error(
-        "RAZORPAY_KEY_SECRET is not configured."
+        "Razorpay environment variables are missing."
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Payment verification is not configured.",
-        },
-        { status: 500 }
+      return errorResponse(
+        "Payment verification is not configured.",
+        500
       );
     }
 
-    const expectedSignature =
-      crypto
-        .createHmac("sha256", secret)
-        .update(
-          `${orderId}|${paymentId}`
-        )
-        .digest("hex");
+    const expectedSignature = crypto
+      .createHmac("sha256", keySecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+
+    const signatureBuffer = Buffer.from(signature, "utf8");
+    const expectedBuffer = Buffer.from(
+      expectedSignature,
+      "utf8"
+    );
 
     const valid =
-      expectedSignature.length ===
-        signature.length &&
+      signatureBuffer.length === expectedBuffer.length &&
       crypto.timingSafeEqual(
-        Buffer.from(expectedSignature),
-        Buffer.from(signature)
+        expectedBuffer,
+        signatureBuffer
       );
 
     if (!valid) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid payment signature.",
-        },
-        { status: 400 }
+      return errorResponse(
+        "Invalid payment signature.",
+        400
       );
     }
 
+    /*
+     * ============================================================
+     * 4. VERIFY THE ACTUAL RAZORPAY ORDER
+     * ============================================================
+     *
+     * The browser is not trusted for the amount.
+     * Razorpay itself is queried from the server and ₹199 is enforced.
+     */
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
+    const razorpayOrder =
+      await razorpay.orders.fetch(orderId);
+
+    const orderAmount = Number(
+      razorpayOrder.amount
+    );
+
+    const orderCurrency = String(
+      razorpayOrder.currency || ""
+    ).toUpperCase();
+
+    if (
+      orderAmount !== MEMBERSHIP_AMOUNT * 100 ||
+      orderCurrency !== "INR"
+    ) {
+      console.error(
+        "Invalid SBC membership order:",
+        {
+          orderId,
+          orderAmount,
+          orderCurrency,
+        }
+      );
+
+      return errorResponse(
+        "Invalid SBC membership payment amount.",
+        400
+      );
+    }
+
+    /*
+     * ============================================================
+     * 5. VERIFY THE PAYMENT REALLY BELONGS TO THIS ORDER
+     * ============================================================
+     */
+    const payments = await razorpay.orders.fetchPayments(
+      orderId
+    );
+
+    const matchingPayment = Array.isArray(
+      payments?.items
+    )
+      ? payments.items.find(
+          (payment: any) =>
+            payment?.id === paymentId
+        )
+      : null;
+
+    if (!matchingPayment) {
+      return errorResponse(
+        "Payment could not be confirmed for this Razorpay order.",
+        400
+      );
+    }
+
+    if (
+      String(matchingPayment.status || "").toLowerCase() !==
+      "captured"
+    ) {
+      return errorResponse(
+        "Payment has not been captured successfully.",
+        400
+      );
+    }
+
+    if (
+      Number(matchingPayment.amount) !==
+        MEMBERSHIP_AMOUNT * 100 ||
+      String(
+        matchingPayment.currency || ""
+      ).toUpperCase() !== "INR"
+    ) {
+      return errorResponse(
+        "Invalid captured payment amount.",
+        400
+      );
+    }
+
+    /*
+     * ============================================================
+     * 6. FIRESTORE
+     * ============================================================
+     */
+    const db = getFirestore(getAdminApp());
+
+    const studentRef = db
+      .collection("students")
+      .doc(uid);
+
+    const paymentRef = db
+      .collection("membershipPayments")
+      .doc(paymentId);
+
+    /*
+     * ============================================================
+     * 7. IDEMPOTENCY + MEMBERSHIP DATE CALCULATION
+     * ============================================================
+     *
+     * A successful Razorpay payment must never extend membership
+     * twice if the frontend retries verification.
+     *
+     * Registration:
+     *   student document may not exist yet.
+     *   Return server-calculated dates to registration.
+     *
+     * Renewal:
+     *   existing student document is updated here on the server.
+     */
+    const result = await db.runTransaction(
+      async (transaction) => {
+        const existingPayment =
+          await transaction.get(paymentRef);
+
+        if (existingPayment.exists) {
+          const existingData =
+            existingPayment.data() || {};
+
+          const storedStart = toDate(
+            existingData.membershipStartDate
+          );
+
+          const storedExpiry = toDate(
+            existingData.membershipExpiryDate
+          );
+
+          return {
+            alreadyProcessed: true,
+            membershipStartDate:
+              storedStart?.toISOString() || null,
+            membershipExpiryDate:
+              storedExpiry?.toISOString() || null,
+            isRenewal:
+              existingData.uid === uid &&
+              existingData.type === "renewal",
+          };
+        }
+
+        const studentSnap =
+          await transaction.get(studentRef);
+
+        const paymentDate = new Date();
+
+        /*
+         * Existing student = renewal.
+         * No existing student = registration payment.
+         */
+        if (studentSnap.exists) {
+          const studentData =
+            studentSnap.data() || {};
+
+          const currentExpiry = toDate(
+            studentData.membershipExpiryDate
+          );
+
+          const currentStart = toDate(
+            studentData.membershipStartDate
+          );
+
+          const active =
+            !!currentExpiry &&
+            currentExpiry.getTime() >
+              paymentDate.getTime();
+
+          const membershipStartDate = active
+            ? currentStart || paymentDate
+            : paymentDate;
+
+          const membershipExpiryDate = active
+            ? addOneYear(currentExpiry)
+            : addOneYear(paymentDate);
+
+          transaction.update(studentRef, {
+            membershipStatus: "active",
+            membershipStartDate:
+              Timestamp.fromDate(
+                membershipStartDate
+              ),
+            membershipExpiryDate:
+              Timestamp.fromDate(
+                membershipExpiryDate
+              ),
+            membershipPlan: MEMBERSHIP_PLAN,
+            lastMembershipPaymentId: paymentId,
+            lastMembershipOrderId: orderId,
+            lastMembershipPaymentAt:
+              FieldValue.serverTimestamp(),
+            membershipUpdatedAt:
+              FieldValue.serverTimestamp(),
+          });
+
+          transaction.set(paymentRef, {
+            uid,
+            type: "renewal",
+            amount: MEMBERSHIP_AMOUNT,
+            currency: "INR",
+            razorpayPaymentId: paymentId,
+            razorpayOrderId: orderId,
+            membershipStartDate:
+              Timestamp.fromDate(
+                membershipStartDate
+              ),
+            membershipExpiryDate:
+              Timestamp.fromDate(
+                membershipExpiryDate
+              ),
+            paidAt: FieldValue.serverTimestamp(),
+            verifiedAt:
+              FieldValue.serverTimestamp(),
+            status: "paid",
+          });
+
+          return {
+            alreadyProcessed: false,
+            membershipStartDate:
+              membershipStartDate.toISOString(),
+            membershipExpiryDate:
+              membershipExpiryDate.toISOString(),
+            isRenewal: true,
+          };
+        }
+
+        /*
+         * New registration:
+         * The registration page will create the student document
+         * after this endpoint returns. We still record the payment
+         * server-side to make verification auditable/idempotent.
+         */
+        const membershipStartDate = paymentDate;
+        const membershipExpiryDate =
+          addOneYear(paymentDate);
+
+        transaction.set(paymentRef, {
+          uid,
+          type: "registration",
+          amount: MEMBERSHIP_AMOUNT,
+          currency: "INR",
+          razorpayPaymentId: paymentId,
+          razorpayOrderId: orderId,
+          membershipStartDate:
+            Timestamp.fromDate(
+              membershipStartDate
+            ),
+          membershipExpiryDate:
+            Timestamp.fromDate(
+              membershipExpiryDate
+            ),
+          paidAt: FieldValue.serverTimestamp(),
+          verifiedAt:
+            FieldValue.serverTimestamp(),
+          status: "paid",
+        });
+
+        return {
+          alreadyProcessed: false,
+          membershipStartDate:
+            membershipStartDate.toISOString(),
+          membershipExpiryDate:
+            membershipExpiryDate.toISOString(),
+          isRenewal: false,
+        };
+      }
+    );
+
+    /*
+     * ============================================================
+     * 8. FINAL RESPONSE
+     * ============================================================
+     */
     return NextResponse.json({
       success: true,
       verified: true,
       paymentId,
       orderId,
+      membershipStartDate:
+        result.membershipStartDate,
+      membershipExpiryDate:
+        result.membershipExpiryDate,
+      membershipUpdated:
+        result.isRenewal && !result.alreadyProcessed,
+      alreadyProcessed:
+        result.alreadyProcessed,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(
-      "Razorpay verification error:",
+      "SBC Razorpay verification error:",
       error
     );
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Unable to verify payment.",
-      },
-      { status: 500 }
+    return errorResponse(
+      error?.message ||
+        "Unable to verify payment.",
+      500
     );
   }
 }
