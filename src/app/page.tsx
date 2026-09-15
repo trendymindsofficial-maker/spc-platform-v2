@@ -1,575 +1,546 @@
-"use client";
 
-import { useState } from "react";
+"use client";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = [
-  ["🍔", "Food", "Save More", "bg-rose-50"],
-  ["🛍️", "Shopping", "Best Deals", "bg-violet-50"],
-  ["🏋️", "Fitness", "Stay Healthy", "bg-emerald-50"],
-  ["💇", "Salon", "Look Great", "bg-pink-50"],
-  ["🎓", "Education", "Learn More", "bg-blue-50"],
-  ["✈️", "Travel", "Explore More", "bg-sky-50"],
-  ["🎮", "Entertainment", "Have Fun", "bg-amber-50"],
-  ["•••", "More", "Discover", "bg-slate-50"],
+  ["🍔", "Food & Dining", "Save More"],
+  ["🛍️", "Shopping", "Best Deals"],
+  ["✈️", "Travel", "Explore More"],
+  ["❤️", "Health & Wellness", "Stay Healthy"],
+  ["🎓", "Education", "Learn More"],
+  ["🎬", "Entertainment", "Have Fun"],
+  ["🏋️", "Fitness", "Stay Fit"],
+  ["💇", "Salon & Beauty", "Look Great"],
 ];
 
-
+const slides = [
+  {
+    eyebrow: "FOR A BRIGHTER TOMORROW",
+    title: "Student Benefit Card",
+    highlight: "More Benefits. More Savings.",
+    text: "Exclusive student discounts at your favourite brands, shops, restaurants, travel and more.",
+    primary: "Get Your SBC Now",
+    primaryPath: "/student/register",
+    secondary: "Explore Offers",
+    secondaryPath: "/student/login",
+    image: "/images/sbc-student.png",
+    sideTitle: "Students",
+    sideText: "Save More\nDo More\nBe More",
+  },
+  {
+    eyebrow: "EXCLUSIVE STUDENT OFFERS",
+    title: "Save on the things",
+    highlight: "students love.",
+    text: "Discover offers across food, shopping, fitness, salons, entertainment and more.",
+    primary: "Explore Offers",
+    primaryPath: "/student/login",
+    secondary: "Get Your SBC",
+    secondaryPath: "/student/register",
+    image: "/images/sbc-student.png",
+    sideTitle: "One Card",
+    sideText: "More Choices\nMore Savings",
+  },
+  {
+    eyebrow: "REWARDS THAT KEEP GROWING",
+    title: "Every benefit",
+    highlight: "feels better with SBC.",
+    text: "Use your SBC at partner businesses and enjoy a smarter, simpler student savings experience.",
+    primary: "Join SBC",
+    primaryPath: "/student/register",
+    secondary: "How It Works",
+    secondaryPath: "#how-it-works",
+    image: "/images/sbc-card.png",
+    sideTitle: "SBC",
+    sideText: "Benefits\nRewards\nSavings",
+  },
+];
 
 export default function Home() {
   const router = useRouter();
+  const [slide, setSlide] = useState(0);
   const [portalRole, setPortalRole] = useState<"student" | "business">("student");
 
-  const go = (path: string) => router.push(path);
+  const go = (path: string) => {
+    if (path.startsWith("#")) {
+      document.querySelector(path)?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    router.push(path);
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSlide((current) => (current + 1) % slides.length);
+    }, 5500);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const active = slides[slide];
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f8f6ef] text-[#07111f]">
-      {/* Ambient background */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-40 top-20 h-[34rem] w-[34rem] rounded-full bg-[#e7c45a]/15 blur-3xl" />
-        <div className="absolute right-[-12rem] top-[18%] h-[32rem] w-[32rem] rounded-full bg-[#ded0ff]/20 blur-3xl" />
-        <div className="absolute bottom-[-14rem] left-[30%] h-[30rem] w-[30rem] rounded-full bg-[#ffe4b7]/20 blur-3xl" />
-      </div>
-
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
-        {/* HEADER */}
-        <header className="flex h-[76px] items-center justify-between border-b border-black/[.05]">
-          <button
-            type="button"
-            onClick={() => go("/")}
-            className="flex items-center gap-3"
-          >
-            <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[#07111f] text-sm font-black text-white shadow-[0_10px_30px_rgba(7,17,31,.18)]">
-              <span className="absolute -right-3 -top-3 h-8 w-8 rounded-full bg-[#d4af37] blur-md" />
+    <main className="min-h-screen overflow-x-hidden bg-white text-[#07111f]">
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 border-b border-black/[.06] bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-10">
+          <button type="button" onClick={() => go("/")} className="flex items-center gap-3">
+            <span className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[#07111f] text-sm font-black text-white shadow-lg">
+              <span className="absolute -right-2 -top-2 h-8 w-8 rounded-full bg-[#d4af37] blur-md" />
               <span className="relative">SBC</span>
             </span>
             <span className="text-left">
-              <span className="block text-[13px] font-black tracking-[.18em]">
+              <span className="block text-[13px] font-black tracking-[.12em] sm:text-[14px]">
                 STUDENT BENEFIT CARD
               </span>
-              <span className="block text-[9px] font-semibold uppercase tracking-[.22em] text-slate-500">
-                One Card • More Benefits
+              <span className="block text-[9px] font-semibold uppercase tracking-[.2em] text-slate-500">
+                More Benefits. More Savings.
               </span>
             </span>
           </button>
 
-          <nav className="hidden items-center gap-8 lg:flex">
-            {["Home", "For Students", "For Businesses", "Offers", "How It Works", "About"].map(
-              (item, index) => (
-                <button
-                  key={item}
-                  type="button"
-                  className={`relative text-[13px] font-bold transition ${
-                    index === 0
-                      ? "text-[#8a680c] after:absolute after:-bottom-5 after:left-1/2 after:h-0.5 after:w-5 after:-translate-x-1/2 after:rounded-full after:bg-[#d4af37]"
-                      : "text-slate-600 hover:text-[#07111f]"
-                  }`}
-                >
-                  {item}
-                </button>
-              )
-            )}
+          <nav className="hidden items-center gap-7 lg:flex">
+            {[
+              ["Home", "/"],
+              ["For Students", "/student/login"],
+              ["For Businesses", "/business/login"],
+              ["Offers", "/student/login"],
+              ["How It Works", "#how-it-works"],
+              ["About", "#about"],
+            ].map(([label, path], index) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => go(path)}
+                className={`text-[13px] font-bold transition ${
+                  index === 0
+                    ? "text-[#1557d6]"
+                    : "text-slate-600 hover:text-[#07111f]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </nav>
 
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-full border border-black/10 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm backdrop-blur sm:flex">
-              <span className="text-red-500">⌖</span> Nellore <span className="text-slate-300">⌄</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => go("/student/login")}
+              className="hidden rounded-xl border border-[#1557d6] px-5 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50 sm:block"
+            >
+              Login
+            </button>
             <button
               type="button"
               onClick={() => go("/student/register")}
-              className="rounded-full bg-[#b18a16] px-5 py-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(177,138,22,.22)] transition hover:-translate-y-0.5"
+              className="rounded-xl bg-[#1557d6] px-5 py-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5"
             >
-              Get Started <span className="ml-1">→</span>
+              Get Your SBC
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* HERO */}
-        <section className="grid items-center gap-8 py-8 lg:grid-cols-[.9fr_1.35fr_.72fr] lg:py-12">
-          {/* Copy */}
-          <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-white/75 px-4 py-2 text-[10px] font-black uppercase tracking-[.16em] text-[#8a680c] shadow-sm backdrop-blur">
-              🎓 Empowering Students
-            </div>
+      {/* HERO SLIDER */}
+      <section className="relative overflow-hidden border-b border-black/[.04] bg-[#f7faff]">
+        <div className="mx-auto max-w-[1500px]">
+          <div className="relative min-h-[570px] overflow-hidden lg:min-h-[555px]">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(180,211,255,.55),transparent_36%),linear-gradient(90deg,#f7faff_0%,#eef5ff_46%,#dceaff_100%)]" />
 
-            <h1 className="text-[3.35rem] font-black leading-[.94] tracking-[-.055em] sm:text-6xl lg:text-[4.65rem]">
-              Your student life
-              <br />
-              just got more
-              <br />
-              <span className="bg-gradient-to-r from-[#916d0b] via-[#c09319] to-[#e0b83f] bg-clip-text text-transparent">
-                rewarding.
-              </span>
-            </h1>
+            <div
+              key={slide}
+              className="relative grid min-h-[570px] items-center gap-5 px-5 py-10 sm:px-10 lg:min-h-[555px] lg:grid-cols-[.95fr_1.35fr] lg:px-16"
+            >
+              <div className="relative z-20 max-w-[570px]">
+                <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+                  {active.eyebrow}
+                </p>
 
-            <p className="mt-6 max-w-md text-[15px] leading-7 text-slate-600 sm:text-base">
-              Exclusive offers, real savings and exciting privileges — all with
-              one simple student card.
-            </p>
+                <h1 className="mt-4 text-[3rem] font-black leading-[.98] tracking-[-.055em] sm:text-6xl lg:text-[4.4rem]">
+                  {active.title}
+                  <br />
+                  <span className="text-[#1557d6]">{active.highlight}</span>
+                </h1>
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => go("/student/login")}
-                className="rounded-2xl bg-[#b18a16] px-6 py-4 text-sm font-black text-white shadow-[0_16px_35px_rgba(177,138,22,.25)] transition hover:-translate-y-1"
-              >
-                Explore Offers <span className="ml-2">→</span>
-              </button>
-              <button
-                type="button"
-                className="rounded-2xl border border-black/10 bg-white/80 px-5 py-4 text-sm font-black shadow-sm backdrop-blur transition hover:-translate-y-1"
-              >
-                ◉ &nbsp; Watch Video
-              </button>
-            </div>
+                <p className="mt-6 max-w-lg text-[15px] font-medium leading-7 text-slate-600 sm:text-base">
+                  {active.text}
+                </p>
 
-            <div className="mt-8 hidden items-center gap-3 sm:flex">
-              <div className="flex -space-x-2">
-                {["👨🏻", "👩🏻", "👨🏽"].map((x, i) => (
-                  <span
-                    key={i}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#f8f6ef] bg-white text-sm shadow-sm"
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => go(active.primaryPath)}
+                    className="rounded-2xl bg-[#1557d6] px-6 py-4 text-sm font-black text-white shadow-[0_15px_35px_rgba(21,87,214,.24)] transition hover:-translate-y-1"
                   >
-                    {x}
-                  </span>
-                ))}
-              </div>
-              <div>
-                <p className="text-sm font-black">10,000+ Students</p>
-                <p className="text-[10px] text-slate-500">are already saving with SBC</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Hero card visual */}
-          <div className="relative mx-auto h-[480px] w-full max-w-[570px]">
-            <div className="absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#f5d66f]/60 via-[#fff4c7]/60 to-transparent blur-xl" />
-
-            {/* Real student photo */}
-            <div className="absolute left-1/2 top-2 z-30 h-[420px] w-[330px] -translate-x-1/2 sm:h-[445px] sm:w-[350px]">
-              <img
-                src="/images/sbc-student.png"
-                alt="SBC student"
-                className="h-full w-full object-contain object-center drop-shadow-[0_24px_35px_rgba(7,17,31,.18)]"
-              />
-            </div>
-
-            {/* Floating category pills */}
-            <div className="absolute left-2 top-24 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">🍔</span>
-              <span className="ml-2 text-xs font-black">Food</span>
-              <span className="ml-1 text-[9px] text-slate-400">Save More</span>
-            </div>
-            <div className="absolute right-1 top-16 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">🏋️</span>
-              <span className="ml-2 text-xs font-black">Fitness</span>
-            </div>
-            <div className="absolute left-0 top-52 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">🛍️</span>
-              <span className="ml-2 text-xs font-black">Shopping</span>
-            </div>
-            <div className="absolute right-0 top-48 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">💇</span>
-              <span className="ml-2 text-xs font-black">Salon</span>
-            </div>
-            <div className="absolute bottom-32 left-4 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">✈️</span>
-              <span className="ml-2 text-xs font-black">Travel</span>
-            </div>
-            <div className="absolute bottom-28 right-1 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.12)] backdrop-blur">
-              <span className="text-lg">🎓</span>
-              <span className="ml-2 text-xs font-black">Education</span>
-            </div>
-
-            {/* Premium SBC card image */}
-            <div className="absolute bottom-3 left-1/2 z-50 w-[330px] -translate-x-1/2 rotate-[-7deg] sm:w-[385px] lg:w-[410px]">
-              <img
-                src="/images/sbc-card.png"
-                alt="SBC Student Benefit Card"
-                className="block w-full rounded-[28px] object-contain drop-shadow-[0_30px_55px_rgba(7,17,31,.38)]"
-              />
-            </div>
-
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rotate-[-2deg] text-center text-[15px] font-bold text-[#07111f]">
-              <span className="block -rotate-2">More</span>
-              <span className="block">Than Just</span>
-              <span className="block">a Student Card!</span>
-              <span className="text-[#d4af37]">⌁</span>
-            </div>
-          </div>
-
-          {/* Portal */}
-          <div className="rounded-[2rem] border border-white bg-white/90 p-5 shadow-[0_30px_80px_rgba(7,17,31,.13)] backdrop-blur-xl sm:p-6">
-            <div className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#07111f] text-lg font-black text-white shadow-lg">
-                SBC
-              </div>
-              <h2 className="mt-4 text-2xl font-black">Access SBC Platform</h2>
-              <p className="mt-1 text-xs text-slate-500">Choose your role to continue</p>
-
-              {/* ROLE SELECTOR */}
-              <div className="mt-5 grid grid-cols-3 rounded-2xl bg-slate-100 p-1 text-[10px] font-black">
-                <button
-                  type="button"
-                  onClick={() => setPortalRole("student")}
-                  className={`rounded-xl px-2 py-2.5 transition ${
-                    portalRole === "student"
-                      ? "bg-[#d4af37] text-white shadow-md"
-                      : "text-slate-500 hover:bg-white hover:text-[#07111f]"
-                  }`}
-                >
-                  🎓 Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPortalRole("business")}
-                  className={`rounded-xl px-2 py-2.5 transition ${
-                    portalRole === "business"
-                      ? "bg-[#d4af37] text-white shadow-md"
-                      : "text-slate-500 hover:bg-white hover:text-[#07111f]"
-                  }`}
-                >
-                  🏪 Business
-                </button>
-                <button
-                  type="button"
-                  onClick={() => go("/admin/login")}
-                  className="rounded-xl px-2 py-2.5 text-slate-500 transition hover:bg-white hover:text-[#07111f]"
-                >
-                  🔐 Admin
-                </button>
-              </div>
-
-              {/* ROLE-SPECIFIC ACCESS */}
-              {portalRole === "student" ? (
-                <div className="mt-4">
-                  <div className="mb-3 rounded-2xl bg-[#fff8df] px-4 py-3 text-left">
-                    <p className="text-xs font-black text-[#8a680c]">Student Access</p>
-                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                      Login or register to explore exclusive offers and start saving.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <button
-                      type="button"
-                      onClick={() => go("/student/login")}
-                      className="group flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
-                    >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
-                        ↪
-                      </span>
-                      <span>
-                        <span className="block text-xs font-black">Student Login</span>
-                        <span className="block text-[10px] text-white/55">Access your benefits</span>
-                      </span>
-                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => go("/student/register")}
-                      className="group flex w-full items-center gap-3 rounded-2xl border border-[#d4af37]/35 bg-white p-4 text-left text-[#8a680c] transition hover:-translate-y-0.5 hover:border-[#d4af37]/60 hover:bg-[#fffaf0]"
-                    >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff3c8] text-lg">
-                        👤
-                      </span>
-                      <span>
-                        <span className="block text-xs font-black">Student Registration</span>
-                        <span className="block text-[10px] opacity-65">Create your SBC account</span>
-                      </span>
-                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
-                    </button>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                      New to SBC?
-                    </span>
-                    <div className="h-px flex-1 bg-slate-200" />
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-3 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
-                      ▦
-                    </div>
-                    <div>
-                      <p className="text-xs font-black">Join SBC in seconds</p>
-                      <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                        Register and unlock student benefits.
-                      </p>
-                    </div>
-                  </div>
+                    {active.primary} <span className="ml-2">→</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go(active.secondaryPath)}
+                    className="rounded-2xl border border-[#1557d6]/25 bg-white px-6 py-4 text-sm font-black text-[#1557d6] shadow-sm transition hover:-translate-y-1"
+                  >
+                    {active.secondary}
+                  </button>
                 </div>
-              ) : (
-                <div className="mt-4">
-                  <div className="mb-3 rounded-2xl bg-[#f0f3f7] px-4 py-3 text-left">
-                    <p className="text-xs font-black text-[#07111f]">Business Access</p>
-                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                      Manage offers, redemptions and your SBC partnership.
-                    </p>
-                  </div>
 
-                  <div className="space-y-2.5">
-                    <button
-                      type="button"
-                      onClick={() => go("/business/login")}
-                      className="group flex w-full items-center gap-3 rounded-2xl bg-[#07111f] p-4 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
-                    >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">
-                        ↪
-                      </span>
-                      <span>
-                        <span className="block text-xs font-black">Business Login</span>
-                        <span className="block text-[10px] text-white/55">Manage your partnership</span>
-                      </span>
-                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => go("/business/register")}
-                      className="group flex w-full items-center gap-3 rounded-2xl border border-[#d4af37]/35 bg-[#fff8df] p-4 text-left text-[#8a680c] transition hover:-translate-y-0.5 hover:border-[#d4af37]/60"
-                    >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">
-                        🤝
-                      </span>
-                      <span>
-                        <span className="block text-xs font-black">Business Registration</span>
-                        <span className="block text-[10px] opacity-65">Become an SBC partner</span>
-                      </span>
-                      <span className="ml-auto text-lg transition group-hover:translate-x-1">→</span>
-                    </button>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
-                    <p className="text-xs font-black">Grow with students</p>
-                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                      Reach students with exclusive offers and a simple digital redemption flow.
-                    </p>
-                  </div>
+                <div className="mt-8 flex flex-wrap gap-5 text-xs font-bold text-slate-600">
+                  <span>✓ Exclusive Discounts</span>
+                  <span>✓ Reward Points</span>
+                  <span>✓ Trusted Partners</span>
                 </div>
-              )}
+              </div>
 
-              <div className="mt-5 flex items-center gap-3 rounded-2xl border border-black/5 bg-[#faf9f4] p-3 text-left">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">▦</div>
-                <div>
-                  <p className="text-xs font-black">New to SBC?</p>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                    Join thousands of students and start saving today.
+              <div className="relative mx-auto h-[440px] w-full max-w-[760px] lg:h-[500px]">
+                <div className="absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/70 blur-2xl" />
+
+                <div className="absolute right-[2%] top-[6%] z-30 hidden rounded-2xl border border-white bg-white/90 px-5 py-4 shadow-[0_18px_45px_rgba(7,17,31,.12)] backdrop-blur sm:block">
+                  <p className="whitespace-pre-line text-right text-[19px] font-black leading-6 text-[#07111f]">
+                    {active.sideText}
+                  </p>
+                  <p className="mt-1 text-right text-[9px] font-black uppercase tracking-widest text-[#1557d6]">
+                    {active.sideTitle}
                   </p>
                 </div>
+
+                <div className="absolute left-[4%] top-[26%] z-30 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.1)]">
+                  <span className="text-xl">🎁</span>
+                  <span className="ml-2 text-xs font-black">Exclusive Offers</span>
+                </div>
+
+                <div className="absolute right-[8%] top-[40%] z-30 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.1)]">
+                  <span className="text-xl">⭐</span>
+                  <span className="ml-2 text-xs font-black">Reward Points</span>
+                </div>
+
+                <img
+                  src={active.image}
+                  alt="SBC student and Student Benefit Card"
+                  className={`absolute left-1/2 top-1/2 z-20 max-h-[470px] w-[88%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_30px_45px_rgba(7,17,31,.2)] ${
+                    active.image.includes("card") ? "rotate-[-5deg] max-w-[570px]" : "max-w-[610px]"
+                  }`}
+                />
+
+                <div className="absolute bottom-[4%] left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-white bg-white/90 px-5 py-2 text-xs font-black shadow-lg">
+                  🎓 Made for students
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* STATS */}
-        <section className="rounded-[2rem] border border-white bg-white/85 p-3 shadow-[0_15px_45px_rgba(7,17,31,.06)] backdrop-blur">
-          <div className="grid grid-cols-2 divide-x divide-y divide-black/5 sm:grid-cols-4 sm:divide-y-0">
+            <button
+              type="button"
+              aria-label="Previous slide"
+              onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
+              className="absolute left-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-[#07111f] text-xl font-black text-white shadow-lg transition hover:scale-105"
+            >
+              ‹
+            </button>
+
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={() => setSlide((slide + 1) % slides.length)}
+              className="absolute right-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-[#07111f] text-xl font-black text-white shadow-lg transition hover:scale-105"
+            >
+              ›
+            </button>
+
+            <div className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-2">
+              {slides.map((item, index) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  aria-label={`Go to slide ${index + 1}`}
+                  onClick={() => setSlide(index)}
+                  className={`h-2.5 rounded-full transition-all ${
+                    slide === index ? "w-8 bg-[#1557d6]" : "w-2.5 bg-slate-300"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CATEGORIES */}
+      <section className="border-b border-black/[.05] bg-white px-4 py-8 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {categories.map(([icon, name, sub]) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => go("/student/login")}
+              className="group rounded-2xl border border-black/[.06] bg-white p-4 text-center shadow-[0_8px_25px_rgba(7,17,31,.05)] transition hover:-translate-y-1 hover:border-blue-100 hover:shadow-lg"
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f1f6ff] text-2xl transition group-hover:scale-105">
+                {icon}
+              </div>
+              <p className="mt-3 text-xs font-black">{name}</p>
+              <p className="mt-1 text-[9px] font-medium text-slate-400">{sub}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="px-4 py-8 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-2 overflow-hidden rounded-3xl border border-[#dce7f7] bg-[#f7faff] sm:grid-cols-4">
+          {[
+            ["10,000+", "Students Registered", "👥"],
+            ["500+", "Partner Businesses", "🏪"],
+            ["50+", "Colleges Onboard", "🎓"],
+            ["1000+", "Exclusive Offers", "🏷️"],
+          ].map(([number, label, icon]) => (
+            <div key={label} className="flex items-center justify-center gap-3 border-black/[.06] px-4 py-6 sm:border-r last:border-r-0">
+              <span className="text-2xl">{icon}</span>
+              <div>
+                <p className="text-2xl font-black">{number}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* OFFERS */}
+      <section className="px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+                FEATURED OFFERS
+              </p>
+              <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
+              <p className="mt-2 text-sm text-slate-500">Save more at brands and businesses loved by students.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => go("/student/login")}
+              className="rounded-xl border border-[#1557d6] px-5 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50"
+            >
+              View All Offers →
+            </button>
+          </div>
+
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["10,000+", "Students Registered", "🎓"],
-              ["500+", "Partner Businesses", "🏪"],
-              ["50+", "Colleges Onboard", "🏫"],
-              ["1000+", "Offers Available", "🎁"],
-            ].map(([number, label, icon]) => (
-              <div key={label} className="flex items-center justify-center gap-3 px-3 py-5">
-                <span className="hidden text-xl sm:block">{icon}</span>
-                <div>
-                  <p className="text-xl font-black sm:text-2xl">{number}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+              ["10% OFF", "Food & Dining", "🍔", "Enjoy student savings on meals and cafes."],
+              ["20% OFF", "Shopping", "🛍️", "Exclusive deals on your favourite stores."],
+              ["15% OFF", "Travel", "✈️", "Travel smarter with student benefits."],
+              ["BUY 1 GET 1", "Entertainment", "🎬", "Make your free time more rewarding."],
+            ].map(([discount, category, icon, text]) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => go("/student/login")}
+                className="group overflow-hidden rounded-3xl border border-black/[.06] bg-white text-left shadow-[0_12px_35px_rgba(7,17,31,.07)] transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-[#eaf2ff] to-[#f8fbff] text-7xl">
+                  {icon}
+                  <span className="absolute left-4 top-4 rounded-full bg-[#1557d6] px-3 py-1.5 text-[10px] font-black text-white">
+                    {discount}
+                  </span>
                 </div>
+                <div className="p-5">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-[#1557d6]">{category}</p>
+                  <h3 className="mt-2 text-lg font-black">Student Exclusive</h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
+                  <p className="mt-4 text-xs font-black text-[#1557d6]">Explore Offer →</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="bg-[#f7faff] px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-[1200px] text-center">
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">SIMPLE & SECURE</p>
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">How SBC Works</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            One simple flow from discovering a deal to enjoying your student benefit.
+          </p>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["01", "Find an Offer", "Browse exclusive student offers from partner businesses.", "🔎"],
+              ["02", "Tap Redeem", "Choose the offer you want and send a redemption request.", "🎁"],
+              ["03", "Business Approves", "Get real-time approval from the partner business.", "✅"],
+              ["04", "Enjoy & Save", "Show your approved redemption and enjoy the benefit.", "⭐"],
+            ].map(([number, title, text, icon]) => (
+              <div key={number} className="rounded-3xl bg-white p-7 shadow-[0_10px_30px_rgba(7,17,31,.06)]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf2ff] text-2xl">
+                  {icon}
+                </div>
+                <p className="mt-5 text-[9px] font-black tracking-widest text-[#1557d6]">{number}</p>
+                <h3 className="mt-1 text-base font-black">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* HOW IT WORKS */}
-        <section className="grid gap-5 lg:grid-cols-[1.65fr_.8fr]">
-          <div className="rounded-[2.2rem] border border-white bg-white/85 p-6 shadow-sm backdrop-blur sm:p-9">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#8a680c]">Simple & Secure</p>
-            <h2 className="mt-2 text-3xl font-black">How SBC Works?</h2>
+      {/* ABOUT / STUDENT VALUE */}
+      <section id="about" className="px-4 py-14 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] items-center gap-10 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+              ONE CARD. MANY BENEFITS.
+            </p>
+            <h2 className="mt-3 text-3xl font-black sm:text-5xl">
+              Built around the way students live.
+            </h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600">
+              Student Benefit Card helps students discover exclusive discounts,
+              offers, rewards and savings from partner businesses — all through
+              one simple digital platform.
+            </p>
 
-            <div className="mt-9 grid gap-7 sm:grid-cols-4">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
               {[
-                ["⌕", "Find an Offer", "Browse offers near you"],
-                ["🎁", "Tap Redeem", "Request the offer"],
-                ["✓", "Business Approves", "Get real-time approval"],
-                ["✦", "Enjoy Savings", "Use the offer & save!"],
-              ].map(([icon, title, text], index) => (
-                <div key={title} className="relative text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fff5d8] text-xl">
-                    {icon}
-                  </div>
-                  <p className="mt-4 text-xs font-black">{index + 1}. {title}</p>
+                ["💰", "Real Savings", "Exclusive benefits made for students."],
+                ["⚡", "Simple Redemption", "Request and get approval digitally."],
+                ["🎁", "Reward Points", "Get more value from eligible activity."],
+                ["🛡️", "Trusted Partners", "A growing network of businesses."],
+              ].map(([icon, title, text]) => (
+                <div key={title} className="rounded-2xl border border-black/[.06] p-4">
+                  <span className="text-xl">{icon}</span>
+                  <p className="mt-2 text-xs font-black">{title}</p>
                   <p className="mt-1 text-[10px] leading-4 text-slate-500">{text}</p>
-                  {index < 3 && (
-                    <span className="absolute right-[-18px] top-6 hidden text-slate-300 sm:block">→</span>
-                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[2.2rem] bg-gradient-to-br from-[#fff8df] to-[#eee8ff] p-7 shadow-sm">
-            <div className="text-3xl">“</div>
-            <p className="mt-3 text-base font-bold leading-6 text-[#07111f]">
-              SBC makes student savings simple. One platform, more offers and
-              benefits wherever students go.
-            </p>
-            <div className="mt-7 flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-lg shadow-sm">👩🏻</span>
-              <div>
-                <p className="text-xs font-black">SBC Student</p>
-                <p className="text-[10px] text-slate-500">Student Community</p>
-              </div>
-              <span className="ml-auto text-[#d4af37]">★★★★★</span>
-            </div>
+          <div className="relative flex min-h-[390px] items-center justify-center overflow-hidden rounded-[2.5rem] bg-[#07111f] p-8">
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full border-[35px] border-[#d4af37]/20" />
+            <div className="absolute -bottom-24 -left-20 h-64 w-64 rounded-full border-[35px] border-blue-400/10" />
+            <img
+              src="/images/sbc-card.png"
+              alt="Student Benefit Card"
+              className="relative z-10 w-full max-w-[500px] rotate-[-5deg] object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,.4)]"
+            />
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* CATEGORIES */}
-        <section className="py-14">
-          <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#8a680c]">One Card</p>
-            <h2 className="mt-2 text-3xl font-black sm:text-4xl">Benefits for every student.</h2>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-            {categories.map(([icon, name, sub, tone]) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => go("/student/login")}
-                className={`rounded-3xl ${tone} p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md`}
-              >
-                <div className="text-3xl">{icon}</div>
-                <p className="mt-4 text-xs font-black">{name}</p>
-                <p className="mt-1 text-[9px] text-slate-500">{sub}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* BUSINESS CTA */}
-        <section className="relative mb-12 overflow-hidden rounded-[2.5rem] bg-[#07111f] px-6 py-9 text-white sm:px-10 sm:py-11">
-          <div className="absolute right-[-80px] top-[-100px] h-72 w-72 rounded-full border-[45px] border-[#d4af37]/15" />
-          <div className="relative grid items-center gap-8 lg:grid-cols-[1.2fr_1fr]">
+      {/* BUSINESS CTA */}
+      <section className="px-4 pb-14 sm:px-6">
+        <div className="mx-auto max-w-[1400px] overflow-hidden rounded-[2.5rem] bg-[#07111f] px-6 py-10 text-white sm:px-10 lg:px-14 lg:py-12">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_1fr]">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#e0bd52]">For Businesses</p>
+              <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#e1c04e]">FOR BUSINESSES</p>
               <h2 className="mt-3 text-3xl font-black sm:text-4xl">Partner with SBC.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-white/55">
-                Connect with students, build your brand presence and grow your
-                business through exclusive student offers.
+              <p className="mt-3 max-w-xl text-sm leading-6 text-white/60">
+                Connect with students, promote exclusive offers and grow your
+                business through a simple digital student benefits platform.
               </p>
               <button
                 type="button"
                 onClick={() => go("/business/register")}
-                className="mt-6 rounded-2xl bg-[#d4af37] px-6 py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:-translate-y-1"
+                className="mt-6 rounded-2xl bg-[#d4af37] px-6 py-4 text-sm font-black text-[#07111f] transition hover:-translate-y-1"
               >
                 Register Your Business →
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 ["👥", "More Customers"],
-                ["🛡️", "Brand Presence"],
+                ["📣", "Brand Visibility"],
                 ["⚡", "Easy Redemption"],
-                ["♢", "Dedicated Support"],
+                ["🤝", "Partner Support"],
               ].map(([icon, text]) => (
-                <div key={text} className="rounded-2xl border border-white/10 bg-white/[.05] p-4 text-center">
-                  <div className="text-xl">{icon}</div>
+                <div key={text} className="rounded-2xl border border-white/10 bg-white/[.05] p-5 text-center">
+                  <div className="text-2xl">{icon}</div>
                   <p className="mt-3 text-[10px] font-black">{text}</p>
                 </div>
               ))}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* SEO */}
-        <section className="border-t border-black/5 py-12">
-          <div className="mx-auto max-w-5xl">
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#8a680c]">
-              Student Discounts • Offers • Benefits
+      {/* SEO */}
+      <section className="border-t border-black/[.05] px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#1557d6]">
+            STUDENT DISCOUNTS • OFFERS • BENEFITS
+          </p>
+          <h2 className="mt-3 text-3xl font-black sm:text-4xl">
+            Student Discounts and Exclusive Offers
+          </h2>
+          <div className="mt-5 grid gap-5 text-sm leading-7 text-slate-600 sm:grid-cols-2">
+            <p>
+              Student Benefit Card (SBC) is a student benefits platform that
+              helps students discover exclusive discounts, offers, rewards and
+              savings from partner businesses.
             </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              Student Discounts and Exclusive Offers
-            </h2>
-            <div className="mt-5 grid gap-5 text-sm leading-7 text-slate-600 sm:grid-cols-2">
-              <p>
-                Student Benefit Card (SBC) is a student benefits platform that
-                helps students discover exclusive discounts, offers, rewards and
-                savings from partner businesses.
-              </p>
-              <p>
-                Students can explore offers from restaurants, cafes, salons,
-                shopping stores and other student-friendly businesses, then use
-                their SBC account to access eligible benefits.
-              </p>
-            </div>
-            <div className="mt-6 rounded-3xl border border-[#d4af37]/20 bg-[#fff9e8] p-6">
-              <h3 className="font-black">Student Offers in Nellore</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                SBC is building a growing network of student offers in Nellore,
-                connecting college students with local restaurants, cafes,
-                salons, shops and other partner businesses.
-              </p>
-            </div>
+            <p>
+              Students can explore offers from restaurants, cafes, salons,
+              shopping stores and other student-friendly businesses, then use
+              their SBC account to access eligible benefits.
+            </p>
           </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="border-t border-black/5 py-8">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#07111f] text-[10px] font-black text-white">
-                SBC
-              </span>
-              <div>
-                <p className="text-xs font-black tracking-[.14em]">STUDENT BENEFIT CARD</p>
-                <p className="text-[9px] text-slate-400">One Card • More Benefits</p>
-              </div>
-            </div>
-            <div className="flex gap-5 text-[10px] font-bold text-slate-500">
-              <button type="button">Home</button>
-              <button type="button" onClick={() => go("/student/login")}>Students</button>
-              <button type="button" onClick={() => go("/business/login")}>Businesses</button>
-              <button type="button">Offers</button>
-              <button type="button">About</button>
-            </div>
-            <p className="text-[10px] text-slate-400">© 2026 SBC. All rights reserved.</p>
+          <div className="mt-6 rounded-3xl border border-blue-100 bg-[#f5f9ff] p-6">
+            <h3 className="font-black">Student Offers in Nellore</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              SBC is building a growing network of student offers in Nellore,
+              connecting college students with local restaurants, cafes, salons,
+              shops and other partner businesses.
+            </p>
           </div>
-        </footer>
-      </div>
+        </div>
+      </section>
 
-      {/* Mobile app-style bottom navigation */}
-      <div className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-20px)] max-w-md -translate-x-1/2 items-center justify-between rounded-[1.4rem] border border-white/80 bg-white/90 px-2 py-2 shadow-[0_18px_50px_rgba(7,17,31,.18)] backdrop-blur-xl sm:hidden">
+      {/* FOOTER */}
+      <footer className="border-t border-black/[.06] px-4 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 sm:flex-row">
+          <button type="button" onClick={() => go("/")} className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#07111f] text-[10px] font-black text-white">
+              SBC
+            </span>
+            <span className="text-left">
+              <span className="block text-xs font-black tracking-[.12em]">STUDENT BENEFIT CARD</span>
+              <span className="block text-[9px] text-slate-400">More Benefits. More Savings.</span>
+            </span>
+          </button>
+
+          <div className="flex flex-wrap justify-center gap-5 text-[10px] font-bold text-slate-500">
+            <button type="button" onClick={() => go("/")}>Home</button>
+            <button type="button" onClick={() => go("/student/login")}>Students</button>
+            <button type="button" onClick={() => go("/business/login")}>Businesses</button>
+            <button type="button" onClick={() => go("/student/login")}>Offers</button>
+            <button type="button" onClick={() => go("#about")}>About</button>
+          </div>
+
+          <p className="text-[10px] text-slate-400">© 2026 SBC. All rights reserved.</p>
+        </div>
+      </footer>
+
+      {/* MOBILE NAV */}
+      <div className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-20px)] max-w-md -translate-x-1/2 items-center justify-between rounded-[1.4rem] border border-white/80 bg-white/95 px-2 py-2 shadow-[0_18px_50px_rgba(7,17,31,.18)] backdrop-blur-xl sm:hidden">
         {[
           ["⌂", "Home", "/"],
           ["◇", "Offers", "/student/login"],
-          ["⌾", "Scan", "/student/login"],
           ["▣", "Business", "/business/login"],
-          ["♙", "Profile", "/student/login"],
-        ].map(([icon, label, path], i) => (
+          ["♙", "Login", "/student/login"],
+        ].map(([icon, label, path], index) => (
           <button
             key={label}
             type="button"
             onClick={() => go(path)}
-            className={`group flex min-w-[52px] flex-col items-center rounded-xl px-2 py-1.5 text-slate-500 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#fff4d2] hover:text-[#8a680c] ${
-              i === 0 ? "bg-[#fff4d2] text-[#8a680c]" : ""
+            className={`flex min-w-[65px] flex-col items-center rounded-xl px-2 py-2 text-slate-500 transition ${
+              index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
             }`}
           >
-            <span className="text-base transition-transform duration-200 group-hover:scale-110">
-              {icon}
-            </span>
+            <span className="text-base">{icon}</span>
             <span className="mt-0.5 text-[8px] font-black">{label}</span>
           </button>
         ))}
       </div>
-
     </main>
   );
 }
