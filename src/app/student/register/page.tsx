@@ -1357,17 +1357,17 @@ export default function StudentRegister() {
    */
 
   return (
-    <main className="min-h-screen bg-[#f5f3ed] text-[#07111f]">
+    <main className="min-h-screen w-full overflow-x-hidden bg-[#f7f9fc] text-[#07111f]">
 
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
+      <div className="relative min-h-screen w-full overflow-x-hidden px-0 py-0 sm:flex sm:items-center sm:justify-center sm:px-6 sm:py-8">
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(212,175,55,0.14),transparent_32%),radial-gradient(circle_at_90%_85%,rgba(7,17,31,0.09),transparent_30%),linear-gradient(135deg,#fffdf7_0%,#f5f3ed_52%,#eeeade_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f7faff_0%,#f7f9fc_45%,#ffffff_100%)]" />
 
-        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+        <div className="absolute -left-24 top-20 hidden h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl sm:block" />
 
-        <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-0 hidden h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl sm:block" />
 
-        <div className="relative w-full max-w-6xl">
+        <div className="relative mx-auto w-full min-w-0 max-w-6xl px-0 sm:px-0">
 
           {/* BACK */}
 
@@ -1376,12 +1376,12 @@ export default function StudentRegister() {
             onClick={() =>
               router.push("/")
             }
-            className="mb-5 rounded-full border border-black/10 bg-white/85 px-5 py-2.5 text-sm font-bold text-[#07111f] shadow-sm backdrop-blur transition hover:border-[#d4af37]/50 hover:bg-white"
+            className="flex h-14 w-full items-center border-b border-black/[.06] bg-white px-4 text-sm font-bold text-[#07111f] shadow-sm sm:mb-4 sm:h-auto sm:w-auto sm:rounded-full sm:border sm:px-4 sm:py-2 sm:text-sm"
           >
             ← Back to Home
           </button>
 
-          <div className="grid overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-[0_30px_100px_rgba(7,17,31,0.16)] backdrop-blur-xl lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="grid w-full min-w-0 max-w-full overflow-hidden border-0 bg-white shadow-none sm:rounded-3xl sm:border sm:border-black/5 sm:shadow-[0_18px_50px_rgba(7,17,31,0.10)] lg:grid-cols-[0.8fr_1.2fr]">
 
             {/* BRAND PANEL */}
 
@@ -1456,41 +1456,41 @@ export default function StudentRegister() {
 
             {/* FORM PANEL */}
 
-            <div className="p-6 sm:p-9 lg:p-11">
+            <div className="min-w-0 max-w-full px-4 pb-8 pt-5 sm:p-9 lg:p-11">
 
               {/* MOBILE BRANDING */}
 
-              <div className="mb-7 text-center lg:hidden">
+              <div className="mb-4 flex items-center justify-center gap-3 text-left lg:hidden">
 
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#07111f] text-base font-black text-[#f1cf63] shadow-lg">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#07111f] text-xs font-black text-[#f1cf63] shadow-md">
                   SBC
                 </div>
 
               </div>
 
-              <div className="text-center lg:text-left">
+              <div className="text-left">
 
-                <div className="inline-flex items-center rounded-full border border-[#d4af37]/30 bg-[#fff8df] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#8a680c]">
+                <div className="inline-flex items-center rounded-full border border-[#d4af37]/30 bg-[#fff8df] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-[#8a680c]">
                   ✦ Student Registration
                 </div>
 
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
+                <h1 className="mt-3 max-w-full break-words text-[1.9rem] font-black leading-[1.08] tracking-[-0.03em] text-[#07111f] sm:text-4xl">
                   Create Your SBC Account
                 </h1>
 
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 max-w-sm text-xs leading-5 text-slate-500 sm:text-sm sm:leading-6">
                   Complete your details and verify your mobile number.
                 </p>
 
               </div>
 
-              <div className="mt-8 space-y-4">
+              <div className="mt-6 min-w-0 max-w-full space-y-4 sm:mt-7">
 
                 {/* NAME */}
 
                 <div>
 
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                     Full Name
                   </label>
 
@@ -1510,7 +1510,7 @@ export default function StudentRegister() {
                         )
                       }
                       disabled={loading}
-                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] py-3.5 pl-12 pr-4 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-3 text-sm shadow-[0_2px_8px_rgba(7,17,31,.03)] outline-none transition placeholder:text-slate-400 focus:border-[#1557d6] focus:ring-4 focus:ring-[#1557d6]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:py-3.5 sm:pr-4"
                     />
 
                   </div>
@@ -1521,13 +1521,13 @@ export default function StudentRegister() {
 
                 <div>
 
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                     Mobile Number
                   </label>
 
-                  <div className="flex gap-2">
+                  <div className="flex w-full min-w-0 gap-2">
 
-                    <div className="flex items-center rounded-2xl border border-black/10 bg-[#07111f] px-4 text-sm font-black text-[#f1cf63]">
+                    <div className="flex h-12 shrink-0 items-center rounded-xl bg-[#07111f] px-3 text-sm font-black text-[#f1cf63] sm:h-auto sm:rounded-2xl sm:px-4">
                       +91
                     </div>
 
@@ -1556,7 +1556,7 @@ export default function StudentRegister() {
                         loading ||
                         otpLoading
                       }
-                      className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-0 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-[0_2px_8px_rgba(7,17,31,.03)] outline-none transition placeholder:text-slate-400 focus:border-[#1557d6] focus:bg-white focus:ring-4 focus:ring-[#1557d6]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:p-3.5"
                     />
 
                   </div>
@@ -1565,7 +1565,7 @@ export default function StudentRegister() {
 
                 {/* SECURITY NOTE */}
 
-                <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+                <div className="rounded-xl border border-blue-100 bg-[#f7faff] p-3.5 sm:rounded-2xl sm:p-4">
 
                   <p className="text-sm font-black text-[#8a680c]">
                     🔐 Secure Mobile Verification
@@ -1609,7 +1609,7 @@ export default function StudentRegister() {
                         10 ||
                       !fullName.trim()
                     }
-                    className="w-full rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-12 w-full rounded-xl bg-[#07111f] px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(7,17,31,.12)] transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {checkingMobile
                       ? "🔎 Checking Mobile..."
@@ -1622,7 +1622,7 @@ export default function StudentRegister() {
                 {/* OTP */}
 
                 {otpSent && (
-                  <div className="rounded-[1.5rem] border border-[#d4af37]/25 bg-[#fffdf5] p-5">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_4px_16px_rgba(7,17,31,.04)] sm:rounded-2xl sm:p-5">
 
                     <div className="mb-4">
 
@@ -1662,7 +1662,7 @@ export default function StudentRegister() {
                                 )
                             )
                           }
-                          className="w-full rounded-2xl border border-[#d4af37]/35 bg-white p-4 text-center text-2xl font-black tracking-[0.5em] outline-none focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/10"
+                          className="block h-14 w-full min-w-0 max-w-full rounded-xl border border-blue-100 bg-white px-3 text-center text-xl font-black tracking-[0.35em] shadow-inner outline-none focus:border-[#1557d6] focus:ring-4 focus:ring-[#1557d6]/10 sm:h-auto sm:rounded-2xl sm:p-4 sm:text-2xl sm:tracking-[0.5em]"
                         />
 
                         <button
@@ -1675,7 +1675,7 @@ export default function StudentRegister() {
                             otp.length !==
                               6
                           }
-                          className="mt-3 w-full rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e] disabled:opacity-50"
+                          className="mt-3 h-12 w-full rounded-xl bg-[#07111f] text-sm font-black text-white transition hover:bg-[#101d2e] disabled:opacity-50 sm:h-auto sm:rounded-2xl sm:py-3.5"
                         >
                           {verifyingOtp
                             ? "⏳ Verifying..."
@@ -1691,7 +1691,7 @@ export default function StudentRegister() {
                             otpLoading ||
                             checkingMobile
                           }
-                          className="mt-2 w-full rounded-xl py-2.5 text-sm font-bold text-[#a37b0d] transition hover:bg-[#fff8df] disabled:opacity-50"
+                          className="mt-1 w-full rounded-xl py-2 text-xs font-bold text-[#1557d6] transition hover:bg-blue-50 disabled:opacity-50 sm:py-2.5 sm:text-sm"
                         >
                           {checkingMobile
                             ? "Checking..."
@@ -1705,7 +1705,7 @@ export default function StudentRegister() {
                           onClick={
                             changeMobile
                           }
-                          className="mt-1 w-full py-2 text-xs font-bold text-slate-500 hover:underline"
+                          className="mt-0.5 w-full py-2 text-[11px] font-bold text-slate-500 hover:underline"
                         >
                           Change Mobile Number
                         </button>
@@ -1729,11 +1729,11 @@ export default function StudentRegister() {
 
                 {/* DETAILS */}
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid min-w-0 max-w-full grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4">
 
                   <div>
 
-                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                       Password
                     </label>
 
@@ -1751,14 +1751,14 @@ export default function StudentRegister() {
                         loading ||
                         !otpVerified
                       }
-                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-full min-w-0 max-w-full rounded-xl border border-black/10 bg-[#fbfaf6] px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:p-3.5"
                     />
 
                   </div>
 
                   <div>
 
-                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                       College
                     </label>
 
@@ -1775,14 +1775,14 @@ export default function StudentRegister() {
                         loading ||
                         !otpVerified
                       }
-                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-full min-w-0 max-w-full rounded-xl border border-black/10 bg-[#fbfaf6] px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:p-3.5"
                     />
 
                   </div>
 
                   <div>
 
-                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                       Course
                     </label>
 
@@ -1799,14 +1799,14 @@ export default function StudentRegister() {
                         loading ||
                         !otpVerified
                       }
-                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-full min-w-0 max-w-full rounded-xl border border-black/10 bg-[#fbfaf6] px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:p-3.5"
                     />
 
                   </div>
 
                   <div>
 
-                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                       Year
                     </label>
 
@@ -1823,7 +1823,7 @@ export default function StudentRegister() {
                         loading ||
                         !otpVerified
                       }
-                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] p-3.5 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100"
+                      className="block h-12 w-full min-w-0 max-w-full rounded-xl border border-black/10 bg-[#fbfaf6] px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10 disabled:bg-slate-100 sm:h-auto sm:rounded-2xl sm:p-3.5"
                     />
 
                   </div>
@@ -1833,8 +1833,8 @@ export default function StudentRegister() {
                 {/* PAYMENT NOTE */}
 
                 {otpVerified && (
-                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#fffdf5] p-4">
-                    <div className="flex items-center justify-between gap-4">
+                  <div className="rounded-xl border border-[#d4af37]/25 bg-[#fffdf5] p-3 sm:rounded-2xl sm:p-4">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-black text-[#07111f]">
                           SBC Membership Fee
@@ -1844,7 +1844,7 @@ export default function StudentRegister() {
                         </p>
                       </div>
 
-                      <div className="text-xl font-black text-[#8a680c]">
+                      <div className="shrink-0 text-lg font-black text-[#8a680c] sm:text-xl">
                         ₹199
                       </div>
                     </div>
@@ -1863,7 +1863,7 @@ export default function StudentRegister() {
                     paymentLoading ||
                     !otpVerified
                   }
-                  className="w-full rounded-2xl bg-[#d4af37] py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-12 w-full rounded-xl bg-[#1557d6] px-4 py-3.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(21,87,214,.18)] transition hover:bg-[#124bb8] disabled:cursor-not-allowed disabled:opacity-50 sm:h-auto sm:rounded-2xl sm:py-4"
                 >
                   {paymentLoading
                     ? paymentStatus ||
@@ -1877,7 +1877,7 @@ export default function StudentRegister() {
 
                 {/* LOGIN */}
 
-                <div className="rounded-2xl border border-black/5 bg-[#fbfaf6] p-4 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-slate-200 bg-[#f8fafc] p-3 text-center text-xs text-slate-500 sm:rounded-2xl sm:p-4 sm:text-sm">
 
                   Already have an account?{" "}
 
@@ -1897,7 +1897,7 @@ export default function StudentRegister() {
 
               </div>
 
-              <div className="mt-7 flex items-center justify-between border-t border-black/5 pt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 text-[9px] font-bold uppercase tracking-wider text-slate-400 sm:mt-7 sm:pt-5 sm:text-[10px]">
                 <span>
                   Student Benefit Card
                 </span>
