@@ -1,5 +1,5 @@
-"use client";
 
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
@@ -652,12 +652,21 @@ export default function StudentRegister() {
         );
       }
 
+      const idToken = await auth.currentUser?.getIdToken();
+
+      if (!idToken) {
+        throw new Error(
+          "Firebase authentication session expired. Please verify your mobile number again."
+        );
+      }
+
       const orderResponse = await fetch(
         "/api/payment/create-order",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({
             amount: 199,
