@@ -32,17 +32,10 @@ service cloud.firestore {
     // STUDENTS
     // =========================
     match /students/{studentId} {
-
-      // Registration creates the student's own profile.
-      // Payment verification is performed server-side before the
-      // registration page writes the profile.
       allow create: if isStudent(studentId);
 
-      // Student/Admin can read.
       allow read: if isStudent(studentId) || isAdmin();
 
-      // Student can update normal profile fields, but MUST NOT
-      // change payment/membership authority fields from the browser.
       allow update: if isAdmin()
         || (
           isStudent(studentId) &&
@@ -84,8 +77,12 @@ service cloud.firestore {
     // =========================
     match /businesses/{businessId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.businessId == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.businessId == request.auth.uid;
+
       allow update: if isBusiness(businessId) || isAdmin();
+
       allow delete: if isAdmin();
     }
 
@@ -93,7 +90,9 @@ service cloud.firestore {
     // CATEGORIES
     // =========================
     match /categories/{categoryId} {
-      allow read: if signedIn();
+      // Categories are non-sensitive and must be readable
+      // on the public business registration page before login.
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -123,7 +122,6 @@ service cloud.firestore {
     // BUSINESS STUDENT USAGE
     // =========================
     match /businessStudentUsage/{usageId} {
-
       allow read: if isAdmin()
         || (
           signedIn() &&
@@ -163,16 +161,8 @@ service cloud.firestore {
     // REDEMPTION REQUESTS
     // =========================
     match /redemptionRequests/{requestId} {
-
-      /*
-       * IMPORTANT:
-       * Redemption requests are now created ONLY by the
-       * authenticated server API (/api/redemption/create).
-       * Firebase Admin SDK bypasses Firestore client rules.
-       *
-       * This prevents an expired student from bypassing the
-       * membership check by writing directly to Firestore.
-       */
+      // Creation is server-only. /api/redemption/create performs
+      // authentication, membership-expiry, offer and usage checks.
       allow create: if false;
 
       allow read: if isAdmin()
@@ -185,9 +175,6 @@ service cloud.firestore {
           resource.data.businessId == request.auth.uid
         );
 
-      // Business can change ONLY the approval status.
-      // Student/business identity and offer details cannot be
-      // changed by the business client.
       allow update: if isAdmin()
         || (
           signedIn() &&
@@ -213,8 +200,6 @@ service cloud.firestore {
     // REDEMPTIONS
     // =========================
     match /redemptions/{redeemId} {
-
-      // Business creates redemption after approving a request.
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
 
