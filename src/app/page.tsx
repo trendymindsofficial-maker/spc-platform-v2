@@ -123,11 +123,11 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:flex-nowrap">
             <button
               type="button"
               onClick={() => go("/student/register")}
-              className="hidden rounded-xl bg-[#1557d6] px-4 py-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:block"
+              className="rounded-xl bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-4 sm:py-3 sm:text-xs"
             >
               Get Your SBC Card
             </button>
@@ -135,7 +135,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => go("/student/login")}
-              className="hidden rounded-xl border border-[#1557d6]/30 bg-white px-4 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50 sm:block"
+              className="rounded-xl border border-[#1557d6]/30 bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:px-4 sm:py-3 sm:text-xs"
             >
               Student Login
             </button>
@@ -143,7 +143,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => go("/admin/login")}
-              className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-4 py-3 text-xs font-black text-white transition hover:bg-[#111d2d]"
+              className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-4 sm:py-3 sm:text-xs"
             >
               Admin
             </button>
@@ -151,81 +151,26 @@ export default function Home() {
         </div>
       </header>
 
-      {/* HERO SLIDER */}
+      {/* HERO SLIDER — COMPLETE IMAGE PER SLIDE */}
       <section className="relative overflow-hidden bg-[#07111f]">
-        <div className="relative h-[560px] w-full sm:h-[600px] lg:h-[650px]">
+        <div className="relative flex min-h-[390px] items-center justify-center sm:min-h-[520px] lg:min-h-[650px]">
+
           <div
             key={active.image}
-            className="absolute inset-0"
+            className="flex h-full w-full items-center justify-center"
           >
             <img
               src={active.image}
               alt={`${active.title} ${active.highlight} - Student Benefit Card`}
-              className="h-full w-full object-cover object-center"
+              className="block h-auto w-full max-w-[724px] object-contain sm:max-h-[650px] sm:w-auto sm:max-w-[650px]"
             />
-
-            <div className="absolute inset-0 bg-gradient-to-r from-[#07111f]/90 via-[#07111f]/45 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/70 via-transparent to-[#07111f]/10" />
-          </div>
-
-          <div className="relative z-20 mx-auto flex h-full max-w-[1500px] items-center px-5 sm:px-10 lg:px-16">
-            <div className="max-w-[620px] pt-6 text-white">
-              <p className="text-[10px] font-black uppercase tracking-[.25em] text-[#f6c934] sm:text-xs">
-                {active.eyebrow}
-              </p>
-
-              <h1 className="mt-4 text-[3rem] font-black leading-[.94] tracking-[-.055em] sm:text-6xl lg:text-[5rem]">
-                {active.title}
-                <br />
-                <span className="text-[#f6c934]">{active.highlight}</span>
-              </h1>
-
-              <p className="mt-6 max-w-[560px] text-sm font-medium leading-6 text-white/85 sm:text-base sm:leading-7">
-                {active.text}
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => go(active.primaryPath)}
-                  className="rounded-2xl bg-[#f6c934] px-6 py-4 text-sm font-black text-[#07111f] shadow-[0_18px_40px_rgba(246,201,52,.25)] transition hover:-translate-y-1"
-                >
-                  {active.primary} <span className="ml-2">→</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => go(active.secondaryPath)}
-                  className="rounded-2xl border border-white/30 bg-white/10 px-6 py-4 text-sm font-black text-white backdrop-blur-md transition hover:-translate-y-1 hover:bg-white/15"
-                >
-                  {active.secondary}
-                </button>
-              </div>
-
-              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold text-white/80">
-                <span>✓ Exclusive Discounts</span>
-                <span>✓ Reward Points</span>
-                <span>✓ Referral Rewards</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute right-6 top-1/2 z-30 hidden -translate-y-1/2 lg:block">
-            <div className="rounded-3xl border border-white/20 bg-white/10 px-6 py-5 text-right text-white shadow-2xl backdrop-blur-xl">
-              <p className="whitespace-pre-line text-2xl font-black leading-7">
-                {active.sideText}
-              </p>
-              <p className="mt-2 text-[10px] font-black uppercase tracking-[.2em] text-[#f6c934]">
-                {active.sideTitle}
-              </p>
-            </div>
           </div>
 
           <button
             type="button"
             aria-label="Previous slide"
             onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
-            className="absolute left-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/70 text-2xl font-black text-white backdrop-blur-md transition hover:scale-105 sm:left-6"
+            className="absolute left-3 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-2xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:left-6"
           >
             ‹
           </button>
@@ -234,42 +179,26 @@ export default function Home() {
             type="button"
             aria-label="Next slide"
             onClick={() => setSlide((slide + 1) % slides.length)}
-            className="absolute right-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/70 text-2xl font-black text-white backdrop-blur-md transition hover:scale-105 sm:right-6"
+            className="absolute right-3 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-2xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:right-6"
           >
             ›
           </button>
 
-          <div className="absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-2.5">
+          <div className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-2.5">
             {slides.map((item, index) => (
               <button
                 key={item.image}
                 type="button"
                 aria-label={`Go to slide ${index + 1}`}
                 onClick={() => setSlide(index)}
-                className={`h-2.5 rounded-full transition-all ${
-                  slide === index ? "w-9 bg-[#f6c934]" : "w-2.5 bg-white/55"
+                className={`h-2.5 rounded-full shadow ${
+                  slide === index
+                    ? "w-9 bg-[#f6c934]"
+                    : "w-2.5 bg-white/70"
                 }`}
               />
             ))}
           </div>
-        </div>
-
-        {/* Mobile business actions */}
-        <div className="grid grid-cols-2 gap-2 bg-white p-3 sm:hidden">
-          <button
-            type="button"
-            onClick={() => go("/business/register")}
-            className="rounded-xl bg-[#1557d6] px-3 py-3 text-xs font-black text-white"
-          >
-            Business Register
-          </button>
-          <button
-            type="button"
-            onClick={() => go("/business/login")}
-            className="rounded-xl border border-[#07111f]/15 bg-white px-3 py-3 text-xs font-black text-[#07111f]"
-          >
-            Business Login
-          </button>
         </div>
       </section>
       {/* BUSINESS ACTIONS */}
@@ -566,7 +495,7 @@ export default function Home() {
             type="button"
             onClick={() => go(path)}
             className={`flex min-w-[65px] flex-col items-center rounded-xl px-2 py-2 text-slate-500 transition ${
-index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
+              index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
             }`}
           >
             <span className="text-base">{icon}</span>
