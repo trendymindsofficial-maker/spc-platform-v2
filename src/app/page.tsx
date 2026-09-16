@@ -16,43 +16,43 @@ const categories = [
 
 const slides = [
   {
-    eyebrow: "FOR A BRIGHTER TOMORROW",
-    title: "Student Benefit Card",
-    highlight: "More Benefits. More Savings.",
-    text: "Exclusive student discounts at your favourite brands, shops, restaurants, travel and more.",
-    primary: "Get Your SBC Now",
+    eyebrow: "STUDENT DISCOUNTS",
+    title: "Big Discounts",
+    highlight: "Just for You!",
+    text: "Show your SBC Card and enjoy exclusive discounts at shops, restaurants, travel, education and more.",
+    primary: "Get Your SBC Card",
     primaryPath: "/student/register",
-    secondary: "Explore Offers",
+    secondary: "Student Login",
     secondaryPath: "/student/login",
-    image: "/images/sbc-students.png",
-    sideTitle: "Students",
-    sideText: "Save More\nDo More\nBe More",
+    image: "/images/sbc-slide-1-discounts.png",
+    sideTitle: "Save More",
+    sideText: "Every Visit\nEvery Day",
   },
   {
-    eyebrow: "EXCLUSIVE STUDENT OFFERS",
-    title: "Save on the things",
-    highlight: "students love.",
-    text: "Discover offers across food, shopping, fitness, salons, entertainment and more.",
+    eyebrow: "USE • SAVE • REWARD",
+    title: "Use Discounts",
+    highlight: "& Get Gifts!",
+    text: "Use your SBC benefits at partner businesses, collect rewards and unlock exciting gifts.",
     primary: "Explore Offers",
     primaryPath: "/student/login",
-    secondary: "Get Your SBC",
-    secondaryPath: "/student/register",
-    image: "/images/sbc-students.png",
-    sideTitle: "One Card",
-    sideText: "More Choices\nMore Savings",
+    secondary: "Student Login",
+    secondaryPath: "/student/login",
+    image: "/images/sbc-slide-2-gifts.png",
+    sideTitle: "More You Use",
+    sideText: "More Rewards\nMore Gifts",
   },
   {
-    eyebrow: "REWARDS THAT KEEP GROWING",
-    title: "Every benefit",
-    highlight: "feels better with SBC.",
-    text: "Use your SBC at partner businesses and enjoy a smarter, simpler student savings experience.",
-    primary: "Join SBC",
+    eyebrow: "REFER • GROW • EARN",
+    title: "Refer SBC",
+    highlight: "& Earn Money!",
+    text: "Invite your friends to join SBC, help them save and earn referral rewards.",
+    primary: "Get Your SBC Card",
     primaryPath: "/student/register",
-    secondary: "How It Works",
-    secondaryPath: "#how-it-works",
-    image: "/images/sbc-card.png",
-    sideTitle: "SBC",
-    sideText: "Benefits\nRewards\nSavings",
+    secondary: "Student Login",
+    secondaryPath: "/student/login",
+    image: "/images/sbc-slide-3-refer-earn.png",
+    sideTitle: "Refer More",
+    sideText: "Grow Together\nEarn More",
   },
 ];
 
@@ -107,7 +107,6 @@ export default function Home() {
               ["Offers", "/student/login"],
               ["How It Works", "#how-it-works"],
               ["About", "#about"],
-              ["Admin Login", "/admin/login"],
             ].map(([label, path], index) => (
               <button
                 key={label}
@@ -124,25 +123,27 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => go("/student/register")}
-              className="rounded-lg bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.18)] transition hover:-translate-y-0.5 sm:rounded-xl sm:px-5 sm:py-3 sm:text-xs"
+              className="hidden rounded-xl bg-[#1557d6] px-4 py-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:block"
             >
-              Register
+              Get Your SBC Card
             </button>
+
             <button
               type="button"
               onClick={() => go("/student/login")}
-              className="rounded-lg border border-[#1557d6] bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:rounded-xl sm:px-5 sm:py-3 sm:text-xs"
+              className="hidden rounded-xl border border-[#1557d6]/30 bg-white px-4 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50 sm:block"
             >
-              Login
+              Student Login
             </button>
+
             <button
               type="button"
               onClick={() => go("/admin/login")}
-              className="rounded-lg border border-black/10 bg-[#07111f] px-2.5 py-2.5 text-[10px] font-black text-white transition hover:bg-[#122033] sm:rounded-xl sm:px-4 sm:py-3"
+              className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-4 py-3 text-xs font-black text-white transition hover:bg-[#111d2d]"
             >
               Admin
             </button>
@@ -151,122 +152,146 @@ export default function Home() {
       </header>
 
       {/* HERO SLIDER */}
-      <section className="relative overflow-hidden border-b border-black/[.04] bg-[#f7faff]">
-        <div className="mx-auto max-w-[1500px]">
-          <div className="relative min-h-[570px] overflow-hidden lg:min-h-[555px]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(180,211,255,.55),transparent_36%),linear-gradient(90deg,#f7faff_0%,#eef5ff_46%,#dceaff_100%)]" />
+      <section className="relative overflow-hidden bg-[#07111f]">
+        <div className="relative h-[560px] w-full sm:h-[600px] lg:h-[650px]">
+          <div
+            key={active.image}
+            className="absolute inset-0"
+          >
+            <img
+              src={active.image}
+              alt={`${active.title} ${active.highlight} - Student Benefit Card`}
+              className="h-full w-full object-cover object-center"
+            />
 
-            <div
-              key={slide}
-              className="relative grid min-h-[570px] items-center gap-5 px-5 py-10 sm:px-10 lg:min-h-[555px] lg:grid-cols-[.95fr_1.35fr] lg:px-16"
-            >
-              <div className="relative z-20 max-w-[570px]">
-                <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-                  {active.eyebrow}
-                </p>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#07111f]/90 via-[#07111f]/45 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/70 via-transparent to-[#07111f]/10" />
+          </div>
 
-                <h1 className="mt-4 text-[3rem] font-black leading-[.98] tracking-[-.055em] sm:text-6xl lg:text-[4.4rem]">
-                  {active.title}
-                  <br />
-                  <span className="text-[#1557d6]">{active.highlight}</span>
-                </h1>
+          <div className="relative z-20 mx-auto flex h-full max-w-[1500px] items-center px-5 sm:px-10 lg:px-16">
+            <div className="max-w-[620px] pt-6 text-white">
+              <p className="text-[10px] font-black uppercase tracking-[.25em] text-[#f6c934] sm:text-xs">
+                {active.eyebrow}
+              </p>
 
-                <p className="mt-6 max-w-lg text-[15px] font-medium leading-7 text-slate-600 sm:text-base">
-                  {active.text}
-                </p>
+              <h1 className="mt-4 text-[3rem] font-black leading-[.94] tracking-[-.055em] sm:text-6xl lg:text-[5rem]">
+                {active.title}
+                <br />
+                <span className="text-[#f6c934]">{active.highlight}</span>
+              </h1>
 
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => go(active.primaryPath)}
-                    className="rounded-2xl bg-[#1557d6] px-6 py-4 text-sm font-black text-white shadow-[0_15px_35px_rgba(21,87,214,.24)] transition hover:-translate-y-1"
-                  >
-                    {active.primary} <span className="ml-2">→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => go(active.secondaryPath)}
-                    className="rounded-2xl border border-[#1557d6]/25 bg-white px-6 py-4 text-sm font-black text-[#1557d6] shadow-sm transition hover:-translate-y-1"
-                  >
-                    {active.secondary}
-                  </button>
-                </div>
+              <p className="mt-6 max-w-[560px] text-sm font-medium leading-6 text-white/85 sm:text-base sm:leading-7">
+                {active.text}
+              </p>
 
-                <div className="mt-8 flex flex-wrap gap-5 text-xs font-bold text-slate-600">
-                  <span>✓ Exclusive Discounts</span>
-                  <span>✓ Reward Points</span>
-                  <span>✓ Trusted Partners</span>
-                </div>
-              </div>
-
-              <div className="relative mx-auto h-[440px] w-full max-w-[760px] lg:h-[500px]">
-                <div className="absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/70 blur-2xl" />
-
-                <div className="absolute right-[2%] top-[6%] z-30 hidden rounded-2xl border border-white bg-white/90 px-5 py-4 shadow-[0_18px_45px_rgba(7,17,31,.12)] backdrop-blur sm:block">
-                  <p className="whitespace-pre-line text-right text-[19px] font-black leading-6 text-[#07111f]">
-                    {active.sideText}
-                  </p>
-                  <p className="mt-1 text-right text-[9px] font-black uppercase tracking-widest text-[#1557d6]">
-                    {active.sideTitle}
-                  </p>
-                </div>
-
-                <div className="absolute left-[4%] top-[26%] z-30 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.1)]">
-                  <span className="text-xl">🎁</span>
-                  <span className="ml-2 text-xs font-black">Exclusive Offers</span>
-                </div>
-
-                <div className="absolute right-[8%] top-[40%] z-30 rounded-2xl border border-white bg-white/90 px-4 py-3 shadow-[0_15px_35px_rgba(7,17,31,.1)]">
-                  <span className="text-xl">⭐</span>
-                  <span className="ml-2 text-xs font-black">Reward Points</span>
-                </div>
-
-                <img
-                  src={active.image}
-                  alt="SBC student and Student Benefit Card"
-                  className={`absolute left-1/2 top-1/2 z-20 max-h-[470px] w-[88%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_30px_45px_rgba(7,17,31,.2)] ${
-                    active.image.includes("card") ? "rotate-[-5deg] max-w-[570px]" : "max-w-[610px]"
-                  }`}
-                />
-
-                <div className="absolute bottom-[4%] left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-white bg-white/90 px-5 py-2 text-xs font-black shadow-lg">
-                  🎓 Made for students
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              aria-label="Previous slide"
-              onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
-              className="absolute left-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-[#07111f] text-xl font-black text-white shadow-lg transition hover:scale-105"
-            >
-              ‹
-            </button>
-
-            <button
-              type="button"
-              aria-label="Next slide"
-              onClick={() => setSlide((slide + 1) % slides.length)}
-              className="absolute right-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-[#07111f] text-xl font-black text-white shadow-lg transition hover:scale-105"
-            >
-              ›
-            </button>
-
-            <div className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-2">
-              {slides.map((item, index) => (
+              <div className="mt-7 flex flex-wrap gap-3">
                 <button
-                  key={item.title}
                   type="button"
-                  aria-label={`Go to slide ${index + 1}`}
-                  onClick={() => setSlide(index)}
-                  className={`h-2.5 rounded-full transition-all ${
-                    slide === index ? "w-8 bg-[#1557d6]" : "w-2.5 bg-slate-300"
-                  }`}
-                />
-              ))}
+                  onClick={() => go(active.primaryPath)}
+                  className="rounded-2xl bg-[#f6c934] px-6 py-4 text-sm font-black text-[#07111f] shadow-[0_18px_40px_rgba(246,201,52,.25)] transition hover:-translate-y-1"
+                >
+                  {active.primary} <span className="ml-2">→</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => go(active.secondaryPath)}
+                  className="rounded-2xl border border-white/30 bg-white/10 px-6 py-4 text-sm font-black text-white backdrop-blur-md transition hover:-translate-y-1 hover:bg-white/15"
+                >
+                  {active.secondary}
+                </button>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold text-white/80">
+                <span>✓ Exclusive Discounts</span>
+                <span>✓ Reward Points</span>
+                <span>✓ Referral Rewards</span>
+              </div>
             </div>
           </div>
+
+          <div className="absolute right-6 top-1/2 z-30 hidden -translate-y-1/2 lg:block">
+            <div className="rounded-3xl border border-white/20 bg-white/10 px-6 py-5 text-right text-white shadow-2xl backdrop-blur-xl">
+              <p className="whitespace-pre-line text-2xl font-black leading-7">
+                {active.sideText}
+              </p>
+              <p className="mt-2 text-[10px] font-black uppercase tracking-[.2em] text-[#f6c934]">
+                {active.sideTitle}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            aria-label="Previous slide"
+            onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
+            className="absolute left-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/70 text-2xl font-black text-white backdrop-blur-md transition hover:scale-105 sm:left-6"
+          >
+            ‹
+          </button>
+
+          <button
+            type="button"
+            aria-label="Next slide"
+            onClick={() => setSlide((slide + 1) % slides.length)}
+            className="absolute right-4 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/70 text-2xl font-black text-white backdrop-blur-md transition hover:scale-105 sm:right-6"
+          >
+            ›
+          </button>
+
+          <div className="absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-2.5">
+            {slides.map((item, index) => (
+              <button
+                key={item.image}
+                type="button"
+                aria-label={`Go to slide ${index + 1}`}
+                onClick={() => setSlide(index)}
+                className={`h-2.5 rounded-full transition-all ${
+                  slide === index ? "w-9 bg-[#f6c934]" : "w-2.5 bg-white/55"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile business actions */}
+        <div className="grid grid-cols-2 gap-2 bg-white p-3 sm:hidden">
+          <button
+            type="button"
+            onClick={() => go("/business/register")}
+            className="rounded-xl bg-[#1557d6] px-3 py-3 text-xs font-black text-white"
+          >
+            Business Register
+          </button>
+          <button
+            type="button"
+            onClick={() => go("/business/login")}
+            className="rounded-xl border border-[#07111f]/15 bg-white px-3 py-3 text-xs font-black text-[#07111f]"
+          >
+            Business Login
+          </button>
+        </div>
+      </section>
+      {/* BUSINESS ACTIONS */}
+      <section className="border-b border-black/[.05] bg-white px-4 py-4 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => go("/business/register")}
+            className="rounded-2xl bg-[#1557d6] px-5 py-4 text-left text-sm font-black text-white shadow-[0_10px_30px_rgba(21,87,214,.16)] transition hover:-translate-y-0.5"
+          >
+            🏪 Business Register
+            <span className="ml-2 font-medium text-white/75">Grow your business with SBC →</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => go("/business/login")}
+            className="rounded-2xl border border-[#07111f]/10 bg-[#07111f] px-5 py-4 text-left text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5"
+          >
+            🔐 Business Login
+            <span className="ml-2 font-medium text-white/65">Access your dashboard →</span>
+          </button>
         </div>
       </section>
 
@@ -534,14 +559,14 @@ export default function Home() {
           ["⌂", "Home", "/"],
           ["◇", "Offers", "/student/login"],
           ["▣", "Business", "/business/login"],
-          ["♙", "Register", "/student/register"],
+          ["♙", "Login", "/student/login"],
         ].map(([icon, label, path], index) => (
           <button
             key={label}
             type="button"
             onClick={() => go(path)}
             className={`flex min-w-[65px] flex-col items-center rounded-xl px-2 py-2 text-slate-500 transition ${
-              index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
+index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
             }`}
           >
             <span className="text-base">{icon}</span>
