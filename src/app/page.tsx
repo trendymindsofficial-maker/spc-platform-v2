@@ -143,24 +143,6 @@ export default function Home() {
             ))}
           </div>
 
-          <button
-            type="button"
-            aria-label="Previous slide"
-            onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
-            className="absolute left-2 top-1/2 z-40 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:left-6 sm:h-11 sm:w-11 sm:text-2xl"
-          >
-            ‹
-          </button>
-
-          <button
-            type="button"
-            aria-label="Next slide"
-            onClick={() => setSlide((slide + 1) % slides.length)}
-            className="absolute right-2 top-1/2 z-40 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:right-6 sm:h-11 sm:w-11 sm:text-2xl"
-          >
-            ›
-          </button>
-
           <div className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 gap-2.5">
             {slides.map((item, index) => (
               <button
