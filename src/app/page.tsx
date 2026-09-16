@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = [
-  ["🍔", "Food & Dining", "Save More"],
-  ["🛍️", "Shopping", "Best Deals"],
-  ["✈️", "Travel", "Explore More"],
-  ["❤️", "Health & Wellness", "Stay Healthy"],
-  ["🎓", "Education", "Learn More"],
-  ["🎬", "Entertainment", "Have Fun"],
-  ["🏋️", "Fitness", "Stay Fit"],
-  ["💇", "Salon & Beauty", "Look Great"],
+  ["🍔", "Food & Dining", "Save More", "bg-[#fff9df]"],
+  ["🛍️", "Shopping", "Best Deals", "bg-[#fff0f5]"],
+  ["✈️", "Travel", "Explore More", "bg-[#eef7ff]"],
+  ["❤️", "Health & Wellness", "Stay Healthy", "bg-[#edfff5]"],
+  ["🎓", "Education", "Learn More", "bg-[#f6efff]"],
+  ["🎬", "Entertainment", "Have Fun", "bg-[#fff3e5]"],
+  ["🏋️", "Fitness", "Stay Fit", "bg-[#effff5]"],
+  ["💇", "Salon & Beauty", "Look Great", "bg-[#fff0f8]"],
 ];
 
 const slides = [
@@ -24,7 +24,7 @@ const slides = [
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
-    image: "/images/sbc01.png",
+    image: "/images/sbc-slide-1-discounts.png",
     sideTitle: "Save More",
     sideText: "Every Visit\nEvery Day",
   },
@@ -37,7 +37,7 @@ const slides = [
     primaryPath: "/student/login",
     secondary: "Student Login",
     secondaryPath: "/student/login",
-    image: "/images/sbc02.png",
+    image: "/images/sbc-slide-2-gifts.png",
     sideTitle: "More You Use",
     sideText: "More Rewards\nMore Gifts",
   },
@@ -50,7 +50,7 @@ const slides = [
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
-    image: "/images/sbc03.png",
+    image: "/images/sbc-slide-3-refer-earn.png",
     sideTitle: "Refer More",
     sideText: "Grow Together\nEarn More",
   },
@@ -133,17 +133,20 @@ export default function Home() {
 
       {/* HERO SLIDER — COMPLETE IMAGE PER SLIDE */}
       <section className="relative overflow-hidden bg-[#07111f]">
-        <div className="relative flex w-full items-center justify-center sm:min-h-[520px] lg:min-h-[650px]">
-
-          <div
-            key={active.image}
-            className="flex h-full w-full items-center justify-center"
-          >
-            <img
-              src={active.image}
-              alt={`${active.title} ${active.highlight} - Student Benefit Card`}
-              className="block h-auto w-full max-w-none object-contain"
-            />
+        <div className="relative flex w-full items-center justify-center bg-white sm:min-h-[520px] lg:min-h-[650px]">
+          <div className="relative w-full overflow-hidden bg-white">
+            {slides.map((item, index) => (
+              <img
+                key={item.image}
+                src={item.image}
+                alt={`${item.title} ${item.highlight} - Student Benefit Card`}
+                className={`block h-auto w-full max-w-none object-contain transition-opacity duration-500 ease-in-out ${
+                  index === slide
+                    ? "relative opacity-100"
+                    : "absolute inset-0 opacity-0"
+                }`}
+              />
+            ))}
           </div>
 
           <button
@@ -207,18 +210,21 @@ export default function Home() {
       {/* CATEGORIES */}
       <section className="border-b border-black/[.05] bg-white px-4 py-8 sm:px-6">
         <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-          {categories.map(([icon, name, sub]) => (
+          {categories.map(([icon, name, sub, background]) => (
             <button
               key={name}
               type="button"
               onClick={() => go("/student/login")}
-              className="group rounded-2xl border border-black/[.06] bg-white p-4 text-center shadow-[0_8px_25px_rgba(7,17,31,.05)] transition hover:-translate-y-1 hover:border-blue-100 hover:shadow-lg"
+              className={`group relative overflow-hidden rounded-2xl border border-black/[.06] ${background} p-4 text-center shadow-[0_8px_25px_rgba(7,17,31,.05)] transition hover:-translate-y-1 hover:shadow-lg`}
             >
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f1f6ff] text-2xl transition group-hover:scale-105">
+              <span className="pointer-events-none absolute -right-2 -top-3 text-[72px] leading-none opacity-[0.07]">
+                {icon}
+              </span>
+              <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/75 text-2xl shadow-sm backdrop-blur-sm transition group-hover:scale-105">
                 {icon}
               </div>
-              <p className="mt-3 text-xs font-black">{name}</p>
-              <p className="mt-1 text-[9px] font-medium text-slate-400">{sub}</p>
+              <p className="relative mt-3 text-xs font-black">{name}</p>
+              <p className="relative mt-1 text-[9px] font-medium text-slate-500">{sub}</p>
             </button>
           ))}
         </div>
