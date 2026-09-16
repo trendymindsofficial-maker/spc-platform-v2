@@ -785,31 +785,31 @@ export default function AdminDashboard() {
             {/* REFERRAL PAYOUTS */}
 
             <Link
-              href="/admin/payouts"
+              href="/admin/referrals"
               className="rounded-[2rem] border-2 border-[#d4af37]/30 bg-gradient-to-br from-[#fffdf5] to-[#f7f1dd] p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-[#d4af37] hover:shadow-[0_25px_70px_rgba(120,90,20,0.14)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-[#8a680c]">
-                    💰 Referral Payouts
+                    🎁 Referral Management
                   </h2>
                   <p className="mt-3 text-slate-600">
-                    Review student referral rewards and process payout requests.
+                    See who referred whom, full student details, and referral history.
                   </p>
                 </div>
 
                 <div className="shrink-0 rounded-2xl bg-[#07111f] px-5 py-3 text-center text-[#f1cf63]">
                   <span className="block text-2xl font-extrabold">
-                    ₹250
+                    VIEW
                   </span>
                   <span className="text-xs font-bold uppercase">
-                    Per 10 Referrals
+                    REFERRAL DETAILS
                   </span>
                 </div>
               </div>
 
               <div className="mt-6 inline-flex rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]">
-                Open Payout Management →
+                Open Referral Management →
               </div>
             </Link>
 
