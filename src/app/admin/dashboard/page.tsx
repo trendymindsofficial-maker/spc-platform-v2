@@ -490,6 +490,41 @@ export default function AdminDashboard() {
             </div>
 
 
+            {/* REFERRAL PAYOUTS */}
+
+            <Link
+              href="/admin/payouts"
+              className="rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-emerald-400 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold text-emerald-700">
+                    💰 Referral Payouts
+                  </h2>
+
+                  <p className="mt-3 text-slate-600">
+                    Review student payout requests, verify UPI or bank details,
+                    record UTR and mark payments as paid.
+                  </p>
+                </div>
+
+                <div className="shrink-0 rounded-2xl bg-[#07111f] px-5 py-3 text-center text-[#f1cf63]">
+                  <span className="block text-2xl font-extrabold">
+                    PAY
+                  </span>
+
+                  <span className="text-xs font-bold uppercase">
+                    PAYOUT REQUESTS
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 inline-flex rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]">
+                Open Referral Payouts →
+              </div>
+            </Link>
+
+
             {/* BUSINESSES */}
 
             <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
