@@ -8,14 +8,12 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   query,
-  serverTimestamp,
   where,
 } from "firebase/firestore";
 
@@ -38,13 +36,7 @@ interface Offer {
 }
 
 interface BusinessInfo {
-  // Firebase Auth UID / businesses document ID.
-  // This is the identifier used by offers and redemptionRequests.
   businessId: string;
-
-  // Public SBC Business ID shown on the QR/manual verification UI.
-  sbcBusinessId: string;
-
   businessName: string;
 }
 
@@ -375,42 +367,143 @@ export default function StudentOffers() {
 
   const loadOffers = async () => {
     try {
-      const offerQuery = query(
-        collection(db, "offers"),
-        where("status", "==", "active")
-      );
-
-      const offerSnap = await getDocs(offerQuery);
-
-      const data: Offer[] = offerSnap.docs.map((item) => {
-        const offerData = item.data();
-
-        const businessId = String(
-          offerData.businessId || ""
+      const offerQuery =
+        query(
+          collection(
+            db,
+            "offers"
+          ),
+          where(
+            "status",
+            "==",
+            "active"
+          )
         );
 
-        return {
-          id: item.id,
-          title: offerData.title || "",
-          discount: offerData.discount || "",
-          description: offerData.description || "",
-          category: offerData.category || "Other",
-          image: offerData.image || offerData.imageUrl || "",
-          businessId,
-          businessName:
-            offerData.businessName ||
-            "SBC Partner Business",
-          businessMobile:
-            offerData.businessMobile || "",
-          businessAddress:
-            offerData.businessAddress ||
-            offerData.address ||
-            "",
-          status: offerData.status || "active",
-        };
-      });
+      const offerSnap =
+        await getDocs(
+          offerQuery
+        );
 
-      setOffers(data);
+      const businessSnap =
+        await getDocs(
+          collection(
+            db,
+            "businesses"
+          )
+        );
+
+      const businessMap =
+        new Map<
+          string,
+          {
+            name: string;
+            mobile: string;
+            address: string;
+          }
+        >();
+
+      businessSnap.docs.forEach(
+        (businessDoc) => {
+          const data =
+            businessDoc.data();
+
+          businessMap.set(
+            businessDoc.id,
+            {
+              name:
+                data.businessName ||
+                "",
+
+              mobile:
+                data.mobile ||
+                data.phone ||
+                data.businessMobile ||
+                data.ownerMobile ||
+                "",
+
+              address:
+                data.address ||
+                data.businessAddress ||
+                data.location ||
+                data.fullAddress ||
+                "",
+            }
+          );
+        }
+      );
+
+      const data: Offer[] =
+        offerSnap.docs.map(
+          (item) => {
+            const offerData =
+              item.data();
+
+            const businessId =
+              String(
+                offerData.businessId ||
+                ""
+              );
+
+            const business =
+              businessMap.get(
+                businessId
+              );
+
+            return {
+              id:
+                item.id,
+
+              title:
+                offerData.title ||
+                "",
+
+              discount:
+                offerData.discount ||
+                "",
+
+              description:
+                offerData.description ||
+                "",
+
+              category:
+                offerData.category ||
+                "Other",
+
+              image:
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+
+              businessId,
+
+              businessName:
+                offerData.businessName ||
+                business?.name ||
+                "SBC Partner Business",
+
+              businessMobile:
+                offerData.businessMobile ||
+                business?.mobile ||
+                "",
+
+              businessAddress:
+                offerData.businessAddress ||
+                offerData.address ||
+                business?.address ||
+                "",
+
+              status:
+                offerData.status ||
+                "active",
+            };
+          }
+        );
+
+      setOffers(
+        data
+      );
+
     } catch (error) {
       console.error(
         "Offer loading error:",
@@ -1104,12 +1197,12 @@ export default function StudentOffers() {
 
       const cleanBusinessId =
         enteredBusinessId
-          .trim()
-          .toUpperCase();
+          .trim();
 
       if (
         !cleanBusinessId
       ) {
+
         setVerificationError(
           "Please enter a Business ID."
         );
@@ -1120,6 +1213,7 @@ export default function StudentOffers() {
       if (
         !selectedOffer.businessId
       ) {
+
         setVerificationError(
           "Offer business information is missing."
         );
@@ -1137,19 +1231,6 @@ export default function StudentOffers() {
           ""
         );
 
-        /*
-         * IMPORTANT SBC ID ARCHITECTURE
-         * -----------------------------
-         * businesses/{documentId} uses the Firebase Auth UID.
-         * businesses.businessId contains the public SBC ID, e.g.
-         * SBC-BIZ-44053.
-         *
-         * offers.businessId stores the Firebase Auth UID.
-         * redemptionRequests.businessId also stores the Firebase Auth UID.
-         *
-         * Therefore: enter/scan SBC ID -> find business document ->
-         * compare businessDoc.id with selectedOffer.businessId.
-         */
         const businessQuery =
           query(
             collection(
@@ -1171,6 +1252,7 @@ export default function StudentOffers() {
         if (
           businessSnap.empty
         ) {
+
           setVerifiedBusiness(
             null
           );
@@ -1188,79 +1270,28 @@ export default function StudentOffers() {
         const businessData =
           businessDoc.data();
 
-        const sbcBusinessId =
-          String(
-            businessData.businessId ||
-            ""
-          ).trim();
-
-        const businessAuthUid =
+        const actualBusinessId =
           businessDoc.id;
 
         if (
-          !sbcBusinessId
+          actualBusinessId !==
+          selectedOffer.businessId
         ) {
+
           setVerifiedBusiness(
             null
           );
 
           setVerificationError(
-            "❌ This business does not have a valid SBC Business ID."
-          );
-
-          return;
-        }
-
-        /*
-         * First verify the entered public SBC Business ID.
-         */
-        if (
-          sbcBusinessId.toUpperCase() !==
-          cleanBusinessId
-        ) {
-          setVerifiedBusiness(
-            null
-          );
-
-          setVerificationError(
-            "❌ Business ID verification failed. Please check the ID and try again."
-          );
-
-          return;
-        }
-
-        /*
-         * Then verify that this business owns the selected offer.
-         * selectedOffer.businessId is the Firebase Auth UID.
-         */
-        const offerBusinessUid =
-          String(
-            selectedOffer.businessId ||
-            ""
-          ).trim();
-
-        if (
-          businessAuthUid !==
-          offerBusinessUid
-        ) {
-          setVerifiedBusiness(
-            null
-          );
-
-          setVerificationError(
-            `❌ This Business ID belongs to "${businessData.businessName || "another business"}", but the selected offer belongs to "${selectedOffer.businessName || "another business"}".`
+            `❌ This Business QR/ID belongs to "${businessData.businessName || "another business"}", not "${selectedOffer.businessName || "this offer's business"}".`
           );
 
           return;
         }
 
         setVerifiedBusiness({
-          // Internal ID used by offers/redemptionRequests.
           businessId:
-            businessAuthUid,
-
-          // Public ID shown to the student.
-          sbcBusinessId,
+            actualBusinessId,
 
           businessName:
             businessData.businessName ||
@@ -1268,31 +1299,16 @@ export default function StudentOffers() {
             "SBC Partner Business",
         });
 
-      } catch (error: any) {
+      } catch (error) {
 
         console.error(
           "Business verification error:",
           error
         );
 
-        const firebaseCode =
-          String(
-            error?.code ||
-            ""
-          );
-
-        if (
-          firebaseCode ===
-          "permission-denied"
-        ) {
-          setVerificationError(
-            "❌ Business verification is blocked by Firebase permissions. Please deploy the updated Firestore rules."
-          );
-        } else {
-          setVerificationError(
-            `❌ Unable to verify business. Please try again. ${firebaseCode ? `(${firebaseCode})` : ""}`.trim()
-          );
-        }
+        setVerificationError(
+          "❌ Unable to verify business. Please try again."
+        );
 
       } finally {
 
@@ -1301,6 +1317,7 @@ export default function StudentOffers() {
         );
 
       }
+
     };
 
   /*
@@ -1460,23 +1477,9 @@ export default function StudentOffers() {
         return;
       }
 
-      const verifiedBusinessAuthUid =
-        String(
-          verifiedBusiness.businessId ||
-          ""
-        ).trim();
-
-      const offerBusinessAuthUid =
-        String(
-          selectedOffer.businessId ||
-          ""
-        ).trim();
-
       if (
-        !verifiedBusinessAuthUid ||
-        !offerBusinessAuthUid ||
-        verifiedBusinessAuthUid !==
-          offerBusinessAuthUid
+        verifiedBusiness.businessId !==
+        selectedOffer.businessId
       ) {
 
         alert(
@@ -1580,58 +1583,52 @@ export default function StudentOffers() {
          *
          * IMPORTANT:
          *
-         * addDoc returns the request ID.
+         * The secure server API returns the request ID.
          *
          * We save it in pendingRequestId
          * so Student can listen in real-time.
          * ========================================
          */
 
-        const requestRef =
-          await addDoc(
-            collection(
-              db,
-              "redemptionRequests"
-            ),
-            {
+        const idToken =
+          await auth.currentUser.getIdToken();
 
-              studentId:
-                studentUid,
-
-              studentName,
-
-              studentCardNumber,
-
-              // Offers and business dashboard use the Firebase Auth UID.
+        const response = await fetch(
+          "/api/redemption/create",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
               businessId:
-                verifiedBusinessAuthUid,
-
+                selectedOffer.businessId,
               businessName:
                 verifiedBusiness.businessName,
-
-              // Keep the public SBC Business ID for audit/display.
               businessVerificationId:
-                verifiedBusiness.sbcBusinessId,
-
+                verifiedBusiness.businessId,
               offerId:
                 selectedOffer.id,
-
               offerTitle:
                 selectedOffer.title ||
                 "SBC Offer",
-
               offerDiscount:
                 selectedOffer.discount ||
                 "",
+            }),
+          }
+        );
 
-              status:
-                "pending",
+        const result =
+          await response.json().catch(() => ({}));
 
-              createdAt:
-                serverTimestamp(),
-
-            }
+        if (!response.ok || !result?.success) {
+          throw new Error(
+            result?.error ||
+              "Unable to send redemption request."
           );
+        }
 
         /*
          * Save request ID BEFORE
@@ -1639,7 +1636,7 @@ export default function StudentOffers() {
          */
 
         setPendingRequestId(
-          requestRef.id
+          String(result.requestId)
         );
 
         /*
@@ -1806,168 +1803,119 @@ export default function StudentOffers() {
 
         </div>
 
-        {/* LOADING */}
-
+        {/* OFFERS */}
         {loading ? (
-
           <div className="rounded-[2rem] border border-black/5 bg-white p-12 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#d4af37]" />
-
-            <h2 className="text-2xl font-bold">
-              Loading Offers...
-            </h2>
-
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#1557d6]" />
+            <h2 className="text-2xl font-bold">Loading Offers...</h2>
           </div>
-
         ) : filteredOffers.length === 0 ? (
-
-          <div className="rounded-[2rem] border border-black/5 bg-white p-16 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-
-            <div className="text-6xl">
-              🎁
-            </div>
-
-            <h2 className="mt-4 text-3xl font-bold text-[#b18a16]">
+          <div className="rounded-[2rem] border border-black/5 bg-white p-12 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+            <div className="text-6xl">🎁</div>
+            <h2 className="mt-4 text-3xl font-bold text-[#1557d6]">
               No Offers Found
             </h2>
-
             <p className="mt-3 text-gray-500">
-              No active offers available.
+              No active offers match your search or category.
             </p>
-
           </div>
-
         ) : (
+          <div className="space-y-4">
+            {filteredOffers.map((offer) => {
+              const usedCount = getUsageCount(offer.businessId);
 
-          <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
-
-            {filteredOffers.map(
-              (offer) => {
-
-                const usedCount =
-                  getUsageCount(
-                    offer.businessId
-                  );
-
-                return (
-                  <div
-                    key={offer.id}
-                    className="group flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-black/5 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.07)] transition duration-300 hover:-translate-y-1 hover:border-[#d4af37]/40 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
-                  >
-
-                    {/* FIXED OFFER IMAGE */}
-                    <div className="relative h-[260px] w-full overflow-hidden bg-[#07111f] sm:h-[280px]">
+              return (
+                <article
+                  key={offer.id}
+                  className="group overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white shadow-[0_10px_32px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_16px_42px_rgba(21,87,214,0.10)]"
+                >
+                  <div className="grid min-h-[150px] grid-cols-[42%_58%] sm:grid-cols-[34%_66%] lg:grid-cols-[38%_62%]">
+                    {/* OFFER IMAGE */}
+                    <div className="relative min-h-[150px] overflow-hidden bg-slate-100">
                       {offer.image ? (
                         <img
                           src={offer.image}
                           alt={offer.title || "SBC Offer"}
                           loading="lazy"
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-6xl text-[#f1cf63]">
+                        <div className="flex h-full min-h-[150px] items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-5xl">
                           🎁
                         </div>
                       )}
+
+                      <div className="absolute left-2.5 top-2.5 rounded-full bg-[#1557d6] px-2.5 py-1 text-[9px] font-black text-white shadow-md sm:left-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-[10px]">
+                        SBC OFFER
+                      </div>
                     </div>
 
-                    {/* BUSINESS + ADDRESS + OFFER PREVIEW */}
-                    <div className="flex flex-1 flex-col p-4 sm:p-5">
-
-                      {/* BUSINESS */}
+                    {/* OFFER INFO */}
+                    <div className="flex min-w-0 flex-col justify-between p-3 sm:p-4 lg:p-5">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                          🏢 Business
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-[10px]">
+                              🏢 {offer.businessName || "SBC Partner Business"}
+                            </p>
+
+                            <h2 className="mt-1.5 line-clamp-2 text-sm font-black leading-tight text-[#07111f] sm:text-base lg:text-lg">
+                              {offer.title || "SBC Offer"}
+                            </h2>
+                          </div>
+
+                          <span className="hidden shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700 sm:inline-flex">
+                            ✓ Verified
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-black text-[#1557d6] sm:text-[9px]">
+                            {offer.category || "Other"}
+                          </span>
+
+                          {offer.discount && (
+                            <span className="rounded-full bg-[#fff7dc] px-2 py-1 text-[9px] font-black text-[#9a7100] sm:text-[10px]">
+                              🎁 {offer.discount}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-2 line-clamp-2 text-[9px] leading-4 text-slate-500 sm:text-[10px] sm:leading-5">
+                          {offer.description || "Exclusive benefits available for SBC students."}
                         </p>
 
-                        <h2 className="mt-1 text-base font-black leading-5 text-[#07111f]">
-                          {offer.businessName || "SBC Partner Business"}
-                        </h2>
-
-                        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-4 text-slate-500">
-                          📍 {offer.businessAddress || "Address not available"}
-                        </p>
+                        {offer.businessAddress && (
+                          <p className="mt-1.5 line-clamp-1 text-[8px] font-semibold text-slate-400 sm:text-[9px]">
+                            📍 {offer.businessAddress}
+                          </p>
+                        )}
                       </div>
 
-                      {/* OFFER PREVIEW */}
-                      <div className="mt-4 rounded-2xl border border-[#d4af37]/25 bg-[#fffdf5] p-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8a680c]">
-                          🎁 Offer
-                        </p>
-
-                        <h3 className="mt-1 text-base font-black leading-5 text-[#07111f]">
-                          {offer.title || "SBC Offer"}
-                        </h3>
-
-                        <div className="mt-2 max-h-[72px] overflow-hidden">
-                          <p className="line-clamp-3 whitespace-pre-line break-words text-sm font-medium leading-6 text-slate-600">
-                            {offer.description || "Offer details available inside."}
+                      <div className="mt-2.5 flex items-end justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-black text-slate-400 sm:text-[9px]">
+                            USED AT BUSINESS
+                          </p>
+                          <p className="mt-0.5 text-[9px] font-black text-slate-700 sm:text-[10px]">
+                            {usedCount}/{MAX_REDEMPTIONS} redemptions
                           </p>
                         </div>
 
-                        {/* Always available at the end of the preview so the student can open the complete offer. */}
                         <button
                           type="button"
                           onClick={() => openOfferDetails(offer)}
-                          className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-[#d4af37]/40 bg-white py-2.5 text-xs font-black text-[#8a680c] transition hover:bg-[#fff8df]"
+                          className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2 text-[9px] font-black text-white shadow-sm transition hover:bg-[#0e47b6] sm:px-4 sm:py-2.5 sm:text-[10px]"
                         >
-                          👁️ View Full Offer
+                          View Offer →
                         </button>
                       </div>
-
-                      {/* USAGE */}
-                      <div className="mt-3 rounded-xl border border-[#d4af37]/20 bg-[#fbfaf6] px-3.5 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
-                              Your Usage
-                            </p>
-                            <p className="mt-0.5 text-sm font-black text-[#07111f]">
-                              {usedCount} / {MAX_REDEMPTIONS} Used
-                            </p>
-                          </div>
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff0bd] text-xs font-black text-[#8a680c]">
-                            {usedCount}/{MAX_REDEMPTIONS}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ACTIONS */}
-                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => callBusiness(offer)}
-                          className="rounded-xl bg-[#07111f] py-3 text-xs font-black text-white transition hover:bg-[#101d2e]"
-                        >
-                          📞 Call Us
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => router.push("/student/dashboard")}
-                          disabled={usedCount >= MAX_REDEMPTIONS}
-                          className={`rounded-xl py-3 text-xs font-black transition ${
-                            usedCount >= MAX_REDEMPTIONS
-                              ? "cursor-not-allowed bg-slate-300 text-slate-500"
-                              : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
-                          }`}
-                        >
-                          {usedCount >= MAX_REDEMPTIONS
-                            ? "🚫 Limit Reached"
-                            : "📷 Scan & Redeem"}
-                        </button>
-                      </div>
-
                     </div>
                   </div>
-                );
-              }
-            )}
-
+                </article>
+              );
+            })}
           </div>
-
         )}
 
         {/* TOTAL */}
@@ -2020,21 +1968,54 @@ export default function StudentOffers() {
           onClick={closeOfferDetails}
         >
           <div
-            className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* CLOSE BUTTON */}
-            <button
-              type="button"
-              onClick={closeOfferDetails}
-              aria-label="Close full details"
-              className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 shadow-sm transition hover:bg-slate-200"
-            >
-              ✕
-            </button>
+
+            {/* IMAGE */}
+
+            <div className="relative h-56 overflow-hidden bg-[#07111f] sm:h-64">
+
+              {detailsOffer.image ? (
+
+                <img
+                  src={detailsOffer.image}
+                  alt={detailsOffer.title || "Offer"}
+                  className="h-full w-full object-cover"
+                />
+
+              ) : (
+
+                <div className="flex h-full items-center justify-center text-7xl text-[#f1cf63]">
+                  🎁
+                </div>
+
+              )}
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                aria-label="Close full details"
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white backdrop-blur transition hover:bg-black/80"
+              >
+                ✕
+              </button>
+
+              <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
+
+                <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                  {detailsOffer.category || "Other"}
+                </span>
+
+                <span className="rounded-full border border-[#d4af37]/50 bg-[#fff8df] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
+                  🔥 SBC Exclusive
+                </span>
+
+              </div>
+
+            </div>
 
             {/* FULL DETAILS */}
-
 
             <div className="p-6 sm:p-7">
 
@@ -2162,7 +2143,7 @@ export default function StudentOffers() {
                   type="button"
                   onClick={() => {
                     closeOfferDetails();
-                    router.push("/student/dashboard");
+                    openRedeemVerification(detailsOffer);
                   }}
                   disabled={
                     getUsageCount(detailsOffer.businessId) >=
@@ -2178,7 +2159,7 @@ export default function StudentOffers() {
                   {getUsageCount(detailsOffer.businessId) >=
                   MAX_REDEMPTIONS
                     ? "🚫 Limit Reached"
-                    : "📷 Scan & Redeem"}
+                    : "🎁 Redeem Offer"}
                 </button>
 
               </div>
@@ -2290,7 +2271,7 @@ export default function StudentOffers() {
 
                     <p className="mt-1 text-sm text-green-700">
                       Business ID:{" "}
-                      {verifiedBusiness.sbcBusinessId}
+                      {verifiedBusiness.businessId}
                     </p>
 
                   </div>
@@ -2467,7 +2448,7 @@ export default function StudentOffers() {
                     >
                       {redeemLoading
                         ? "⏳ Sending Request..."
-                        : "📷 Scan & Redeem"}
+                        : "🎁 REDEEM MY BENEFIT"}
                     </button>
 
                   </div>
