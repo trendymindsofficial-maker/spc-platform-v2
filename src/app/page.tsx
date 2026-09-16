@@ -142,7 +142,7 @@ export default function Home() {
             <img
               src={active.image}
               alt={`${active.title} ${active.highlight} - Student Benefit Card`}
-              className="block h-auto w-full max-w-none object-contain sm:max-h-[650px] sm:w-auto sm:max-w-[650px]"
+              className="block h-auto w-full max-w-none object-contain"
             />
           </div>
 
