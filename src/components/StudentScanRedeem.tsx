@@ -134,14 +134,22 @@ export default function StudentScanRedeem() {
       const data = businessDoc.data();
       const businessAuthUid = businessDoc.id;
 
+      // Load active offers with a single-field query and filter by
+      // businessId on the client. This avoids requiring a Firestore
+      // composite index for status + businessId and matches the
+      // working Student Offers page behaviour.
       const offerQuery = query(
         collection(db, "offers"),
-        where("status", "==", "active"),
-        where("businessId", "==", businessAuthUid)
+        where("status", "==", "active")
       );
       const offerSnap = await getDocs(offerQuery);
 
-      const businessOffers = offerSnap.docs.map((item) => {
+      const businessOffers = offerSnap.docs
+        .filter((item) => {
+          const offer = item.data();
+          return String(offer.businessId || "").trim() === businessAuthUid;
+        })
+        .map((item) => {
         const offer = item.data();
         return {
           id: item.id,
