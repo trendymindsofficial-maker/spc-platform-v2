@@ -116,10 +116,10 @@ export default function Home() {
             </nav>
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
-              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Student Registration</button>
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your SBC Card</button>
             </div>
 
-            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Student Registration</button>
+            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
           </div>
 
         </div>
