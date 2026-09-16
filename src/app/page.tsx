@@ -116,18 +116,12 @@ export default function Home() {
             </nav>
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
-              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-4 sm:py-3 sm:text-xs">Get Your SBC Card</button>
-              <button type="button" onClick={() => go("/student/login")} className="rounded-xl border border-[#1557d6]/30 bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:px-4 sm:py-3 sm:text-xs">Student Login</button>
-              <button type="button" onClick={() => go("/admin/login")} className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-4 sm:py-3 sm:text-xs">Admin</button>
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your SBC Card</button>
             </div>
 
             <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
           </div>
 
-          <div className="flex gap-2 pb-1 pt-1.5 sm:hidden">
-            <button type="button" onClick={() => go("/student/login")} className="flex-1 rounded-xl border border-[#1557d6]/25 bg-white px-3 py-2 text-[10px] font-black text-[#1557d6]">Student Login</button>
-            <button type="button" onClick={() => go("/admin/login")} className="flex-1 rounded-xl bg-[#07111f] px-3 py-2 text-[10px] font-black text-white">Admin</button>
-          </div>
         </div>
       </header>
 
@@ -468,26 +462,32 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* MOBILE NAV */}
-      <div className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-20px)] max-w-md -translate-x-1/2 items-center justify-between rounded-[1.4rem] border border-white/80 bg-white/95 px-2 py-2 shadow-[0_18px_50px_rgba(7,17,31,.18)] backdrop-blur-xl sm:hidden">
-        {[
-          ["⌂", "Home", "/"],
-          ["◇", "Offers", "/student/login"],
-          ["▣", "Business", "/business/login"],
-          ["♙", "Login", "/student/login"],
-        ].map(([icon, label, path], index) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => go(path)}
-            className={`flex min-w-[65px] flex-col items-center rounded-xl px-2 py-2 text-slate-500 transition ${
-              index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : ""
-            }`}
-          >
-            <span className="text-base">{icon}</span>
-            <span className="mt-0.5 text-[8px] font-black">{label}</span>
-          </button>
-        ))}
+      {/* MOBILE APP NAV */}
+      <div className="fixed bottom-3 left-1/2 z-50 w-[calc(100%-18px)] max-w-md -translate-x-1/2 rounded-[1.5rem] border border-white/90 bg-white/96 px-2 py-2 shadow-[0_20px_55px_rgba(7,17,31,.20)] backdrop-blur-xl sm:hidden">
+        <div className="grid grid-cols-4 gap-1">
+          {[
+            { icon: "⌂", label: "Home", path: "/", active: true },
+            { icon: "♙", label: "Student Login", path: "/student/login", active: false },
+            { icon: "▣", label: "Business Login", path: "/business/login", active: false },
+            { icon: "⚙", label: "Admin Login", path: "/admin/login", active: false },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => go(item.path)}
+              className={`flex min-w-0 flex-col items-center justify-center rounded-[1.15rem] px-1 py-2.5 transition active:scale-95 ${
+                item.active
+                  ? "bg-[#eaf2ff] text-[#1557d6] shadow-[inset_0_0_0_1px_rgba(21,87,214,.06)]"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-[#1557d6]"
+              }`}
+            >
+              <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-base ${item.active ? "bg-[#1557d6] text-white shadow-[0_7px_16px_rgba(21,87,214,.22)]" : "bg-slate-100 text-slate-500"}`}>
+                {item.icon}
+              </span>
+              <span className="mt-1 text-[8px] font-black leading-tight sm:text-[9px]">{item.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </main>
   );
