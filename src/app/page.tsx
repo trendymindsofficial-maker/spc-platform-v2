@@ -116,10 +116,10 @@ export default function Home() {
             </nav>
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
-              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your SBC Card</button>
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Student Registration</button>
             </div>
 
-            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
+            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Student Registration</button>
           </div>
 
         </div>
@@ -338,14 +338,100 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative flex min-h-[390px] items-center justify-center overflow-hidden rounded-[2.5rem] bg-[#07111f] p-8">
-            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full border-[35px] border-[#d4af37]/20" />
-            <div className="absolute -bottom-24 -left-20 h-64 w-64 rounded-full border-[35px] border-blue-400/10" />
-            <img
-              src="/images/sbc-card.png"
-              alt="Student Benefit Card"
-              className="relative z-10 w-full max-w-[500px] rotate-[-5deg] object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,.4)]"
-            />
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#eef6ff] via-[#f7fbff] to-[#e9f1ff] p-5 shadow-[0_20px_60px_rgba(21,87,214,.10)] sm:p-7">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border-[32px] border-[#1557d6]/[.08]" />
+            <div className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full border-[30px] border-[#d4af37]/[.10]" />
+
+            <div className="relative z-10">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+                    DIGITAL MEMBERSHIP CARD
+                  </p>
+                  <h3 className="mt-1 text-xl font-black text-[#07111f] sm:text-2xl">
+                    Your SBC Digital Card
+                  </h3>
+                </div>
+                <div className="rounded-full bg-emerald-50 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-emerald-700 shadow-sm">
+                  ✓ Secure
+                </div>
+              </div>
+
+              <div className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[1.5rem] border border-white/20 bg-gradient-to-br from-[#101b2d] via-[#07111f] to-[#020812] p-5 text-white shadow-[0_25px_55px_rgba(7,17,31,.28)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#f4d35e] to-[#b18a16] text-[10px] font-black text-[#07111f] shadow-md">
+                        SBC
+                      </span>
+                      <div>
+                        <p className="text-[10px] font-black tracking-[.12em]">STUDENT BENEFIT CARD</p>
+                        <p className="text-[7px] font-semibold tracking-[.16em] text-white/50">MORE BENEFITS. MORE SAVINGS.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-wider text-[#f4d35e]">
+                    STUDENT
+                  </span>
+                </div>
+
+                <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
+                  <div>
+                    <p className="text-[8px] font-bold uppercase tracking-[.18em] text-white/40">Card Holder</p>
+                    <p className="mt-1 text-base font-black sm:text-lg">Your Name</p>
+                    <p className="mt-3 text-[8px] font-bold uppercase tracking-[.18em] text-white/40">SBC Number</p>
+                    <p className="mt-1 text-xs font-bold tracking-[.12em] text-white/85">SBCSTU100234</p>
+                    <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+                      <div>
+                        <p className="text-[7px] font-bold uppercase tracking-wider text-white/40">Course</p>
+                        <p className="mt-0.5 text-[9px] font-semibold text-white/80">B.Tech</p>
+                      </div>
+                      <div>
+                        <p className="text-[7px] font-bold uppercase tracking-wider text-white/40">College</p>
+                        <p className="mt-0.5 text-[9px] font-semibold text-white/80">Your College</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-2.5 shadow-lg">
+                    <div className="grid h-20 w-20 grid-cols-5 gap-1 sm:h-24 sm:w-24">
+                      {[1,0,1,1,0,0,1,0,1,0,1,1,1,0,1,1,0,0,1,1,0,1,1,0,1].map((bit, i) => (
+                        <span key={i} className={bit ? "bg-[#07111f]" : "bg-white"} />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-center text-[6px] font-black uppercase tracking-wider text-slate-500">Verify</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1.5 text-[8px] font-black text-emerald-300">
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-400 text-[8px] text-[#07111f]">✓</span>
+                    VERIFIED STUDENT
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-[.16em] text-[#f4d35e]">DIGITAL • SECURE</span>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  ["🛡️", "Secure", "Protected student access"],
+                  ["✓", "Verified", "Student membership verified"],
+                  ["🤝", "Trusted", "Accepted by SBC partners"],
+                ].map(([icon, title, text]) => (
+                  <div key={title} className="rounded-2xl border border-white bg-white/80 p-3 shadow-sm backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{icon}</span>
+                      <p className="text-[10px] font-black text-[#07111f]">{title}</p>
+                    </div>
+                    <p className="mt-1 text-[8px] leading-4 text-slate-500">{text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <p className="mt-4 text-center text-[9px] font-semibold text-slate-500">
+                Your digital SBC card is secure, verified and available inside your student account.
+              </p>
+            </div>
           </div>
         </div>
       </section>
