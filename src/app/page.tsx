@@ -80,80 +80,60 @@ export default function Home() {
   const active = slides[slide];
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white text-[#07111f]">
+    <main className="min-h-screen overflow-x-hidden bg-white pb-20 text-[#07111f] sm:pb-0">
       {/* HEADER */}
       <header className="sticky top-0 z-50 border-b border-black/[.06] bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-10">
-          <button type="button" onClick={() => go("/")} className="flex items-center gap-3">
-            <span className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[#07111f] text-sm font-black text-white shadow-lg">
-              <span className="absolute -right-2 -top-2 h-8 w-8 rounded-full bg-[#d4af37] blur-md" />
-              <span className="relative">SBC</span>
-            </span>
-            <span className="text-left">
-              <span className="block text-[13px] font-black tracking-[.12em] sm:text-[14px]">
-                STUDENT BENEFIT CARD
+        <div className="mx-auto max-w-[1440px] px-3 py-2.5 sm:px-6 sm:py-0 lg:px-10">
+          <div className="flex min-h-[54px] items-center justify-between gap-2 sm:h-[76px]">
+            <button type="button" onClick={() => go("/")} className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#07111f] text-[11px] font-black text-white shadow-lg sm:h-12 sm:w-12 sm:rounded-2xl sm:text-sm">
+                <span className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-[#d4af37] blur-md" />
+                <span className="relative">SBC</span>
               </span>
-              <span className="block text-[9px] font-semibold uppercase tracking-[.2em] text-slate-500">
-                More Benefits. More Savings.
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-[11px] font-black tracking-[.10em] sm:text-[14px] sm:tracking-[.12em]">
+                  STUDENT BENEFIT CARD
+                </span>
+                <span className="mt-0.5 block text-[7px] font-semibold uppercase tracking-[.16em] text-slate-500 sm:text-[9px] sm:tracking-[.2em]">
+                  More Benefits. More Savings.
+                </span>
               </span>
-            </span>
-          </button>
-
-          <nav className="hidden items-center gap-7 lg:flex">
-            {[
-              ["Home", "/"],
-              ["For Students", "/student/login"],
-              ["For Businesses", "/business/login"],
-              ["Offers", "/student/login"],
-              ["How It Works", "#how-it-works"],
-              ["About", "#about"],
-            ].map(([label, path], index) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => go(path)}
-                className={`text-[13px] font-bold transition ${
-                  index === 0
-                    ? "text-[#1557d6]"
-                    : "text-slate-600 hover:text-[#07111f]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:flex-nowrap">
-            <button
-              type="button"
-              onClick={() => go("/student/register")}
-              className="rounded-xl bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-4 sm:py-3 sm:text-xs"
-            >
-              Get Your SBC Card
             </button>
 
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="rounded-xl border border-[#1557d6]/30 bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:px-4 sm:py-3 sm:text-xs"
-            >
-              Student Login
-            </button>
+            <nav className="hidden items-center gap-7 lg:flex">
+              {[
+                ["Home", "/"],
+                ["For Students", "/student/login"],
+                ["For Businesses", "/business/login"],
+                ["Offers", "/student/login"],
+                ["How It Works", "#how-it-works"],
+                ["About", "#about"],
+              ].map(([label, path], index) => (
+                <button key={label} type="button" onClick={() => go(path)} className={`text-[13px] font-bold transition ${index === 0 ? "text-[#1557d6]" : "text-slate-600 hover:text-[#07111f]"}`}>
+                  {label}
+                </button>
+              ))}
+            </nav>
 
-            <button
-              type="button"
-              onClick={() => go("/admin/login")}
-              className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-4 sm:py-3 sm:text-xs"
-            >
-              Admin
-            </button>
+            <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-3 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-4 sm:py-3 sm:text-xs">Get Your SBC Card</button>
+              <button type="button" onClick={() => go("/student/login")} className="rounded-xl border border-[#1557d6]/30 bg-white px-3 py-2.5 text-[10px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:px-4 sm:py-3 sm:text-xs">Student Login</button>
+              <button type="button" onClick={() => go("/admin/login")} className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-4 sm:py-3 sm:text-xs">Admin</button>
+            </div>
+
+            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
+          </div>
+
+          <div className="flex gap-2 pb-1 pt-1.5 sm:hidden">
+            <button type="button" onClick={() => go("/student/login")} className="flex-1 rounded-xl border border-[#1557d6]/25 bg-white px-3 py-2 text-[10px] font-black text-[#1557d6]">Student Login</button>
+            <button type="button" onClick={() => go("/admin/login")} className="flex-1 rounded-xl bg-[#07111f] px-3 py-2 text-[10px] font-black text-white">Admin</button>
           </div>
         </div>
       </header>
 
       {/* HERO SLIDER — COMPLETE IMAGE PER SLIDE */}
       <section className="relative overflow-hidden bg-[#07111f]">
-        <div className="relative flex min-h-[390px] items-center justify-center sm:min-h-[520px] lg:min-h-[650px]">
+        <div className="relative flex w-full items-center justify-center sm:min-h-[520px] lg:min-h-[650px]">
 
           <div
             key={active.image}
@@ -162,7 +142,7 @@ export default function Home() {
             <img
               src={active.image}
               alt={`${active.title} ${active.highlight} - Student Benefit Card`}
-              className="block h-auto w-full max-w-[724px] object-contain sm:max-h-[650px] sm:w-auto sm:max-w-[650px]"
+              className="block h-auto w-full max-w-none object-contain sm:max-h-[650px] sm:w-auto sm:max-w-[650px]"
             />
           </div>
 
@@ -170,7 +150,7 @@ export default function Home() {
             type="button"
             aria-label="Previous slide"
             onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
-            className="absolute left-3 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-2xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:left-6"
+            className="absolute left-2 top-1/2 z-40 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:left-6 sm:h-11 sm:w-11 sm:text-2xl"
           >
             ‹
           </button>
@@ -179,7 +159,7 @@ export default function Home() {
             type="button"
             aria-label="Next slide"
             onClick={() => setSlide((slide + 1) % slides.length)}
-            className="absolute right-3 top-1/2 z-40 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-2xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:right-6"
+            className="absolute right-2 top-1/2 z-40 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#07111f]/75 text-xl font-black text-white shadow-xl backdrop-blur-md transition hover:scale-105 sm:right-6 sm:h-11 sm:w-11 sm:text-2xl"
           >
             ›
           </button>
@@ -207,19 +187,19 @@ export default function Home() {
           <button
             type="button"
             onClick={() => go("/business/register")}
-            className="rounded-2xl bg-[#1557d6] px-5 py-4 text-left text-sm font-black text-white shadow-[0_10px_30px_rgba(21,87,214,.16)] transition hover:-translate-y-0.5"
+            className="rounded-2xl bg-[#1557d6] px-5 py-3.5 text-left text-xs font-black text-white shadow-[0_10px_30px_rgba(21,87,214,.16)] transition hover:-translate-y-0.5 sm:py-4 sm:text-sm"
           >
             🏪 Business Register
-            <span className="ml-2 font-medium text-white/75">Grow your business with SBC →</span>
+            <span className="mt-1 block font-medium text-white/75 sm:ml-2 sm:mt-0 sm:inline">Grow your business with SBC →</span>
           </button>
 
           <button
             type="button"
             onClick={() => go("/business/login")}
-            className="rounded-2xl border border-[#07111f]/10 bg-[#07111f] px-5 py-4 text-left text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5"
+            className="rounded-2xl border border-[#07111f]/10 bg-[#07111f] px-5 py-3.5 text-left text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 sm:py-4 sm:text-sm"
           >
             🔐 Business Login
-            <span className="ml-2 font-medium text-white/65">Access your dashboard →</span>
+            <span className="mt-1 block font-medium text-white/65 sm:ml-2 sm:mt-0 sm:inline">Access your dashboard →</span>
           </button>
         </div>
       </section>
