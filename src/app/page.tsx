@@ -184,29 +184,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {/* BUSINESS ACTIONS */}
-      <section className="border-b border-black/[.05] bg-white px-4 py-4 sm:px-6">
-        <div className="mx-auto grid max-w-[1400px] gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => go("/business/register")}
-            className="rounded-2xl bg-[#1557d6] px-5 py-3.5 text-left text-xs font-black text-white shadow-[0_10px_30px_rgba(21,87,214,.16)] transition hover:-translate-y-0.5 sm:py-4 sm:text-sm"
-          >
-            🏪 Business Register
-            <span className="mt-1 block font-medium text-white/75 sm:ml-2 sm:mt-0 sm:inline">Grow your business with SBC →</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => go("/business/login")}
-            className="rounded-2xl border border-[#07111f]/10 bg-[#07111f] px-5 py-3.5 text-left text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 sm:py-4 sm:text-sm"
-          >
-            🔐 Business Login
-            <span className="mt-1 block font-medium text-white/65 sm:ml-2 sm:mt-0 sm:inline">Access your dashboard →</span>
-          </button>
-        </div>
-      </section>
-
       {/* CATEGORIES */}
       <section className="border-b border-black/[.05] bg-white px-4 py-8 sm:px-6">
         <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
@@ -250,53 +227,76 @@ export default function Home() {
         </div>
       </section>
 
-      {/* OFFERS */}
-      <section className="px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-[1400px]">
-          <div className="flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-                FEATURED OFFERS
-              </p>
-              <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
-              <p className="mt-2 text-sm text-slate-500">Save more at brands and businesses loved by students.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="rounded-xl border border-[#1557d6] px-5 py-3 text-xs font-black text-[#1557d6] transition hover:bg-blue-50"
-            >
-              View All Offers →
-            </button>
-          </div>
+      {/* FEATURED OFFERS */}
+      <section className="border-b border-black/[.05] bg-white px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-[1400px] text-center">
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+            FEATURED OFFERS
+          </p>
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+            Save more at brands and businesses loved by students.
+          </p>
+          <button
+            type="button"
+            onClick={() => go("/student/login")}
+            className="mt-6 rounded-xl border-2 border-[#1557d6] px-6 py-3 text-sm font-black text-[#1557d6] transition hover:bg-blue-50"
+          >
+            View All Offers →
+          </button>
+        </div>
+      </section>
 
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ["10% OFF", "Food & Dining", "🍔", "Enjoy student savings on meals and cafes."],
-              ["20% OFF", "Shopping", "🛍️", "Exclusive deals on your favourite stores."],
-              ["15% OFF", "Travel", "✈️", "Travel smarter with student benefits."],
-              ["BUY 1 GET 1", "Entertainment", "🎬", "Make your free time more rewarding."],
-            ].map(([discount, category, icon, text]) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => go("/student/login")}
-                className="group overflow-hidden rounded-3xl border border-black/[.06] bg-white text-left shadow-[0_12px_35px_rgba(7,17,31,.07)] transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-[#eaf2ff] to-[#f8fbff] text-7xl">
-                  {icon}
-                  <span className="absolute left-4 top-4 rounded-full bg-[#1557d6] px-3 py-1.5 text-[10px] font-black text-white">
-                    {discount}
+      {/* PARTNER WITH SBC */}
+      <section className="overflow-hidden bg-[#eef6ff] px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d7e7ff] bg-white/55 p-6 shadow-[0_12px_40px_rgba(21,87,214,.08)] sm:p-10">
+            <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-[#1557d6]/[.06]" />
+            <div className="pointer-events-none absolute -bottom-20 right-24 h-44 w-44 rounded-full bg-[#f6c934]/[.10]" />
+
+            <div className="relative">
+              <p className="text-[10px] font-black uppercase tracking-[.25em] text-[#1557d6]">
+                PARTNER WITH SBC
+              </p>
+              <div className="mt-2 max-w-2xl">
+                <h2 className="text-3xl font-black leading-tight text-[#07111f] sm:text-4xl">
+                  Grow Your Business with Students
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+                  Join SBC and connect with students. Increase your visibility, reach and sales with exclusive student benefits.
+                </p>
+              </div>
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => go("/business/register")}
+                  className="rounded-2xl bg-[#1557d6] px-5 py-4 text-left text-white shadow-[0_12px_30px_rgba(21,87,214,.18)] transition hover:-translate-y-0.5"
+                >
+                  <span className="flex items-center gap-3 text-sm font-black sm:text-base">
+                    <span className="text-2xl">🏪</span>
+                    Business Register
                   </span>
-                </div>
-                <div className="p-5">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-[#1557d6]">{category}</p>
-                  <h3 className="mt-2 text-lg font-black">Student Exclusive</h3>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
-                  <p className="mt-4 text-xs font-black text-[#1557d6]">Explore Offer →</p>
-                </div>
-              </button>
-            ))}
+                  <span className="mt-1 block pl-9 text-xs font-medium text-white/75 sm:text-sm">
+                    List your business on SBC →
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => go("/business/login")}
+                  className="rounded-2xl bg-[#07111f] px-5 py-4 text-left text-white shadow-[0_12px_30px_rgba(7,17,31,.12)] transition hover:-translate-y-0.5"
+                >
+                  <span className="flex items-center gap-3 text-sm font-black sm:text-base">
+                    <span className="text-2xl">🔐</span>
+                    Business Login
+                  </span>
+                  <span className="mt-1 block pl-9 text-xs font-medium text-white/65 sm:text-sm">
+                    Access your dashboard →
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
