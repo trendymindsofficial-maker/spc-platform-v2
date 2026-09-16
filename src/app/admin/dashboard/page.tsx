@@ -490,41 +490,6 @@ export default function AdminDashboard() {
             </div>
 
 
-            {/* REFERRAL PAYOUTS */}
-
-            <Link
-              href="/admin/payouts"
-              className="rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-emerald-400 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold text-emerald-700">
-                    💰 Referral Payouts
-                  </h2>
-
-                  <p className="mt-3 text-slate-600">
-                    Review student payout requests, verify UPI or bank details,
-                    record UTR and mark payments as paid.
-                  </p>
-                </div>
-
-                <div className="shrink-0 rounded-2xl bg-[#07111f] px-5 py-3 text-center text-[#f1cf63]">
-                  <span className="block text-2xl font-extrabold">
-                    PAY
-                  </span>
-
-                  <span className="text-xs font-bold uppercase">
-                    PAYOUT REQUESTS
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 inline-flex rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]">
-                Open Referral Payouts →
-              </div>
-            </Link>
-
-
             {/* BUSINESSES */}
 
             <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
@@ -749,6 +714,63 @@ export default function AdminDashboard() {
                 </div>
 
               )}
+
+            </div>
+
+          </div>
+
+
+          {/* ==================================
+              REFERRAL PAYOUT CENTER
+          =================================== */}
+
+          <div className="mt-10 overflow-hidden rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white shadow-[0_18px_55px_rgba(7,17,31,0.08)]">
+
+            <div className="flex flex-col gap-6 p-7 md:flex-row md:items-center md:justify-between md:p-9">
+
+              <div className="max-w-3xl">
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                    Admin Finance
+                  </span>
+
+                  <span className="rounded-full bg-[#07111f] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f1cf63]">
+                    Referral Rewards
+                  </span>
+                </div>
+
+                <h2 className="mt-4 text-3xl font-black text-emerald-700 md:text-4xl">
+                  💰 Referral Payouts
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+                  Review student payout requests, verify UPI or bank details,
+                  make the payment, enter the UTR and mark the request as paid.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <span className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm">
+                    📋 Pending payout requests
+                  </span>
+
+                  <span className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm">
+                    🏦 UPI / Bank details
+                  </span>
+
+                  <span className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm">
+                    🔐 UTR tracking
+                  </span>
+                </div>
+
+              </div>
+
+              <Link
+                href="/admin/payouts"
+                className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-[#07111f] px-7 py-4 text-sm font-black text-[#f1cf63] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#111d2d]"
+              >
+                Open Referral Payouts →
+              </Link>
 
             </div>
 
