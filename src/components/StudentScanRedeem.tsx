@@ -172,19 +172,14 @@ export default function StudentScanRedeem() {
       });
       setOffers(businessOffers);
 
-      if (auth.currentUser) {
-        const usageRef = doc(
-          db,
-          "businessStudentUsage",
-          `${businessAuthUid}_${auth.currentUser.uid}`
-        );
-        const usageSnap = await getDoc(usageRef);
-        setUsageCount(
-          usageSnap.exists()
-            ? Math.min(Number(usageSnap.data().count || 0), MAX_REDEMPTIONS)
-            : 0
-        );
-      }
+      // Do not read businessStudentUsage from the student client here.
+      // The current Firestore rules intentionally do not allow a student
+      // to read a missing usage document by ID, so that read can turn a
+      // perfectly valid QR scan into a misleading "Unable to load" error.
+      // The secure /api/redemption/create endpoint is authoritative for
+      // the 4-use limit. Start the UI counter at 0 and increment it only
+      // after a business approves a redemption.
+      setUsageCount(0);
     } catch (error) {
       console.error("Scan business loading error:", error);
       setBusiness(null);
