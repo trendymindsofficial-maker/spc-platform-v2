@@ -1,6 +1,7 @@
 rules_version = '2';
 
 service cloud.firestore {
+
   match /databases/{database}/documents {
 
     function signedIn() {
@@ -23,6 +24,7 @@ service cloud.firestore {
     // =========================
     // ADMINS
     // =========================
+
     match /admins/{adminId} {
       allow read: if signedIn() && request.auth.uid == adminId;
       allow write: if isAdmin();
@@ -31,6 +33,7 @@ service cloud.firestore {
     // =========================
     // STUDENTS
     // =========================
+
     match /students/{studentId} {
       allow create: if isStudent(studentId);
 
@@ -75,6 +78,7 @@ service cloud.firestore {
     // =========================
     // BUSINESSES
     // =========================
+
     match /businesses/{businessId} {
       allow read: if signedIn();
 
@@ -89,9 +93,8 @@ service cloud.firestore {
     // =========================
     // CATEGORIES
     // =========================
+
     match /categories/{categoryId} {
-      // Categories are non-sensitive and must be readable
-      // on the public business registration page before login.
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -99,20 +102,21 @@ service cloud.firestore {
     // =========================
     // OFFERS
     // =========================
+
     match /offers/{offerId} {
       allow read: if signedIn();
 
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
 
-      allow update: if isAdmin() ||
-        (
+      allow update: if isAdmin()
+        || (
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
 
-      allow delete: if isAdmin() ||
-        (
+      allow delete: if isAdmin()
+        || (
           signedIn() &&
           resource.data.businessId == request.auth.uid
         );
@@ -121,6 +125,7 @@ service cloud.firestore {
     // =========================
     // BUSINESS STUDENT USAGE
     // =========================
+
     match /businessStudentUsage/{usageId} {
       allow read: if isAdmin()
         || (
@@ -144,6 +149,7 @@ service cloud.firestore {
     // =========================
     // STUDENT POINTS
     // =========================
+
     match /studentPoints/{studentId} {
       allow read: if isAdmin() || isStudent(studentId);
 
@@ -160,9 +166,12 @@ service cloud.firestore {
     // =========================
     // REDEMPTION REQUESTS
     // =========================
+
     match /redemptionRequests/{requestId} {
-      // Creation is server-only. /api/redemption/create performs
-      // authentication, membership-expiry, offer and usage checks.
+
+      // Creation is server-only.
+      // /api/redemption/create performs authentication,
+      // membership-expiry, offer and usage checks.
       allow create: if false;
 
       allow read: if isAdmin()
@@ -199,6 +208,7 @@ service cloud.firestore {
     // =========================
     // REDEMPTIONS
     // =========================
+
     match /redemptions/{redeemId} {
       allow create: if signedIn()
         && request.resource.data.businessId == request.auth.uid;
@@ -217,8 +227,36 @@ service cloud.firestore {
     }
 
     // =========================
+    // PAYOUT REQUESTS
+    // =========================
+
+    match /payoutRequests/{payoutId} {
+
+      // Payout requests are created only by the
+      // authenticated server API using Firebase Admin SDK.
+      allow create: if false;
+
+      // Students can only read their own payout requests.
+      // Admins can read all payout requests.
+      allow read: if isAdmin()
+        || (
+          signedIn() &&
+          resource.data.uid == request.auth.uid
+        );
+
+      // Students cannot modify payout requests.
+      // Admin API uses Firebase Admin SDK, so these rules
+      // do not block legitimate admin processing.
+      allow update: if false;
+
+      // No client-side deletion.
+      allow delete: if false;
+    }
+
+    // =========================
     // BLOCK EVERYTHING ELSE
     // =========================
+
     match /{document=**} {
       allow read, write: if false;
     }
