@@ -1,589 +1,2933 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const categories = [
-  { name: "Shopping", icon: "🛍️" },
-  { name: "Food & Drinks", icon: "🍴" },
-  { name: "Education", icon: "🎓" },
-  { name: "Fitness", icon: "🏋️" },
-  { name: "Travel", icon: "✈️" },
-  { name: "Entertainment", icon: "🎮" },
-  { name: "Healthcare", icon: "❤️" },
-  { name: "Electronics", icon: "💻" },
-  { name: "Salon & Spa", icon: "✂️" },
-  { name: "More", icon: "•••" },
-];
+import QRCode from "react-qr-code";
+import StudentScanRedeem from "@/components/StudentScanRedeem";
 
-const slides = [
-  {
-    eyebrow: "STUDY MORE. SPEND LESS.",
-    title: "Big Discounts",
-    highlight: "Brighter Future",
-    text: "Exclusive offers from top brands and local businesses, only for students.",
-    badge: "DISCOUNTS UP TO",
-    badgeValue: "50%",
-  },
-  {
-    eyebrow: "INDIA'S STUDENT BENEFIT CARD",
-    title: "More Benefits.",
-    highlight: "More Savings.",
-    text: "One digital student card for food, shopping, travel, fitness, entertainment and more.",
-    badge: "STUDENT",
-    badgeValue: "SAVINGS",
-  },
-  {
-    eyebrow: "STUDENTS SAVE. GROW. REPEAT.",
-    title: "Save Today.",
-    highlight: "Win Together.",
-    text: "Use exclusive benefits, collect rewards and refer friends to earn more with SBC.",
-    badge: "REFER &",
-    badgeValue: "EARN",
-  },
-];
+import { auth, db } from "@/lib/firebase";
+import { enableStudentNotifications } from "@/lib/firebase-messaging";
 
-function Icon({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-[0_8px_25px_rgba(7,17,31,.08)]">
-      {children}
-    </span>
-  );
+import {
+  getMessaging,
+  onMessage,
+} from "firebase/messaging";
+
+import { getApp } from "firebase/app";
+
+import {
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+
+interface Student {
+  uid: string;
+  fullName?: string;
+  cardNumber?: string;
+  college?: string;
+  course?: string;
+  year?: string;
+  mobile?: string;
+  email?: string;
+  status?: string;
+  points?: number;
+  referralCode?: string;
+  successfulReferrals?: number;
+  pendingReferrals?: number;
+  referralRewardUnlocked?: boolean;
+
+  // Server-authoritative SBC membership fields
+  membershipStatus?: "active" | "expired" | string;
+  membershipStartDate?: string;
+  membershipExpiryDate?: string;
+  membershipPlan?: string;
+  lastMembershipPaymentId?: string;
+  lastMembershipOrderId?: string;
 }
 
-export default function Home() {
+export default function StudentDashboard() {
   const router = useRouter();
-  const [slide, setSlide] = useState(0);
 
-  const go = (path: string) => {
-    if (path.startsWith("#")) {
-      document.querySelector(path)?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    router.push(path);
+  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [error, setError] = useState("");
+
+  // Notification setup UI
+  const [showNotificationPrompt, setShowNotificationPrompt] =
+    useState(false);
+
+  const [notificationEnabling, setNotificationEnabling] =
+    useState(false);
+
+  const [notificationError, setNotificationError] =
+    useState("");
+
+  const [notificationsReady, setNotificationsReady] =
+    useState(false);
+
+  /* Cumulative points */
+  const [totalPoints, setTotalPoints] = useState(0);
+
+  const referralCode = student?.referralCode || "";
+
+  // Referral payout wallet
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutRequesting, setPayoutRequesting] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutError, setPayoutError] = useState("");
+  const [payoutSuccess, setPayoutSuccess] = useState("");
+  const [payoutAmount, setPayoutAmount] = useState("250");
+  const [payoutMethod, setPayoutMethod] = useState<"upi" | "bank">("upi");
+  const [upiId, setUpiId] = useState("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
+  const [payoutWallet, setPayoutWallet] = useState({
+    successfulReferrals: 0,
+    totalEarned: 0,
+    paidAmount: 0,
+    pendingPayout: 0,
+    available: 0,
+  });
+
+  /*
+   * ==========================================
+   * SESSION CACHE
+   * ==========================================
+   */
+
+  const getCacheKey = (uid: string) => {
+    return `sbc_student_dashboard_${uid}`;
   };
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSlide((current) => (current + 1) % slides.length);
-    }, 5500);
-    return () => window.clearInterval(timer);
-  }, []);
+  /*
+   * ==========================================
+   * SAVE STUDENT CACHE
+   * ==========================================
+   */
 
-  const active = slides[slide];
+  const saveStudentToCache = (studentData: Student) => {
+    try {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      sessionStorage.setItem(
+        getCacheKey(studentData.uid),
+        JSON.stringify(studentData)
+      );
+
+      console.log(
+        "✅ Student saved to session cache."
+      );
+    } catch (error) {
+      console.error(
+        "Student cache save error:",
+        error
+      );
+    }
+  };
+
+  /*
+   * ==========================================
+   * LOAD STUDENT CACHE
+   * ==========================================
+   */
+
+  const loadStudentFromCache = (
+    uid: string
+  ): Student | null => {
+    try {
+      if (typeof window === "undefined") {
+        return null;
+      }
+
+      const cached =
+        sessionStorage.getItem(
+          getCacheKey(uid)
+        );
+
+      if (!cached) {
+        return null;
+      }
+
+      const parsed =
+        JSON.parse(cached) as Student;
+
+      if (!parsed || !parsed.uid) {
+        return null;
+      }
+
+      if (parsed.uid !== uid) {
+        console.warn(
+          "Cached student UID does not match current auth UID."
+        );
+
+        return null;
+      }
+
+      return parsed;
+    } catch (error) {
+      console.error(
+        "Student cache read error:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+  /*
+   * ==========================================
+   * BUILD STUDENT OBJECT
+   * ==========================================
+   */
+
+  const buildStudentData = (
+    data: any,
+    uid: string,
+    email?: string | null
+  ): Student => {
+    return {
+      uid,
+
+      fullName:
+        data.fullName || "",
+
+      cardNumber:
+        data.cardNumber || "",
+
+      college:
+        data.college || "",
+
+      course:
+        data.course || "",
+
+      year:
+        data.year || "",
+
+      mobile:
+        data.mobile || "",
+
+      email:
+        data.email ||
+        email ||
+        "",
+
+      status:
+        data.status ||
+        "pending",
+
+      points:
+        Number(data.points || 0),
+
+      referralCode:
+        data.referralCode || uid.slice(0, 8).toUpperCase(),
+
+      successfulReferrals:
+        Number(data.successfulReferrals || 0),
+
+      pendingReferrals:
+        Number(data.pendingReferrals || 0),
+
+      referralRewardUnlocked:
+        Boolean(data.referralRewardUnlocked || false),
+
+      membershipStatus:
+        data.membershipStatus || "",
+
+      membershipStartDate:
+        data.membershipStartDate?.toDate?.()?.toISOString?.() ||
+        (typeof data.membershipStartDate === "string"
+          ? data.membershipStartDate
+          : ""),
+
+      membershipExpiryDate:
+        data.membershipExpiryDate?.toDate?.()?.toISOString?.() ||
+        (typeof data.membershipExpiryDate === "string"
+          ? data.membershipExpiryDate
+          : ""),
+
+      membershipPlan:
+        data.membershipPlan || "",
+
+      lastMembershipPaymentId:
+        data.lastMembershipPaymentId || "",
+
+      lastMembershipOrderId:
+        data.lastMembershipOrderId || "",
+    };
+  };
+
+  /*
+   * ==========================================
+   * APPLY STUDENT
+   * ==========================================
+   */
+
+  const applyStudent = (
+    studentData: Student
+  ) => {
+    setStudent(studentData);
+    setError("");
+
+    saveStudentToCache(
+      studentData
+    );
+  };
+
+  /*
+   * ==========================================
+   * LOAD STUDENT REWARD POINTS
+   * ==========================================
+   */
+
+  const loadStudentPoints = async (
+    authUid: string
+  ): Promise<string> => {
+    try {
+      /*
+       * IMPORTANT:
+       * Do not choose the highest duplicate studentPoints
+       * document. The points document must belong to the
+       * same student document used for the student profile.
+       */
+
+      let pointsDocumentId = authUid;
+
+      try {
+        const studentUidQuery =
+          query(
+            collection(
+              db,
+              "students"
+            ),
+            where(
+              "uid",
+              "==",
+              authUid
+            )
+          );
+
+        const studentUidSnap =
+          await getDocs(
+            studentUidQuery
+          );
+
+        /*
+         * Prefer the complete student profile document.
+         * This prevents an incomplete duplicate record from
+         * being used just because it appears first.
+         */
+        const completeStudentDoc =
+          studentUidSnap.docs.find(
+            (studentDoc) => {
+              const data =
+                studentDoc.data();
+
+              return Boolean(
+                data.fullName &&
+                data.cardNumber
+              );
+            }
+          );
+
+        if (completeStudentDoc) {
+          pointsDocumentId =
+            completeStudentDoc.id;
+        } else if (
+          studentUidSnap.docs.length > 0
+        ) {
+          pointsDocumentId =
+            studentUidSnap.docs[0].id;
+        }
+      } catch (
+        studentLookupError
+      ) {
+        console.error(
+          "Student document ID lookup for points failed:",
+          studentLookupError
+        );
+      }
+
+      const pointsSnap =
+        await getDoc(
+          doc(
+            db,
+            "studentPoints",
+            pointsDocumentId
+          )
+        );
+
+      const storedPoints =
+        pointsSnap.exists()
+          ? Number(
+              pointsSnap.data()
+                .totalPoints || 0
+            )
+          : 0;
+
+      setTotalPoints(
+        storedPoints
+      );
+
+      setStudent(
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          const updated = {
+            ...current,
+            points: storedPoints,
+          };
+
+          saveStudentToCache(
+            updated
+          );
+
+          return updated;
+        }
+      );
+
+      console.log(
+        "⭐ FINAL STUDENT POINTS:",
+        {
+          authUid,
+          pointsDocument:
+            pointsDocumentId,
+          totalPoints:
+            storedPoints,
+        }
+      );
+
+      return pointsDocumentId;
+    } catch (error) {
+      console.error(
+        "Student points load error:",
+        error
+      );
+
+      return authUid;
+    }
+  };
+
+  /*
+   * ==========================================
+   * LOAD STUDENT
+   * ==========================================
+   */
+
+  const loadStudent = async (
+    uid: string,
+    email?: string | null
+  ): Promise<boolean> => {
+
+    /*
+     * METHOD 1
+     * students/{uid}
+     */
+
+    try {
+      const studentRef =
+        doc(
+          db,
+          "students",
+          uid
+        );
+
+      const snap =
+        await getDoc(
+          studentRef
+        );
+
+      console.log(
+        "Direct student document:",
+        {
+          id: snap.id,
+          exists:
+            snap.exists(),
+          uid,
+          email,
+        }
+      );
+
+      if (
+        snap.exists()
+      ) {
+        const data =
+          snap.data();
+
+        /*
+         * If a duplicate document exists at students/{uid}
+         * but does not contain the actual student profile,
+         * continue to the UID-field lookup below.
+         */
+        if (
+          data.fullName &&
+          data.cardNumber
+        ) {
+          const studentData =
+            buildStudentData(
+              data,
+              uid,
+              email
+            );
+
+          console.log(
+            "✅ STUDENT FOUND BY DOCUMENT ID"
+          );
+
+          applyStudent(
+            studentData
+          );
+
+          return true;
+        }
+
+        console.warn(
+          "⚠️ Direct student document is incomplete. Continuing with UID-field lookup."
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Direct student document error:",
+        error
+      );
+    }
+
+    /*
+     * METHOD 2
+     * students where uid == auth.uid
+     */
+
+    try {
+      const uidQuery =
+        query(
+          collection(
+            db,
+            "students"
+          ),
+          where(
+            "uid",
+            "==",
+            uid
+          )
+        );
+
+      const uidSnap =
+        await getDocs(
+          uidQuery
+        );
+
+      console.log(
+        "Student UID query:",
+        {
+          empty:
+            uidSnap.empty,
+          size:
+            uidSnap.size,
+        }
+      );
+
+      if (
+        !uidSnap.empty
+      ) {
+        const studentDoc =
+          uidSnap.docs.find(
+            (doc) => {
+              const data =
+                doc.data();
+
+              return Boolean(
+                data.fullName &&
+                data.cardNumber
+              );
+            }
+          ) || uidSnap.docs[0];
+
+        const data =
+          studentDoc.data();
+
+        const studentData =
+          buildStudentData(
+            data,
+            studentDoc.id,
+            email
+          );
+
+        if (
+          data.uid &&
+          data.uid !== uid
+        ) {
+          console.warn(
+            "Student UID mismatch. Rejecting record."
+          );
+
+          return false;
+        }
+
+        console.log(
+          "✅ STUDENT FOUND BY UID FIELD"
+        );
+
+        applyStudent(
+          studentData
+        );
+
+        return true;
+      }
+    } catch (error) {
+      console.error(
+        "Student UID query error:",
+        error
+      );
+    }
+
+    /*
+     * METHOD 3
+     * Search by email
+     */
+
+    if (email) {
+      try {
+        const emailQuery =
+          query(
+            collection(
+              db,
+              "students"
+            ),
+            where(
+              "email",
+              "==",
+              email
+            )
+          );
+
+        const emailSnap =
+          await getDocs(
+            emailQuery
+          );
+
+        console.log(
+          "Student email query:",
+          {
+            empty:
+              emailSnap.empty,
+            size:
+              emailSnap.size,
+          }
+        );
+
+        if (
+          !emailSnap.empty
+        ) {
+          const studentDoc =
+            emailSnap.docs[0];
+
+          const data =
+            studentDoc.data();
+
+          if (
+            data.uid &&
+            data.uid !== uid
+          ) {
+            console.warn(
+              "Email matched another student's UID. Rejecting."
+            );
+
+            return false;
+          }
+
+          const studentData =
+            buildStudentData(
+              data,
+              studentDoc.id,
+              email
+            );
+
+          console.log(
+            "✅ STUDENT FOUND BY EMAIL"
+          );
+
+          applyStudent(
+            studentData
+          );
+
+          return true;
+        }
+      } catch (error) {
+        console.error(
+          "Student email query error:",
+          error
+        );
+      }
+    }
+
+    console.warn(
+      "❌ AUTH USER IS NOT A VALID STUDENT:",
+      {
+        uid,
+        email,
+      }
+    );
+
+    return false;
+  };
+
+  /*
+   * ==========================================
+   * FORCE STUDENT LOGIN
+   * ==========================================
+   */
+
+  const redirectToStudentLogin =
+    async () => {
+      try {
+        console.warn(
+          "⚠️ Current account is not a student. Redirecting to student login."
+        );
+
+        await signOut(
+          auth
+        );
+      } catch (error) {
+        console.error(
+          "Sign out during student guard failed:",
+          error
+        );
+      } finally {
+        router.replace(
+          "/student/login"
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * FOREGROUND NOTIFICATION LISTENER
+   * ==========================================
+   *
+   * This handles notifications while the
+   * SBC website is OPEN.
+   *
+   * Screen OFF / background:
+   * firebase-messaging-sw.js handles it.
+   *
+   * Website OPEN:
+   * onMessage() receives the message here.
+   */
+
+  useEffect(() => {
+    if (
+      !notificationsReady
+    ) {
+      return;
+    }
+
+    let unsubscribe:
+      | (() => void)
+      | undefined;
+
+    const startForegroundListener =
+      async () => {
+        try {
+          if (
+            typeof window ===
+            "undefined"
+          ) {
+            return;
+          }
+
+          if (
+            !("Notification" in window)
+          ) {
+            console.log(
+              "🔔 Browser does not support notifications."
+            );
+
+            return;
+          }
+
+          if (
+            Notification.permission !==
+            "granted"
+          ) {
+            console.log(
+              "🔔 Notification permission is not granted."
+            );
+
+            return;
+          }
+
+          /*
+           * Firebase Messaging
+           */
+
+          const app =
+            getApp();
+
+          const messaging =
+            getMessaging(
+              app
+            );
+
+          /*
+           * FOREGROUND FCM
+           */
+
+          unsubscribe =
+            onMessage(
+              messaging,
+              async (
+                payload
+              ) => {
+                console.log(
+                  "🔔 SBC FOREGROUND FCM MESSAGE RECEIVED:",
+                  payload
+                );
+
+                const title =
+                  payload
+                    .notification
+                    ?.title ||
+                  payload
+                    .data
+                    ?.title ||
+                  "SBC Notification";
+
+                const body =
+                  payload
+                    .notification
+                    ?.body ||
+                  payload
+                    .data
+                    ?.body ||
+                  "";
+
+                const url =
+                  payload
+                    .data
+                    ?.url ||
+                  "/student/dashboard";
+
+                try {
+                  /*
+                   * Use the existing
+                   * Firebase service worker.
+                   */
+
+                  const registration =
+                    await navigator
+                      .serviceWorker
+                      .ready;
+
+                  await registration.showNotification(
+                    title,
+                    {
+                      body,
+
+                      icon:
+                        "/icon-192.png",
+
+                      badge:
+                        "/icon-192.png",
+
+                      data: {
+                        url,
+                      },
+
+                      requireInteraction:
+                        false,
+                    }
+                  );
+
+                  console.log(
+                    "✅ SBC foreground notification displayed."
+                  );
+                } catch (
+                  notificationError
+                ) {
+                  console.error(
+                    "❌ Foreground notification display failed:",
+                    notificationError
+                  );
+
+                  /*
+                   * Browser fallback
+                   */
+
+                  try {
+                    new Notification(
+                      title,
+                      {
+                        body,
+
+                        icon:
+                          "/icon-192.png",
+                      }
+                    );
+
+                    console.log(
+                      "✅ Browser notification fallback displayed."
+                    );
+                  } catch (
+                    fallbackError
+                  ) {
+                    console.error(
+                      "❌ Notification fallback failed:",
+                      fallbackError
+                    );
+                  }
+                }
+              }
+            );
+
+          console.log(
+            "✅ SBC foreground FCM listener started."
+          );
+        } catch (error) {
+          console.error(
+            "❌ SBC foreground notification listener setup failed:",
+            error
+          );
+        }
+      };
+
+    startForegroundListener();
+
+    return () => {
+      if (
+        unsubscribe
+      ) {
+        unsubscribe();
+        unsubscribe =
+          undefined;
+      }
+
+      console.log(
+        "🔕 SBC foreground FCM listener removed."
+      );
+    };
+  }, [
+    notificationsReady,
+  ]);
+
+  /*
+   * ==========================================
+   * SBC NOTIFICATION PROMPT
+   * ==========================================
+   */
+
+  const prepareNotificationPrompt =
+    async (
+      uid: string
+    ) => {
+      try {
+        if (
+          typeof window ===
+          "undefined"
+        ) {
+          return;
+        }
+
+        if (
+          !("Notification" in window)
+        ) {
+          console.log(
+            "Browser does not support notifications."
+          );
+
+          return;
+        }
+
+        const enabledKey =
+          `sbc_notifications_enabled_${uid}`;
+
+        const permanentlyEnabled =
+          localStorage.getItem(
+            enabledKey
+          );
+
+        /*
+         * Already enabled:
+         *
+         * Start foreground listener too.
+         */
+
+        if (
+          permanentlyEnabled ===
+          "true"
+        ) {
+          console.log(
+            "🔔 SBC notifications already enabled."
+          );
+
+          if (
+            Notification.permission ===
+            "granted"
+          ) {
+            try {
+              await enableStudentNotifications();
+
+              setNotificationsReady(
+                true
+              );
+
+              console.log(
+                "✅ SBC notification token refreshed."
+              );
+            } catch (
+              error
+            ) {
+              console.error(
+                "Unable to refresh notification token:",
+                error
+              );
+            }
+          }
+
+          return;
+        }
+
+        /*
+         * Permission already granted:
+         */
+
+        if (
+          Notification.permission ===
+          "granted"
+        ) {
+          try {
+            await enableStudentNotifications();
+
+            localStorage.setItem(
+              enabledKey,
+              "true"
+            );
+
+            setNotificationsReady(
+              true
+            );
+
+            console.log(
+              "✅ Browser notification permission already granted."
+            );
+          } catch (
+            error
+          ) {
+            console.error(
+              "Unable to refresh notification token:",
+              error
+            );
+          }
+
+          return;
+        }
+
+        /*
+         * Popup once per login session.
+         */
+
+        const sessionPromptKey =
+          `sbc_notification_prompt_shown_${uid}`;
+
+        const alreadyShownThisLogin =
+          sessionStorage.getItem(
+            sessionPromptKey
+          );
+
+        if (
+          alreadyShownThisLogin ===
+          "true"
+        ) {
+          console.log(
+            "🔔 Notification popup already shown in this login session."
+          );
+
+          return;
+        }
+
+        sessionStorage.setItem(
+          sessionPromptKey,
+          "true"
+        );
+
+        setNotificationError(
+          ""
+        );
+
+        setShowNotificationPrompt(
+          true
+        );
+      } catch (error) {
+        console.error(
+          "Notification setup preparation error:",
+          error
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * ENABLE NOTIFICATIONS
+   * ==========================================
+   */
+
+  const handleEnableNotifications =
+    async () => {
+      const user =
+        auth.currentUser;
+
+      if (!user) {
+        setNotificationError(
+          "Please login again and try."
+        );
+
+        return;
+      }
+
+      try {
+        setNotificationEnabling(
+          true
+        );
+
+        setNotificationError(
+          ""
+        );
+
+        /*
+         * Must be directly
+         * triggered by button click.
+         */
+
+        const token =
+          await enableStudentNotifications();
+
+        if (!token) {
+          throw new Error(
+            "FCM token was not generated."
+          );
+        }
+
+        localStorage.setItem(
+          `sbc_notifications_enabled_${user.uid}`,
+          "true"
+        );
+
+        /*
+         * Start foreground
+         * notification listener.
+         */
+
+        setNotificationsReady(
+          true
+        );
+
+        setShowNotificationPrompt(
+          false
+        );
+
+        console.log(
+          "✅ SBC notifications enabled successfully."
+        );
+      } catch (error) {
+        console.error(
+          "Notification enable failed:",
+          error
+        );
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to enable notifications.";
+
+        setNotificationError(
+          message
+        );
+      } finally {
+        setNotificationEnabling(
+          false
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * NOTIFICATION CANCEL
+   * ==========================================
+   */
+
+  const handleNotificationCancel =
+    () => {
+      setShowNotificationPrompt(
+        false
+      );
+    };
+
+  /*
+   * ==========================================
+   * AUTH + STUDENT GUARD
+   * ==========================================
+   */
+
+  useEffect(() => {
+    let mounted = true;
+
+    let unsubscribePoints:
+      | (() => void)
+      | null = null;
+
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        async (
+          user
+        ) => {
+          if (!mounted) {
+            return;
+          }
+
+          /*
+           * NOT LOGGED IN
+           */
+
+          if (!user) {
+            setStudent(
+              null
+            );
+
+            setNotificationsReady(
+              false
+            );
+
+            setLoading(
+              false
+            );
+
+            router.replace(
+              "/student/login"
+            );
+
+            return;
+          }
+
+          console.log(
+            "================================"
+          );
+
+          console.log(
+            "STUDENT PAGE AUTH USER:",
+            {
+              uid:
+                user.uid,
+              email:
+                user.email,
+            }
+          );
+
+          /*
+           * CHECK CACHE
+           */
+
+          const cachedStudent =
+            loadStudentFromCache(
+              user.uid
+            );
+
+          if (
+            cachedStudent
+          ) {
+            setStudent(
+              cachedStudent
+            );
+
+            setError(
+              ""
+            );
+
+            setLoading(
+              false
+            );
+
+            console.log(
+              "✅ Showing cached student dashboard."
+            );
+          } else {
+            setLoading(
+              true
+            );
+
+            setError(
+              ""
+            );
+          }
+
+          /*
+           * VERIFY STUDENT
+           */
+
+          const success =
+            await loadStudent(
+              user.uid,
+              user.email
+            );
+
+          if (!mounted) {
+            return;
+          }
+
+          /*
+           * INVALID ACCOUNT
+           */
+
+          if (!success) {
+            console.warn(
+              "❌ This authenticated account is not a valid SBC student."
+            );
+
+            setStudent(
+              null
+            );
+
+            setNotificationsReady(
+              false
+            );
+
+            setLoading(
+              false
+            );
+
+            await redirectToStudentLogin();
+
+            return;
+          }
+
+          /*
+           * LOAD POINTS
+           */
+
+          const pointsDocumentId =
+            await loadStudentPoints(
+              user.uid
+            );
+
+          if (!mounted) {
+            return;
+          }
+
+          if (
+            unsubscribePoints
+          ) {
+            unsubscribePoints();
+
+            unsubscribePoints =
+              null;
+          }
+
+          /*
+           * REAL-TIME POINTS
+           */
+
+          unsubscribePoints =
+            onSnapshot(
+              doc(
+                db,
+                "studentPoints",
+                pointsDocumentId
+              ),
+              (
+                pointsSnap
+              ) => {
+                if (
+                  !mounted
+                ) {
+                  return;
+                }
+
+                const latestTotalPoints =
+                  pointsSnap.exists()
+                    ? Number(
+                        pointsSnap.data()
+                          .totalPoints ||
+                          0
+                      )
+                    : 0;
+
+                setTotalPoints(
+                  latestTotalPoints
+                );
+
+                setStudent(
+                  (
+                    current
+                  ) => {
+                    if (
+                      !current
+                    ) {
+                      return current;
+                    }
+
+                    const updated =
+                      {
+                        ...current,
+                        points:
+                          latestTotalPoints,
+                      };
+
+                    saveStudentToCache(
+                      updated
+                    );
+
+                    return updated;
+                  }
+                );
+
+                console.log(
+                  "⭐ STUDENT DASHBOARD REAL-TIME TOTAL POINTS:",
+                  latestTotalPoints
+                );
+              },
+              (
+                pointsError
+              ) => {
+                console.error(
+                  "Student points listener error:",
+                  pointsError
+                );
+              }
+            );
+
+          /*
+           * DASHBOARD READY
+           */
+
+          setLoading(
+            false
+          );
+
+          /*
+           * Notification setup
+           */
+
+          prepareNotificationPrompt(
+            user.uid
+          ).catch(
+            (
+              notificationSetupError
+            ) =>
+              console.error(
+                "Notification setup error:",
+                notificationSetupError
+              )
+          );
+        }
+      );
+
+    return () => {
+      mounted = false;
+
+      unsubscribe();
+
+      if (
+        unsubscribePoints
+      ) {
+        unsubscribePoints();
+
+        unsubscribePoints =
+          null;
+      }
+    };
+  }, [
+    router,
+  ]);
+
+  useEffect(() => {
+    if (!student) return;
+
+    loadPayoutWallet(true).catch((error) => {
+      console.error("Initial payout wallet load failed:", error);
+    });
+  }, [student?.uid]);
+
+  /*
+   * ==========================================
+   * MEMBERSHIP
+   * ==========================================
+   *
+   * Membership validity is determined from the server-authoritative
+   * membershipExpiryDate. We do not trust membershipStatus alone.
+   */
+
+  const membershipExpiry = student?.membershipExpiryDate
+    ? new Date(student.membershipExpiryDate)
+    : null;
+
+  const membershipStart = student?.membershipStartDate
+    ? new Date(student.membershipStartDate)
+    : null;
+
+  const membershipDateIsValid =
+    Boolean(
+      membershipExpiry &&
+      !Number.isNaN(membershipExpiry.getTime())
+    );
+
+  const membershipIsActive =
+    membershipDateIsValid &&
+    membershipExpiry!.getTime() > Date.now();
+
+  const membershipIsExpired =
+    membershipDateIsValid &&
+    membershipExpiry!.getTime() <= Date.now();
+
+  const formatMembershipDate = (date: Date | null) => {
+    if (!date || Number.isNaN(date.getTime())) {
+      return "—";
+    }
+
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const renewMembership = () => {
+    router.push("/student/renew");
+  };
+
+  /*
+   * ==========================================
+   * LOGOUT
+   * ==========================================
+   */
+
+  const logout =
+    async () => {
+      try {
+        const user =
+          auth.currentUser;
+
+        if (user) {
+          const sessionPromptKey =
+            `sbc_notification_prompt_shown_${user.uid}`;
+
+          sessionStorage.removeItem(
+            sessionPromptKey
+          );
+        }
+
+        setNotificationsReady(
+          false
+        );
+
+        await signOut(
+          auth
+        );
+
+        router.replace(
+          "/student/login"
+        );
+      } catch (error) {
+        console.error(
+          "Logout error:",
+          error
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * RETRY
+   * ==========================================
+   */
+
+  const retryLoading =
+    async () => {
+      const user =
+        auth.currentUser;
+
+      if (!user) {
+        router.replace(
+          "/student/login"
+        );
+
+        return;
+      }
+
+      setLoading(
+        true
+      );
+
+      setError(
+        ""
+      );
+
+      const cachedStudent =
+        loadStudentFromCache(
+          user.uid
+        );
+
+      if (
+        cachedStudent
+      ) {
+        setStudent(
+          cachedStudent
+        );
+
+        setLoading(
+          false
+        );
+      }
+
+      const success =
+        await loadStudent(
+          user.uid,
+          user.email
+        );
+
+      if (!success) {
+        if (
+          cachedStudent
+        ) {
+          setStudent(
+            cachedStudent
+          );
+
+          setError(
+            ""
+          );
+
+          setLoading(
+            false
+          );
+
+          return;
+        }
+
+        await redirectToStudentLogin();
+
+        return;
+      }
+
+      await loadStudentPoints(
+        user.uid
+      );
+
+      setLoading(
+        false
+      );
+
+      /*
+       * Re-enable foreground
+       * notification listener.
+       */
+
+      if (
+        Notification.permission ===
+        "granted"
+      ) {
+        setNotificationsReady(
+          true
+        );
+      }
+    };
+
+  /*
+   * ==========================================
+   * REFERRAL PAYOUT WALLET
+   * ==========================================
+   */
+
+  const getAuthenticatedHeaders = async (): Promise<Record<string, string>> => {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("Please login again and try.");
+    }
+
+    const token = await user.getIdToken();
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const loadPayoutWallet = async (silent = false) => {
+    try {
+      if (!silent) setPayoutLoading(true);
+      setPayoutError("");
+
+      const headers = await getAuthenticatedHeaders();
+
+      // Recover any already-paid referrals that may not have been processed
+      // at the time the referred student completed payment.
+      await fetch("/api/referral/reconcile", {
+        method: "POST",
+        headers,
+      }).catch(() => null);
+
+      const response = await fetch("/api/payout/history", {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Unable to load referral payout wallet.");
+      }
+
+      const wallet = data.wallet || {};
+      setPayoutWallet({
+        successfulReferrals: Number(wallet.successfulReferrals || 0),
+        totalEarned: Number(wallet.totalEarned || 0),
+        paidAmount: Number(wallet.paidAmount || 0),
+        pendingPayout: Number(wallet.pendingPayout || 0),
+        available: Number(wallet.available || 0),
+      });
+      setPayoutHistory(Array.isArray(data.history) ? data.history : []);
+
+      // Keep the referral card in sync with the server-side wallet.
+      setStudent((current) => {
+        if (!current) return current;
+        const updated = {
+          ...current,
+          successfulReferrals: Number(wallet.successfulReferrals || 0),
+          referralRewardUnlocked: Number(wallet.successfulReferrals || 0) >= 10,
+        };
+        saveStudentToCache(updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error("Payout wallet load error:", error);
+      if (!silent) {
+        setPayoutError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load referral payout wallet."
+        );
+      }
+    } finally {
+      if (!silent) setPayoutLoading(false);
+    }
+  };
+
+  const openPayoutModal = () => {
+    setPayoutError("");
+    setPayoutSuccess("");
+    setPayoutAmount(
+      String(
+        Math.max(
+          250,
+          payoutWallet.available >= 250 ? 250 : payoutWallet.available
+        )
+      )
+    );
+    setShowPayoutModal(true);
+  };
+
+  const submitPayoutRequest = async () => {
+    try {
+      setPayoutRequesting(true);
+      setPayoutError("");
+      setPayoutSuccess("");
+
+      const amount = Number(payoutAmount);
+
+      if (!Number.isInteger(amount) || amount < 250) {
+        throw new Error("Minimum payout request is ₹250.");
+      }
+
+      if (amount > payoutWallet.available) {
+        throw new Error(
+          `Available payout balance is ₹${payoutWallet.available.toLocaleString()}.`
+        );
+      }
+
+      if (payoutMethod === "upi" && !upiId.trim()) {
+        throw new Error("Please enter your UPI ID.");
+      }
+
+      if (
+        payoutMethod === "bank" &&
+        (!accountHolderName.trim() ||
+          !accountNumber.trim() ||
+          !ifsc.trim())
+      ) {
+        throw new Error("Please enter complete bank details.");
+      }
+
+      const headers = await getAuthenticatedHeaders();
+
+      const response = await fetch("/api/payout/request", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          amount,
+          method: payoutMethod,
+          upiId: payoutMethod === "upi" ? upiId.trim() : "",
+          accountHolderName:
+            payoutMethod === "bank" ? accountHolderName.trim() : "",
+          accountNumber:
+            payoutMethod === "bank" ? accountNumber.trim() : "",
+          ifsc: payoutMethod === "bank" ? ifsc.trim().toUpperCase() : "",
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Unable to submit payout request.");
+      }
+
+      setPayoutSuccess(
+        `Payout request for ₹${amount.toLocaleString()} submitted successfully.`
+      );
+      setShowPayoutModal(false);
+      await loadPayoutWallet(true);
+    } catch (error) {
+      console.error("Payout request error:", error);
+      setPayoutError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit payout request."
+      );
+    } finally {
+      setPayoutRequesting(false);
+    }
+  };
+
+  /*
+   * ==========================================
+   * LOADING SCREEN
+   * ==========================================
+   */
+
+  if (
+    loading &&
+    !student
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+
+        <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow-xl">
+
+          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+
+          <h2 className="text-2xl font-bold text-blue-700">
+            Loading Student Dashboard...
+          </h2>
+
+          <p className="mt-2 text-gray-500">
+            Please wait...
+          </p>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  /*
+   * ==========================================
+   * STUDENT NOT AVAILABLE
+   * ==========================================
+   */
+
+  if (!student) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+
+        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
+
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">
+            ⚠️
+          </div>
+
+          <h2 className="mt-5 text-2xl font-bold text-red-600">
+            Student Details Not Available
+          </h2>
+
+          <p className="mt-3 text-gray-600">
+            {error ||
+              "We could not load your SBC student details."}
+          </p>
+
+          <button
+            onClick={
+              retryLoading
+            }
+            className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700"
+          >
+            🔄 Try Again
+          </button>
+
+          <button
+            onClick={
+              logout
+            }
+            className="mt-3 w-full rounded-xl bg-red-600 py-4 font-bold text-white transition hover:bg-red-700"
+          >
+            Logout
+          </button>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  /*
+   * ==========================================
+   * QR DATA
+   * ==========================================
+   */
+
+  const qrValue =
+    JSON.stringify({
+      studentId:
+        student.uid,
+
+      cardNumber:
+        student.cardNumber ||
+        "",
+
+      type: "student",
+    });
+
+  /*
+   * ==========================================
+   * PREMIUM SBC DASHBOARD UI
+   * ==========================================
+   */
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white text-[#071a3d]">
-      {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[72px] max-w-[1500px] items-center gap-3 px-4 sm:px-6 lg:px-10">
-          <button
-            type="button"
-            onClick={() => go("/")}
-            className="flex min-w-0 shrink-0 items-center gap-2"
-          >
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-[#071a3d] text-[13px] font-black text-white shadow-lg sm:h-12 sm:w-12 sm:text-sm">
-              <span className="absolute -left-1 -top-1 text-[14px] text-[#ffd21c]">★</span>
+    <main className="min-h-screen bg-[#f5f3ed] text-slate-900">
+
+      {showNotificationPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07111f]/70 p-5 backdrop-blur-sm">
+
+          <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_100px_rgba(7,17,31,0.35)]">
+
+            <div className="bg-gradient-to-br from-[#07111f] via-[#111827] to-[#5f4700] px-7 py-8 text-white">
+
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-2xl">
+                🔔
+              </div>
+
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f1cf63]">
+                Student Benefit Card
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black">
+                Stay Updated with SBC
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-white/70">
+                Get new offers, important announcements and SBC updates directly on your device.
+              </p>
+
+            </div>
+
+            <div className="p-7">
+
+              <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-4">
+
+                <p className="text-sm font-bold text-[#07111f]">
+                  🔔 Enable notifications
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Tap Enable below. Chrome will then ask for notification permission.
+                </p>
+
+              </div>
+
+              {notificationError && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                  {notificationError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={
+                  handleEnableNotifications
+                }
+                disabled={
+                  notificationEnabling
+                }
+                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63] px-5 py-4 text-sm font-black text-[#07111f] shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {notificationEnabling
+                  ? "Enabling Notifications..."
+                  : "🔔 Enable Notifications"}
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleNotificationCancel
+                }
+                disabled={
+                  notificationEnabling
+                }
+                className="mt-3 w-full rounded-2xl border border-slate-200 px-5 py-3.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Maybe Later
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* TOP NAV */}
+
+      <header className="sticky top-0 z-30 border-b border-black/10 bg-[#07111f]/95 text-white backdrop-blur-xl">
+
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63] shadow-[0_0_30px_rgba(212,175,55,0.12)]">
               SBC
             </div>
-            <div className="hidden text-left sm:block">
-              <div className="text-[13px] font-black leading-4 tracking-tight">
-                STUDENT
-                <br />
-                BENEFIT CARD
-              </div>
-              <div className="mt-0.5 text-[8px] font-bold text-slate-500">
-                More Benefits. More Savings.
-              </div>
+
+            <div>
+
+              <p className="text-[15px] font-black uppercase tracking-[0.25em] text-[#FFD700]">
+                Student Benefit Card
+              </p>
+
+              <p className="text-sm font-medium text-white/70">
+                Premium Student Dashboard
+              </p>
+
             </div>
+
+          </div>
+
+          <button
+            onClick={
+              logout
+            }
+            className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+          >
+            Logout
           </button>
 
-          <nav className="ml-auto hidden items-center gap-6 lg:flex">
-            {[
-              ["Home", "/"],
-              ["Offers", "/student/login"],
-              ["How It Works", "#how-it-works"],
-              ["For Businesses", "/business/login"],
-              ["About", "#about"],
-              ["Contact", "#contact"],
-            ].map(([label, path]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => go(path)}
-                className="text-[12px] font-extrabold text-slate-700 transition hover:text-[#1557d6]"
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-1.5 lg:ml-5 sm:gap-2">
-            <button
-              type="button"
-              onClick={() => go("/student/register")}
-              className="rounded-lg bg-[#1557d6] px-2.5 py-2.5 text-[9px] font-black text-white shadow-md transition hover:-translate-y-0.5 sm:rounded-xl sm:px-4 sm:py-3 sm:text-[10px]"
-            >
-              Student Register
-            </button>
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="rounded-lg border border-[#1557d6] bg-white px-2.5 py-2.5 text-[9px] font-black text-[#1557d6] transition hover:bg-blue-50 sm:rounded-xl sm:px-4 sm:py-3 sm:text-[10px]"
-            >
-              Student Login
-            </button>
-            <button
-              type="button"
-              onClick={() => go("/admin/login")}
-              className="rounded-lg bg-[#071a3d] px-2.5 py-2.5 text-[9px] font-black text-white transition hover:bg-[#102b59] sm:rounded-xl sm:px-4 sm:py-3 sm:text-[10px]"
-            >
-              Admin Login
-            </button>
-          </div>
         </div>
+
       </header>
 
-      {/* HERO SLIDER */}
-      <section className="relative overflow-hidden bg-[#eef6ff]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_40%,rgba(255,255,255,.95),transparent_34%),radial-gradient(circle_at_82%_35%,rgba(175,218,255,.8),transparent_38%)]" />
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
 
-        <div className="relative mx-auto max-w-[1500px]">
-          <div className="grid min-h-[540px] items-center gap-5 px-5 py-8 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-12 lg:py-10">
-            <div className="relative z-20 max-w-[560px]">
-              <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6] sm:text-xs">
-                {active.eyebrow}
-              </p>
+        {/* HERO */}
 
-              <h1 className="mt-3 text-[3rem] font-black leading-[.95] tracking-[-.055em] sm:text-6xl lg:text-[4.5rem]">
-                {active.title}
-                <br />
-                <span className="text-[#1557d6]">{active.highlight}.</span>
+        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-10 lg:p-12">
+
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+
+          <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+
+          <div className="relative grid gap-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
+
+            <div>
+
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#f1cf63]">
+                ✦ Verified SBC Student
+              </div>
+
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Welcome,
+                <span className="block text-[#f1cf63]">
+                  {student.fullName ||
+                    "Student"}
+                </span>
               </h1>
 
-              <p className="mt-5 max-w-[500px] text-sm font-medium leading-6 text-slate-600 sm:text-base sm:leading-7">
-                {active.text}
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
+                Your SBC card unlocks exclusive student benefits, partner offers and reward points.
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => go("/student/register")}
-                  className="rounded-xl bg-[#ffd21c] px-5 py-3.5 text-sm font-black text-[#071a3d] shadow-[0_12px_25px_rgba(255,210,28,.28)] transition hover:-translate-y-1 sm:px-7"
-                >
-                  Get Your SBC Card <span className="ml-2">→</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => go("/student/login")}
-                  className="rounded-xl border border-[#1557d6]/25 bg-white px-5 py-3.5 text-sm font-black text-[#1557d6] shadow-sm transition hover:-translate-y-1 sm:px-7"
-                >
-                  Explore Offers
-                </button>
-              </div>
+              <div className="mt-7 flex flex-wrap gap-3">
 
-              <div className="mt-7 grid max-w-[500px] grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                  ["%", "Exclusive", "Discounts"],
-                  ["🎁", "Reward", "Points"],
-                  ["✓", "Verified", "Businesses"],
-                  ["👥", "A Brighter", "Tomorrow"],
-                ].map(([icon, line1, line2]) => (
-                  <div key={line1} className="flex items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-black shadow-sm">
-                      {icon}
-                    </span>
-                    <span className="text-[9px] font-black leading-3 text-[#071a3d]">
-                      {line1}
-                      <br />
-                      {line2}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm text-white/80">
+                  Card{" "}
+                  {student.cardNumber ||
+                    "—"}
+                </span>
 
-            <div className="relative h-[390px] sm:h-[450px] lg:h-[500px]">
-              <div className="absolute right-[5%] top-[8%] h-72 w-72 rounded-full bg-white/70 blur-2xl" />
-              <div className="absolute left-[4%] top-[20%] z-30 hidden -rotate-6 text-center sm:block">
-                <p className="font-serif text-2xl font-bold italic leading-7 text-[#071a3d]">
-                  Students
-                  <br />
-                  Save
-                  <br />
-                  Grow
-                  <br />
-                  Repeat
-                </p>
-                <div className="ml-3 mt-1 h-1 w-24 -rotate-6 rounded-full bg-[#ffd21c]" />
-              </div>
-
-              <div className="absolute right-[3%] top-[8%] z-30 rotate-3 rounded-[1.5rem] bg-[#071a3d] px-5 py-4 text-center text-white shadow-[0_18px_40px_rgba(7,26,61,.22)]">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/70">
-                  {active.badge}
-                </p>
-                <p className="mt-0.5 text-4xl font-black leading-none text-[#ffd21c] sm:text-5xl">
-                  {active.badgeValue}
-                </p>
-              </div>
-
-              <img
-                src="/images/sbc-student.png"
-                alt="SBC students"
-                className="absolute bottom-0 left-1/2 z-20 h-full w-full -translate-x-1/2 object-contain drop-shadow-[0_28px_35px_rgba(7,26,61,.22)]"
-              />
-
-              <div className="absolute bottom-[4%] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-2xl border border-white bg-white/95 px-4 py-2.5 text-[10px] font-black shadow-xl">
-                <span className="text-lg">🎓</span>
-                Made for Students
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Previous slide"
-            onClick={() => setSlide((slide - 1 + slides.length) % slides.length)}
-            className="absolute left-3 top-1/2 z-40 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#071a3d] text-xl font-black text-white shadow-xl sm:flex"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            aria-label="Next slide"
-            onClick={() => setSlide((slide + 1) % slides.length)}
-            className="absolute right-3 top-1/2 z-40 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#071a3d] text-xl font-black text-white shadow-xl sm:flex"
-          >
-            ›
-          </button>
-
-          <div className="absolute bottom-4 left-1/2 z-40 flex -translate-x-1/2 gap-2">
-            {slides.map((item, index) => (
-              <button
-                key={item.title}
-                type="button"
-                aria-label={`Slide ${index + 1}`}
-                onClick={() => setSlide(index)}
-                className={`h-2 rounded-full transition-all ${
-                  slide === index ? "w-8 bg-[#1557d6]" : "w-2 bg-slate-300"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CATEGORIES */}
-      <section className="px-4 py-8 sm:px-6">
-        <div className="mx-auto max-w-[1450px]">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              Explore Top Categories
-            </h2>
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="text-xs font-black text-[#1557d6]"
-            >
-              View All →
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 lg:grid-cols-10">
-            {categories.map((item, index) => (
-              <button
-                key={item.name}
-                type="button"
-                onClick={() => go("/student/login")}
-                className="group rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-[0_8px_24px_rgba(7,26,61,.045)] transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div
-                  className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${
-                    [
-                      "bg-rose-50",
-                      "bg-orange-50",
-                      "bg-emerald-50",
-                      "bg-purple-50",
-                      "bg-blue-50",
-                    ][index % 5]
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                    membershipIsActive
+                      ? "bg-emerald-400/10 text-emerald-300"
+                      : membershipIsExpired
+                        ? "bg-red-400/10 text-red-300"
+                        : "bg-amber-400/10 text-amber-300"
                   }`}
                 >
-                  {item.icon}
-                </div>
-                <p className="mt-2 text-[10px] font-black leading-4">{item.name}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+                  ●{" "}
+                  {membershipIsActive
+                    ? "MEMBERSHIP ACTIVE"
+                    : membershipIsExpired
+                      ? "MEMBERSHIP EXPIRED"
+                      : "MEMBERSHIP STATUS UNAVAILABLE"}
+                </span>
 
-      {/* FEATURED OFFERS */}
-      <section className="bg-[#fafcff] px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-[1450px]">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#1557d6]">
-                SBC EXCLUSIVE
-              </p>
-              <h2 className="mt-1 text-2xl font-black sm:text-3xl">
-                Featured Student Offers
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => go("/student/login")}
-              className="text-xs font-black text-[#1557d6]"
-            >
-              View All →
-            </button>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-            {[
-              ["zomato", "UP TO 50% OFF", "Food & Dining", "🍔"],
-              ["Myntra", "FLAT 40% OFF", "Fashion", "🛍️"],
-              ["PVR", "STUDENT OFFERS", "Movies", "🎬"],
-              ["MakeMyTrip", "UP TO 30% OFF", "Travel", "✈️"],
-              ["Cult.fit", "UP TO 50% OFF", "Fitness", "🏋️"],
-              ["Local Businesses", "SPECIAL DEALS", "Near You", "🏪"],
-            ].map(([brand, offer, category, icon]) => (
-              <button
-                key={brand}
-                type="button"
-                onClick={() => go("/student/login")}
-                className="group relative min-h-[150px] overflow-hidden rounded-2xl bg-[#071a3d] p-4 text-left text-white shadow-[0_12px_28px_rgba(7,26,61,.14)] transition hover:-translate-y-1"
-              >
-                <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-[#1557d6]/60 blur-xl" />
-                <div className="relative flex h-full flex-col justify-between">
-                  <div className="flex items-start justify-between">
-                    <span className="rounded-xl bg-white px-2.5 py-2 text-[10px] font-black text-[#071a3d]">
-                      {brand}
-                    </span>
-                    <span className="text-2xl">{icon}</span>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/60">
-                      {category}
-                    </p>
-                    <p className="mt-1 text-lg font-black leading-5 text-[#ffd21c]">
-                      {offer}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW SBC WORKS */}
-      <section id="how-it-works" className="px-4 py-12 sm:px-6">
-        <div className="mx-auto max-w-[1450px]">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#1557d6]">
-                SIMPLE STEPS. BIG BENEFITS.
-              </p>
-              <h2 className="mt-1 text-3xl font-black sm:text-4xl">
-                How <span className="text-[#1557d6]">SBC</span> Works?
-              </h2>
-            </div>
-            <div className="hidden font-serif text-xl italic text-[#071a3d] sm:block">
-              Students Win Together
-            </div>
-          </div>
-
-          <div className="mt-7 grid gap-4 lg:grid-cols-3">
-            {[
-              ["01", "Register Here", "Get your SBC card and join as a student.", "👤", "bg-blue-50", "text-[#1557d6]"],
-              ["02", "Use Discounts", "Explore offers and save at your favourite brands.", "%", "bg-emerald-50", "text-emerald-600"],
-              ["03", "Refer & Earn", "Invite friends and earn exciting rewards.", "👥", "bg-pink-50", "text-pink-600"],
-            ].map(([number, title, text, icon, bg, color]) => (
-              <div key={number} className={`rounded-3xl ${bg} p-6`}>
-                <div className="flex items-start gap-4">
-                  <span className={`flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black shadow-sm ${color}`}>
-                    {number}
-                  </span>
-                  <div>
-                    <Icon>{icon}</Icon>
-                  </div>
-                  <div className="pt-1">
-                    <h3 className={`text-base font-black ${color}`}>{title}</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-600">{text}</p>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* STATS */}
-      <section className="px-4 pb-12 sm:px-6">
-        <div className="mx-auto grid max-w-[1450px] overflow-hidden rounded-3xl bg-[#071a3d] text-white sm:grid-cols-4">
-          {[
-            ["10,000+", "Students Joined", "👥"],
-            ["500+", "Partner Businesses", "🏪"],
-            ["1,000+", "Exclusive Offers", "🏷️"],
-            ["4.8/5", "Student Rating", "★"],
-          ].map(([number, label, icon]) => (
-            <div key={label} className="flex items-center justify-center gap-3 border-b border-white/10 px-5 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-              <span className="text-2xl">{icon}</span>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Current Reward Balance
+              </p>
+
+              <div className="mt-3 flex items-end gap-2">
+
+                <span className="text-5xl font-black tracking-tight text-[#f1cf63]">
+                  {totalPoints.toLocaleString()}
+                </span>
+
+                <span className="pb-2 text-sm font-bold text-white/55">
+                  POINTS
+                </span>
+
+              </div>
+
+              <p className="mt-3 text-sm text-white/55">
+                Earn more points every time you redeem at an SBC partner.
+              </p>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* REFER & EARN */}
+
+        <section className="mt-7">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#0d1928] to-[#15120a] p-7 text-white shadow-[0_25px_70px_rgba(7,17,31,0.16)] sm:p-9">
+            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#d4af37]/15 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-center">
               <div>
-                <p className="text-2xl font-black">{number}</p>
-                <p className="text-[9px] font-bold text-white/55">{label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* STUDENT TESTIMONIALS */}
-      <section id="about" className="bg-[#f6faff] px-4 py-12 sm:px-6">
-        <div className="mx-auto max-w-[1450px]">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#1557d6]">
-                REAL STUDENTS. REAL SAVINGS.
-              </p>
-              <h2 className="mt-1 text-3xl font-black">What Students Say</h2>
-            </div>
-            <span className="hidden font-serif text-xl italic text-[#071a3d] sm:block">
-              Real Student Stories
-            </span>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {[
-              ["Priya S.", "Engineering Student", "“SBC helped me save so much on food and shopping. It is a must for every student!”"],
-              ["Rahul K.", "B.Tech Student", "“Amazing offers and easy to use. The refer & earn program is awesome!”"],
-              ["Sneha M.", "Degree Student", "“I love the student-only discounts. SBC really understands what students need!”"],
-            ].map(([name, role, quote]) => (
-              <div key={name} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_8px_25px_rgba(7,26,61,.045)]">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e9f2ff] text-xl">
-                    👤
-                  </div>
-                  <div>
-                    <p className="text-sm font-black">{name}</p>
-                    <p className="text-[10px] text-slate-400">{role}</p>
-                  </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">🎁 Refer & Earn</div>
+                <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Refer 10 students.<span className="block text-[#f1cf63]">Earn ₹250.</span></h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/60 sm:text-base">Only students who successfully complete their SBC payment will count as successful referrals.</p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button type="button" onClick={() => { const u = `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`; const m = `🎓 Join SBC - Student Benefit Card\n\nRegister using my referral link:\n${u}`; window.open(`https://wa.me/?text=${encodeURIComponent(m)}`, '_blank', 'noopener,noreferrer'); }} className="rounded-xl bg-[#d4af37] px-5 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]">Share on WhatsApp</button>
+                  <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`); alert('Referral link copied!'); } catch {} }} className="rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-bold text-white transition hover:border-[#d4af37]/50 hover:bg-[#d4af37]/10">Copy Referral Link</button>
                 </div>
-                <p className="mt-4 text-sm leading-6 text-slate-600">{quote}</p>
-                <p className="mt-3 text-sm tracking-[.2em] text-[#ffb800]">★★★★★</p>
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Your Referral Code</p>
+                  <p className="mt-1 text-lg font-black tracking-wider text-[#f1cf63]">{referralCode}</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* APP CTA */}
-      <section id="contact" className="px-4 py-12 sm:px-6">
-        <div className="mx-auto grid max-w-[1450px] items-center gap-8 overflow-hidden rounded-[2rem] bg-[#eaf4ff] px-6 py-9 sm:px-10 lg:grid-cols-[1fr_.7fr]">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#1557d6]">
-              TAKE SBC EVERYWHERE
-            </p>
-            <h2 className="mt-2 text-3xl font-black">
-              Your Student Partner. Always.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Discover offers faster, access your digital membership and stay
-              connected with student benefits wherever you go.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button className="rounded-xl bg-black px-5 py-3 text-xs font-black text-white">
-                ▶ Google Play
-              </button>
-              <button className="rounded-xl bg-black px-5 py-3 text-xs font-black text-white">
-                 App Store
-              </button>
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Successful Referrals</p>
+                <div className="mt-2 flex items-end justify-between gap-4"><p className="text-5xl font-black text-[#f1cf63]">{Math.min(student.successfulReferrals || 0, 10)}<span className="text-2xl text-white/35">/10</span></p><div className="rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3 text-center"><p className="text-xl font-black text-white">₹250</p><p className="text-[10px] font-bold uppercase tracking-wider text-[#f1cf63]">Reward</p></div></div>
+                <div className="mt-6 h-2.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#b18a16] via-[#d4af37] to-[#f1cf63]" style={{width: `${Math.min(((student.successfulReferrals || 0) / 10) * 100, 100)}%`}} /></div>
+                <div className="mt-4 flex justify-between text-xs"><span className="font-semibold text-white/45">{(student.successfulReferrals || 0) >= 10 ? 'Reward unlocked' : `${10 - Math.min(student.successfulReferrals || 0, 10)} more successful referrals`}</span><span className="font-bold text-white/60">{student.pendingReferrals || 0} pending</span></div>
+                <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#d4af37]/10 p-4"><p className="text-sm font-bold text-[#f1cf63]">{(student.successfulReferrals || 0) >= 10 ? '🎉 ₹250 reward unlocked!' : 'Invite friends and grow SBC together.'}</p><p className="mt-1 text-xs leading-5 text-white/50">A referral becomes successful only after the referred student completes the required SBC payment.</p></div>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="flex justify-center">
-            <img
-              src="/images/sbc-card.png"
-              alt="SBC digital card"
-              className="w-full max-w-[380px] rotate-[-5deg] object-contain drop-shadow-[0_25px_30px_rgba(7,26,61,.18)]"
-            />
-          </div>
-        </div>
-      </section>
+        {/* DIGITAL CARD + QR */}
 
-      {/* FOOTER */}
-      <footer className="bg-[#06152f] px-5 py-10 text-white sm:px-8">
-        <div className="mx-auto grid max-w-[1450px] gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-sm font-black text-[#071a3d]">
+        <section className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
+
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-9">
+
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#d4af37]/10 blur-2xl" />
+
+            <div className="relative flex items-start justify-between gap-4">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#d4af37]">
+                  Digital Membership Card
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
+                  Student Benefit Card
+                </h2>
+
+              </div>
+
+              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">
                 SBC
               </div>
+
+            </div>
+
+            <div className="relative mt-9 grid gap-6 sm:grid-cols-2">
+
               <div>
-                <p className="text-sm font-black">STUDENT BENEFIT CARD</p>
-                <p className="text-[9px] text-white/50">More Benefits. More Savings.</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Card Holder
+                </p>
+                <p className="mt-1 text-lg font-bold">
+                  {student.fullName ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Card Number
+                </p>
+                <p className="mt-1 text-lg font-bold tracking-wider">
+                  {student.cardNumber ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  College
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white/80">
+                  {student.college ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Course / Year
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white/80">
+                  {student.course ||
+                    "—"}{" "}
+                  {student.year
+                    ? `• ${student.year}`
+                    : ""}
+                </p>
+              </div>
+
+            </div>
+
+            <div className="relative mt-10 flex items-center justify-between border-t border-white/10 pt-5">
+
+              <span className="text-xs text-white/40">
+                Verified Student Membership
+              </span>
+
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#f1cf63]">
+                SBC • 2026
+              </span>
+
+            </div>
+
+          </div>
+
+          <div className="rounded-[2rem] border border-black/5 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
+                  Scan & Redeem
+                </p>
+
+                <h2 className="mt-1 text-2xl font-black text-[#07111f]">
+                  My QR Code
+                </h2>
+
+              </div>
+
+              <div
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                  membershipIsActive
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {membershipIsActive ? "Active" : "Expired"}
+              </div>
+
+            </div>
+
+            {membershipIsActive ? (
+              <>
+                <div className="mt-7 flex justify-center">
+
+                  <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
+
+                    <QRCode
+                      value={
+                        qrValue
+                      }
+                      size={
+                        205
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
+                  {student.cardNumber ||
+                    "—"}
+                </p>
+
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  Show this QR to an SBC Business Partner to redeem an offer.
+                </p>
+              </>
+            ) : (
+              <div className="mt-7 rounded-[1.5rem] border border-red-200 bg-red-50 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl">
+                  🔒
+                </div>
+
+                <p className="mt-4 text-base font-black text-red-700">
+                  Membership Expired
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-red-700/80">
+                  Your SBC benefits and redemption access are unavailable until
+                  your membership is renewed.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 rounded-xl bg-[#d4af37] px-5 py-3 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              </div>
+            )}
+
+          </div>
+
+        </section>
+
+        {/* SCAN & REDEEM */}
+        <div className="mt-7">
+          {membershipIsActive ? (
+            <StudentScanRedeem />
+          ) : (
+            <section className="rounded-[2rem] border border-red-200 bg-red-50 p-7 text-center shadow-[0_20px_60px_rgba(127,29,29,0.08)] sm:p-9">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
+                🔒
+              </div>
+
+              <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-red-600">
+                Redemption Locked
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black text-red-800">
+                Renew your SBC membership to redeem offers
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-red-700/80">
+                Your membership has expired, so offer redemption is currently
+                disabled.
+              </p>
+
+              <button
+                type="button"
+                onClick={renewMembership}
+                className="mt-5 rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+              >
+                Renew SBC Membership →
+              </button>
+            </section>
+          )}
+        </div>
+
+        {/* REWARD + GIFT */}
+
+        <section className="mt-7 grid gap-7 lg:grid-cols-[0.85fr_1.15fr]">
+
+          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
+                  SBC Rewards
+                </p>
+
+                <h2 className="mt-2 text-4xl font-black tracking-tight text-[#07111f]">
+                  {totalPoints.toLocaleString()}
+                </h2>
+
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Total Reward Points
+                </p>
+
+              </div>
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#07111f] text-3xl shadow-lg">
+                ⭐
+              </div>
+
+            </div>
+
+            <div className="mt-7 h-2 overflow-hidden rounded-full bg-slate-100">
+
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#b18a16] to-[#f1cf63] transition-all duration-700"
+                style={{
+                  width: `${Math.min(
+                    (totalPoints /
+                      1000) *
+                      100,
+                    100
+                  )}%`,
+                }}
+              />
+
+            </div>
+
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              {Math.min(
+                Math.round(
+                  (totalPoints /
+                    1000) *
+                    100
+                ),
+                100
+              )}
+              % towards the 1,000-point milestone
+            </p>
+
+          </div>
+
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#fffdf5] to-[#f7f1dd] p-7 shadow-[0_20px_60px_rgba(120,90,20,0.10)] sm:p-8">
+
+            <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#d4af37]/15 blur-2xl" />
+
+            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a37b0d]">
+                  🎁 Surprise Gift
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black text-[#07111f]">
+                  {totalPoints >=
+                  1000
+                    ? "Surprise Gift Unlocked!"
+                    : `${Math.max(
+                        1000 -
+                          totalPoints,
+                        0
+                      )} Points to go`}
+                </h2>
+
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                  {totalPoints >=
+                  1000
+                    ? "Congratulations! You reached 1,000 SBC Reward Points. Your surprise gift is unlocked."
+                    : `Keep redeeming SBC partner offers. Just ${Math.max(
+                        1000 -
+                          totalPoints,
+                        0
+                      )} more points and your Surprise Gift unlocks.`}
+                </p>
+
+              </div>
+
+              <div className="shrink-0 rounded-2xl border border-[#d4af37]/30 bg-white/70 px-5 py-4 text-center shadow-sm">
+
+                <p className="text-2xl font-black text-[#07111f]">
+                  {Math.min(
+                    totalPoints,
+                    1000
+                  ).toLocaleString()}
+                </p>
+
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  of 1,000
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* REFERRAL PAYOUT WALLET */}
+
+        <section className="mt-7">
+          <div className="rounded-[2rem] border border-[#d4af37]/20 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">
+                  💰 Referral Wallet
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-[#07111f]">
+                  Earned from successful referrals
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Every 10 students who join through your referral and complete
+                  the ₹199 SBC membership payment earns you ₹250.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => loadPayoutWallet()}
+                disabled={payoutLoading}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-[#d4af37] hover:bg-[#fbfaf6] disabled:opacity-50"
+              >
+                {payoutLoading ? "Refreshing..." : "↻ Refresh"}
+              </button>
+            </div>
+
+            <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl bg-[#07111f] p-5 text-white">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
+                  Successful
+                </p>
+                <p className="mt-2 text-3xl font-black text-[#f1cf63]">
+                  {payoutWallet.successfulReferrals}
+                </p>
+                <p className="mt-1 text-xs text-white/45">Paid referrals</p>
+              </div>
+
+              <div className="rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Total Earned
+                </p>
+                <p className="mt-2 text-3xl font-black text-[#07111f]">
+                  ₹{payoutWallet.totalEarned.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">Unlocked rewards</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Pending
+                </p>
+                <p className="mt-2 text-3xl font-black text-amber-600">
+                  ₹{payoutWallet.pendingPayout.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">Under processing</p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">
+                  Available
+                </p>
+                <p className="mt-2 text-3xl font-black text-emerald-700">
+                  ₹{payoutWallet.available.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-emerald-600">
+                  Ready to request
+                </p>
+              </div>
+            </div>
+
+            {payoutError && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                {payoutError}
+              </div>
+            )}
+
+            {payoutSuccess && (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+                {payoutSuccess}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-slate-400">
+                Minimum payout: ₹250. You can request any amount up to your
+                available balance.
+              </p>
+
+              <button
+                type="button"
+                onClick={openPayoutModal}
+                disabled={payoutWallet.available < 250}
+                className="rounded-xl bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63] px-6 py-3.5 text-sm font-black text-[#07111f] shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {payoutWallet.available >= 250
+                  ? "Request Payout →"
+                  : "₹250 Needed to Withdraw"}
+              </button>
+            </div>
+
+            {payoutHistory.length > 0 && (
+              <div className="mt-7 border-t border-slate-100 pt-6">
+                <p className="text-sm font-black text-[#07111f]">
+                  Payout History
+                </p>
+
+                <div className="mt-3 space-y-3">
+                  {payoutHistory.slice(0, 5).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-black text-[#07111f]">
+                          ₹{Number(item.amount || 0).toLocaleString()}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {String(item.method || "").toUpperCase()} •{" "}
+                          {item.utr || "Awaiting processing"}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`w-fit rounded-full px-3 py-1.5 text-xs font-black ${
+                          item.status === "paid"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : item.status === "rejected"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {String(item.status || "pending").toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* PAYOUT REQUEST MODAL */}
+
+        {showPayoutModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#07111f]/75 p-5 backdrop-blur-sm">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[2rem] bg-white shadow-[0_30px_100px_rgba(7,17,31,0.35)]">
+              <div className="bg-[#07111f] px-7 py-6 text-white">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                  Referral Payout
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  Request your payout
+                </h2>
+                <p className="mt-2 text-sm text-white/55">
+                  Available balance: ₹{payoutWallet.available.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="space-y-5 p-7">
+                {payoutError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                    {payoutError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Payout Amount
+                  </label>
+                  <input
+                    value={payoutAmount}
+                    onChange={(e) => setPayoutAmount(e.target.value.replace(/[^\d]/g, ""))}
+                    inputMode="numeric"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
+                    placeholder="250"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Payment Method
+                  </label>
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod("upi")}
+                      className={`rounded-xl border px-4 py-3 text-sm font-black ${
+                        payoutMethod === "upi"
+                          ? "border-[#d4af37] bg-[#fffdf5] text-[#8a680c]"
+                          : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      UPI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod("bank")}
+                      className={`rounded-xl border px-4 py-3 text-sm font-black ${
+                        payoutMethod === "bank"
+                          ? "border-[#d4af37] bg-[#fffdf5] text-[#8a680c]"
+                          : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      Bank Account
+                    </button>
+                  </div>
+                </div>
+
+                {payoutMethod === "upi" ? (
+                  <div>
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                      UPI ID
+                    </label>
+                    <input
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
+                      placeholder="example@upi"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Account Holder Name
+                      </label>
+                      <input
+                        value={accountHolderName}
+                        onChange={(e) => setAccountHolderName(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
+                        placeholder="Name as per bank account"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Account Number
+                      </label>
+                      <input
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value.replace(/\s/g, ""))}
+                        inputMode="numeric"
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
+                        placeholder="Bank account number"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        IFSC
+                      </label>
+                      <input
+                        value={ifsc}
+                        onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+                        className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold uppercase outline-none focus:border-[#d4af37]"
+                        placeholder="SBIN0001234"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                  Your payout will be reviewed by SBC admin. Never share your
+                  OTP, password or Razorpay secret with anyone.
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPayoutModal(false)}
+                    disabled={payoutRequesting}
+                    className="flex-1 rounded-xl border border-slate-200 px-4 py-3.5 text-sm font-bold text-slate-600 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={submitPayoutRequest}
+                    disabled={payoutRequesting}
+                    className="flex-1 rounded-xl bg-[#07111f] px-4 py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e] disabled:opacity-50"
+                  >
+                    {payoutRequesting ? "Submitting..." : "Submit Request"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          <div>
-            <p className="text-xs font-black">Quick Links</p>
-            <div className="mt-3 space-y-2 text-[11px] text-white/60">
-              <button onClick={() => go("/")}>Home</button>
-              <br />
-              <button onClick={() => go("/student/login")}>Offers</button>
-              <br />
-              <button onClick={() => go("#how-it-works")}>How It Works</button>
-              <br />
-              <button onClick={() => go("/business/login")}>For Businesses</button>
+        {/* ACTIONS */}
+
+        <section className="mt-7 grid gap-7 md:grid-cols-2">
+
+          <div className="group rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] transition hover:-translate-y-1 sm:p-8">
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#d4af37]/10 text-2xl text-[#f1cf63]">
+              🎁
             </div>
-          </div>
 
-          <div>
-            <p className="text-xs font-black">Support</p>
-            <div className="mt-3 space-y-2 text-[11px] text-white/60">
-              <p>Contact Us</p>
-              <p>FAQs</p>
-              <p>Privacy Policy</p>
-              <p>Terms & Conditions</p>
-            </div>
-          </div>
+            <h2 className="mt-5 text-2xl font-black">
+              Exclusive Offers
+            </h2>
 
-          <div>
-            <p className="text-xs font-black">Follow SBC</p>
-            <p className="mt-3 text-sm text-white/70">Instagram • Facebook • YouTube</p>
-            <p className="mt-4 font-serif text-lg italic text-white/80">
-              Students Win Together
+            <p className="mt-2 leading-6 text-white/55">
+              Explore active discounts and benefits from verified SBC Business Partners.
             </p>
+
+            <button
+              onClick={() =>
+                router.push(
+                  "/student/offers"
+                )
+              }
+              className="mt-7 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+            >
+              Explore Offers →
+            </button>
+
           </div>
-        </div>
 
-        <div className="mx-auto mt-8 max-w-[1450px] border-t border-white/10 pt-5 text-[10px] text-white/40">
-          © 2026 Student Benefit Card. All rights reserved.
-        </div>
-      </footer>
+          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
 
-      {/* MOBILE NAV */}
-      <div className="fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-20px)] max-w-md -translate-x-1/2 items-center justify-between rounded-2xl border border-white/80 bg-white/95 px-2 py-2 shadow-[0_18px_50px_rgba(7,26,61,.18)] backdrop-blur-xl sm:hidden">
-        {[
-          ["⌂", "Home", "/"],
-          ["◇", "Offers", "/student/login"],
-          ["▣", "Business", "/business/login"],
-          ["♙", "Register", "/student/register"],
-        ].map(([icon, label, path], index) => (
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
+              Account
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black text-[#07111f]">
+              Membership Status
+            </h2>
+
+            <div
+              className={`mt-6 rounded-2xl border p-5 ${
+                membershipIsActive
+                  ? "border-emerald-100 bg-emerald-50"
+                  : membershipIsExpired
+                    ? "border-red-200 bg-red-50"
+                    : "border-amber-200 bg-amber-50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Membership Status
+                  </p>
+
+                  <p
+                    className={`mt-1 text-2xl font-black ${
+                      membershipIsActive
+                        ? "text-emerald-700"
+                        : membershipIsExpired
+                          ? "text-red-700"
+                          : "text-amber-700"
+                    }`}
+                  >
+                    {membershipIsActive
+                      ? "ACTIVE"
+                      : membershipIsExpired
+                        ? "EXPIRED"
+                        : "NOT AVAILABLE"}
+                  </p>
+                </div>
+
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                    membershipIsActive
+                      ? "bg-emerald-100 text-emerald-700"
+                      : membershipIsExpired
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {membershipIsActive ? "✓" : "!"}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Started
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipStart)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Valid Until
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipExpiry)}
+                  </p>
+                </div>
+              </div>
+
+              {membershipIsExpired && (
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              )}
+
+              {!membershipDateIsValid && (
+                <p className="mt-4 text-xs leading-5 text-amber-700">
+                  Membership dates are not available for this account yet.
+                  Please refresh the dashboard after your membership payment is
+                  completed.
+                </p>
+              )}
+            </div>
+
+          </div>
+
+        </section>
+
+        {/* FOOTER */}
+
+        <footer className="mt-10 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+
+          <div>
+
+            <p className="font-black text-[#07111f]">
+              Student Benefit Card
+            </p>
+
+            <p className="mt-1">
+              One card. More benefits. More savings.
+            </p>
+
+          </div>
+
           <button
-            key={label}
-            type="button"
-            onClick={() => go(path)}
-            className={`flex min-w-[65px] flex-col items-center rounded-xl px-2 py-2 ${
-              index === 0 ? "bg-[#edf4ff] text-[#1557d6]" : "text-slate-500"
-            }`}
+            onClick={
+              logout
+            }
+            className="w-fit rounded-full border border-slate-300 px-5 py-2.5 font-bold text-slate-700 transition hover:border-[#b18a16] hover:text-[#8a680c]"
           >
-            <span className="text-base">{icon}</span>
-            <span className="mt-0.5 text-[8px] font-black">{label}</span>
+            Logout
           </button>
-        ))}
+
+        </footer>
+
       </div>
+
     </main>
   );
 }
