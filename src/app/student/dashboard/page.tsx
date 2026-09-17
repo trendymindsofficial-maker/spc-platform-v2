@@ -2458,8 +2458,10 @@ export default function StudentDashboard() {
                   <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Number</p>
                   <p className="mt-1 text-sm font-black tracking-wider text-white/80">{student.cardNumber || "—"}</p>
                 </div>
-                <div className="rounded-2xl bg-white p-3 shadow-xl">
-                  <QRCode value={qrValue} size={130} />
+                <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+                  <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-xl">
+                    <QRCode value={qrValue} size={130} />
+                  </div>
                 </div>
               </div>
               <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
@@ -2510,76 +2512,76 @@ export default function StudentDashboard() {
         </section>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="fixed inset-x-2 bottom-2 z-50 md:hidden">
-          <div className="mx-auto flex max-w-lg items-center gap-1.5 rounded-[1.9rem] border border-[#d4af37]/30 bg-[#07111f]/96 p-2 shadow-[0_18px_55px_rgba(7,17,31,0.55)] backdrop-blur-2xl">
+        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden">
+          <div className="mx-auto max-w-lg rounded-[1.5rem] border border-white/10 bg-[#07111f]/95 p-1.5 shadow-[0_-10px_40px_rgba(7,17,31,0.45)] backdrop-blur-2xl">
+            <div className="grid grid-cols-4 gap-1.5">
 
-            <button
-              type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-[#d4af37]/50 bg-gradient-to-b from-[#d4af37]/25 to-[#d4af37]/10 px-2 py-3 text-[10px] font-black text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition active:scale-95"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#d4af37] text-xl font-black text-[#07111f] shadow-[0_5px_18px_rgba(212,175,55,0.3)]">
-                ⌂
-              </span>
-              <span>Home</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-[#d4af37]/45 bg-[#d4af37]/12 px-1 py-2 text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition active:scale-[0.97]"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-lg font-black text-[#07111f]">
+                  ⌂
+                </span>
+                <span className="text-[10px] font-black">Home</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => router.push("/student/offers")}
-              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-white/10 bg-white/[0.045] px-2 py-3 text-[10px] font-black text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#d4af37]/35 hover:text-[#f1cf63] active:scale-95"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 text-lg">
-                🏷️
-              </span>
-              <span>Offers</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => router.push("/student/offers")}
+                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-base">
+                  🏷️
+                </span>
+                <span className="text-[10px] font-bold">Offers</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                const scanButton = scanRedeemRef.current?.querySelector("button");
-                if (scanButton) scanButton.click();
-              }}
-              disabled={!membershipIsActive}
-              className={`group relative -mt-7 flex min-w-0 flex-1 flex-col items-center justify-center rounded-[1.35rem] px-1 py-1 text-[9px] font-black transition active:scale-95 ${
-                membershipIsActive
-                  ? "text-[#f1cf63]"
-                  : "cursor-not-allowed text-white/30"
-              }`}
-            >
-              <span
-                className={`flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full border-[5px] border-[#07111f] text-2xl shadow-[0_8px_30px_rgba(212,175,55,0.38)] ${
+              <button
+                type="button"
+                onClick={() => {
+                  const scanButton = scanRedeemRef.current?.querySelector("button");
+                  if (scanButton) scanButton.click();
+                }}
+                disabled={!membershipIsActive}
+                className={`relative flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border px-1 py-2 transition active:scale-[0.97] ${
                   membershipIsActive
-                    ? "bg-gradient-to-br from-[#f1cf63] via-[#d4af37] to-[#b98a16] text-[#07111f]"
-                    : "bg-slate-700 text-white/40"
+                    ? "border-[#d4af37] bg-gradient-to-b from-[#d4af37]/25 to-[#d4af37]/10 text-[#f1cf63] shadow-[0_0_22px_rgba(212,175,55,0.16),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    : "cursor-not-allowed border-white/10 bg-white/[0.025] text-white/30"
                 }`}
               >
-                ⌗
-              </span>
-              <span className="mt-1 whitespace-nowrap rounded-full border border-[#d4af37]/20 bg-[#07111f] px-2 py-1">
-                Scan to Redeem
-              </span>
-            </button>
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg font-black ${
+                    membershipIsActive
+                      ? "bg-[#d4af37] text-[#07111f]"
+                      : "bg-slate-700 text-white/40"
+                  }`}
+                >
+                  ⌗
+                </span>
+                <span className="text-[10px] font-black">Scan & Redeem</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() =>
-                document
-                  .getElementById("your-card")
-                  ?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
-              }
-              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-white/10 bg-white/[0.045] px-2 py-3 text-[10px] font-black text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#d4af37]/35 hover:text-[#f1cf63] active:scale-95"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 text-lg">
-                💳
-              </span>
-              <span>Your Card</span>
-            </button>
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById("your-card")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    })
+                }
+                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-base">
+                  💳
+                </span>
+                <span className="text-[10px] font-bold">Your Card</span>
+              </button>
 
+            </div>
           </div>
         </nav>
 
