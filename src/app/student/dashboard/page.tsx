@@ -1739,6 +1739,55 @@ export default function StudentDashboard() {
     setShowPayoutModal(true);
   };
 
+  const getReferralLink = () => {
+    if (typeof window === "undefined" || !referralCode) return "";
+    return `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`;
+  };
+
+  const copyReferralLink = async () => {
+    const link = getReferralLink();
+    if (!link) return;
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setPayoutSuccess("Referral link copied successfully.");
+      setPayoutError("");
+    } catch (error) {
+      console.error("Referral link copy failed:", error);
+      setPayoutError("Unable to copy referral link. Please copy it manually.");
+      setPayoutSuccess("");
+    }
+  };
+
+  const shareReferralLink = async () => {
+    const link = getReferralLink();
+    if (!link) return;
+
+    const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Student Benefit Card - SBC",
+          text: "Join Student Benefit Card using my referral link.",
+          url: link,
+        });
+        return;
+      }
+
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (error) {
+      if ((error as DOMException)?.name === "AbortError") return;
+      console.error("Referral sharing failed:", error);
+      setPayoutError("Unable to share the referral link right now.");
+      setPayoutSuccess("");
+    }
+  };
+
   const submitPayoutRequest = async () => {
     try {
       setPayoutRequesting(true);
@@ -2179,7 +2228,237 @@ export default function StudentDashboard() {
 
         </section>
 
-        {/* DIGITAL CARD + QR */}
+        {/* REFERRAL MARKETING */}
+
+        <section className="mt-7">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#101b2b] to-[#17243a] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-9">
+            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
+            <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+
+            <div className="relative grid gap-7 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                  🎁 SBC Referral Program
+                </div>
+
+                <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
+                  Refer Friends. Grow Your SBC Rewards.
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+                  Share your personal referral link with friends and help more students join the SBC community. Your referral activity and rewards are tracked automatically.
+                </p>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
+                      Your Code
+                    </p>
+                    <p className="mt-2 break-all text-lg font-black tracking-wider text-[#f1cf63]">
+                      {referralCode || "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
+                      Successful
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-white">
+                      {payoutWallet.successfulReferrals.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
+                      Available Reward
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-[#f1cf63]">
+                      ₹{payoutWallet.available.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={shareReferralLink}
+                    disabled={!referralCode}
+                    className="rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    📲 Share Referral Link
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={copyReferralLink}
+                    disabled={!referralCode}
+                    className="rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-black text-white transition hover:border-[#d4af37]/50 hover:bg-[#d4af37]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    🔗 Copy Link
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={openPayoutModal}
+                    disabled={payoutWallet.available < 250 || payoutLoading}
+                    className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-6 py-3.5 text-sm font-black text-[#f1cf63] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    💰 Request Payout
+                  </button>
+                </div>
+
+                {(payoutSuccess || payoutError) && (
+                  <div
+                    className={`mt-4 rounded-xl border p-3 text-sm font-semibold ${
+                      payoutError
+                        ? "border-red-300/20 bg-red-500/10 text-red-200"
+                        : "border-emerald-300/20 bg-emerald-500/10 text-emerald-200"
+                    }`}
+                  >
+                    {payoutError || payoutSuccess}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                  Referral Wallet
+                </p>
+
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+                    <span className="text-sm text-white/55">Total earned</span>
+                    <span className="font-black">₹{payoutWallet.totalEarned.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+                    <span className="text-sm text-white/55">Paid</span>
+                    <span className="font-black">₹{payoutWallet.paidAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+                    <span className="text-sm text-white/55">Pending payout</span>
+                    <span className="font-black">₹{payoutWallet.pendingPayout.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3">
+                    <span className="text-sm font-bold text-[#f1cf63]">Available</span>
+                    <span className="text-lg font-black text-[#f1cf63]">₹{payoutWallet.available.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-xs leading-5 text-white/40">
+                  Minimum payout request: ₹250. Referral wallet is verified from the SBC server before payout requests are submitted.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PAYOUT MODAL */}
+        {showPayoutModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#07111f]/75 p-5 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-[2rem] bg-white p-7 shadow-[0_30px_100px_rgba(7,17,31,0.35)] sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">Referral Wallet</p>
+                  <h2 className="mt-2 text-2xl font-black text-[#07111f]">Request Payout</h2>
+                  <p className="mt-2 text-sm text-slate-500">Available: ₹{payoutWallet.available.toLocaleString()}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPayoutModal(false)}
+                  className="rounded-full bg-slate-100 px-3 py-2 text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mt-6">
+                <label className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">Amount</label>
+                <input
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  inputMode="numeric"
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
+                  placeholder="250"
+                />
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPayoutMethod("upi")}
+                  className={`rounded-xl border px-4 py-3 text-sm font-black ${
+                    payoutMethod === "upi"
+                      ? "border-[#d4af37] bg-[#d4af37]/10 text-[#8a680c]"
+                      : "border-slate-200 text-slate-500"
+                  }`}
+                >
+                  UPI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayoutMethod("bank")}
+                  className={`rounded-xl border px-4 py-3 text-sm font-black ${
+                    payoutMethod === "bank"
+                      ? "border-[#d4af37] bg-[#d4af37]/10 text-[#8a680c]"
+                      : "border-slate-200 text-slate-500"
+                  }`}
+                >
+                  Bank
+                </button>
+              </div>
+
+              {payoutMethod === "upi" ? (
+                <div className="mt-5">
+                  <label className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">UPI ID</label>
+                  <input
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
+                    placeholder="name@upi"
+                  />
+                </div>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  <input
+                    value={accountHolderName}
+                    onChange={(e) => setAccountHolderName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
+                    placeholder="Account holder name"
+                  />
+                  <input
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
+                    placeholder="Account number"
+                  />
+                  <input
+                    value={ifsc}
+                    onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold uppercase outline-none focus:border-[#d4af37]"
+                    placeholder="IFSC code"
+                  />
+                </div>
+              )}
+
+              {payoutError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+                  {payoutError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={submitPayoutRequest}
+                disabled={payoutRequesting || payoutWallet.available < 250}
+                className="mt-6 w-full rounded-xl bg-[#07111f] px-5 py-4 text-sm font-black text-white transition hover:bg-[#122039] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {payoutRequesting ? "Submitting..." : "Submit Payout Request"}
+              </button>
+            </div>
+          </div>
+        )}
+
+                {/* DIGITAL CARD + QR */}
 
         <section className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
 
