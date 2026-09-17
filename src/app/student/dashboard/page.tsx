@@ -2116,6 +2116,89 @@ export default function StudentDashboard() {
               </div>
             </div>
 
+            {/* DESKTOP QUICK ACTIONS */}
+            <div className="hidden rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 md:flex md:flex-col md:justify-center">
+              <div className="grid gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const scanButton = scanRedeemRef.current?.querySelector("button");
+                    if (scanButton) scanButton.click();
+                  }}
+                  disabled={!membershipIsActive}
+                  className={`group rounded-2xl border p-5 text-left transition ${
+                    membershipIsActive
+                      ? "border-[#d4af37]/30 bg-[#d4af37]/10 hover:border-[#d4af37]/60 hover:bg-[#d4af37]/15"
+                      : "cursor-not-allowed border-white/10 bg-white/[0.03] opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                        Scan at Business
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black text-white">
+                        📷 Scan & Redeem
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-white/55">
+                        Scan a business QR and redeem an active SBC offer.
+                      </p>
+                    </div>
+                    <span className="rounded-xl bg-[#d4af37] px-4 py-3 text-sm font-black text-[#07111f] transition group-hover:bg-[#f1cf63]">
+                      Scan QR →
+                    </span>
+                  </div>
+                </button>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/student/offers")}
+                    className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 text-left transition hover:border-[#d4af37]/40 hover:bg-[#d4af37]/10"
+                  >
+                    <span className="text-2xl">🎁</span>
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                      SBC Benefits
+                    </p>
+                    <h3 className="mt-1 text-xl font-black text-white">
+                      Explore Offers
+                    </h3>
+                    <p className="mt-1 text-xs leading-5 text-white/50">
+                      Discover exclusive discounts from verified partners.
+                    </p>
+                    <span className="mt-4 inline-flex rounded-lg bg-[#d4af37] px-4 py-2 text-xs font-black text-[#07111f]">
+                      Explore Offers →
+                    </span>
+                  </button>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
+                      Reward Points
+                    </p>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-4xl font-black text-[#f1cf63]">
+                        {totalPoints.toLocaleString()}
+                      </span>
+                      <span className="pb-1 text-sm font-bold text-white/50">
+                        / 1000
+                      </span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-[#d4af37] transition-all"
+                        style={{
+                          width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="mt-3 text-xs font-semibold text-white/55">
+                      {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </section>
 
@@ -2427,23 +2510,28 @@ export default function StudentDashboard() {
         </section>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#07111f]/95 px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 text-white shadow-[0_-15px_40px_rgba(7,17,31,0.25)] backdrop-blur-xl md:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+        <nav className="fixed inset-x-2 bottom-2 z-50 md:hidden">
+          <div className="mx-auto flex max-w-lg items-center gap-1.5 rounded-[1.9rem] border border-[#d4af37]/30 bg-[#07111f]/96 p-2 shadow-[0_18px_55px_rgba(7,17,31,0.55)] backdrop-blur-2xl">
+
             <button
               type="button"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-[#f1cf63]"
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-[#d4af37]/50 bg-gradient-to-b from-[#d4af37]/25 to-[#d4af37]/10 px-2 py-3 text-[10px] font-black text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition active:scale-95"
             >
-              <span className="text-xl leading-none">⌂</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#d4af37] text-xl font-black text-[#07111f] shadow-[0_5px_18px_rgba(212,175,55,0.3)]">
+                ⌂
+              </span>
               <span>Home</span>
             </button>
 
             <button
               type="button"
               onClick={() => router.push("/student/offers")}
-              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63]"
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-white/10 bg-white/[0.045] px-2 py-3 text-[10px] font-black text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#d4af37]/35 hover:text-[#f1cf63] active:scale-95"
             >
-              <span className="text-xl leading-none">🏷️</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 text-lg">
+                🏷️
+              </span>
               <span>Offers</span>
             </button>
 
@@ -2454,22 +2542,44 @@ export default function StudentDashboard() {
                 if (scanButton) scanButton.click();
               }}
               disabled={!membershipIsActive}
-              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black transition ${
-                membershipIsActive ? "text-white/70 hover:text-[#f1cf63]" : "cursor-not-allowed text-white/30"
+              className={`group relative -mt-7 flex min-w-0 flex-1 flex-col items-center justify-center rounded-[1.35rem] px-1 py-1 text-[9px] font-black transition active:scale-95 ${
+                membershipIsActive
+                  ? "text-[#f1cf63]"
+                  : "cursor-not-allowed text-white/30"
               }`}
             >
-              <span className="text-xl leading-none">📷</span>
-              <span>Scan to Redeem</span>
+              <span
+                className={`flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full border-[5px] border-[#07111f] text-2xl shadow-[0_8px_30px_rgba(212,175,55,0.38)] ${
+                  membershipIsActive
+                    ? "bg-gradient-to-br from-[#f1cf63] via-[#d4af37] to-[#b98a16] text-[#07111f]"
+                    : "bg-slate-700 text-white/40"
+                }`}
+              >
+                ⌗
+              </span>
+              <span className="mt-1 whitespace-nowrap rounded-full border border-[#d4af37]/20 bg-[#07111f] px-2 py-1">
+                Scan to Redeem
+              </span>
             </button>
 
             <button
               type="button"
-              onClick={() => document.getElementById("your-card")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63]"
+              onClick={() =>
+                document
+                  .getElementById("your-card")
+                  ?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
+              }
+              className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[1.25rem] border border-white/10 bg-white/[0.045] px-2 py-3 text-[10px] font-black text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-[#d4af37]/35 hover:text-[#f1cf63] active:scale-95"
             >
-              <span className="text-xl leading-none">💳</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 text-lg">
+                💳
+              </span>
               <span>Your Card</span>
             </button>
+
           </div>
         </nav>
 
