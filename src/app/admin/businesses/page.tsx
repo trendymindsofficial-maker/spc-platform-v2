@@ -12,6 +12,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  query,
+  where,
 } from "firebase/firestore";
 
 interface Business {
@@ -39,11 +41,6 @@ export default function AdminBusinesses() {
   const [editOwnerName, setEditOwnerName] = useState("");
   const [editMobile, setEditMobile] = useState("");
   const [editCategory, setEditCategory] = useState("");
-
-  const [categories, setCategories] = useState<
-    { id: string; name: string }[]
-  >([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   /*
    * ==========================================
@@ -81,58 +78,6 @@ export default function AdminBusinesses() {
 
   useEffect(() => {
     loadBusinesses();
-  }, []);
-
-  /*
-   * ==========================================
-   * LOAD EXISTING CATEGORIES
-   * ==========================================
-   */
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        setCategoriesLoading(true);
-
-        const snap = await getDocs(
-          collection(db, "categories")
-        );
-
-        const data = snap.docs
-          .map((item) => {
-            const itemData = item.data();
-
-            return {
-              id: item.id,
-              name:
-                itemData.name ||
-                itemData.category ||
-                itemData.title ||
-                "",
-            };
-          })
-          .filter(
-            (item) => item.name.trim() !== ""
-          )
-          .sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
-
-        setCategories(data);
-      } catch (error) {
-        console.error(
-          "Category loading error:",
-          error
-        );
-        alert(
-          "Unable to load business categories."
-        );
-      } finally {
-        setCategoriesLoading(false);
-      }
-    };
-
-    loadCategories();
   }, []);
 
   /*
@@ -343,7 +288,7 @@ export default function AdminBusinesses() {
     name: string
   ) => {
     const ok = window.confirm(
-      `Delete "${name}" permanently?`
+      `Delete "${name}" permanently?\n\nThis will also delete all offers belonging to this business. Previous redemption/history records will NOT be deleted.`
     );
 
     if (!ok) {
@@ -353,6 +298,40 @@ export default function AdminBusinesses() {
     try {
       setActionLoading(id);
 
+      /*
+       * ==========================================
+       * DELETE ALL OFFERS BELONGING TO BUSINESS
+       * ==========================================
+       *
+       * Only offers are removed here.
+       * Previous redemptions/history are intentionally
+       * kept in Firestore.
+       */
+      const offersQuery = query(
+        collection(db, "offers"),
+        where("businessId", "==", id)
+      );
+
+      const offersSnap = await getDocs(
+        offersQuery
+      );
+
+      await Promise.all(
+        offersSnap.docs.map((offerDoc) =>
+          deleteDoc(
+            doc(db, "offers", offerDoc.id)
+          )
+        )
+      );
+
+      /*
+       * ==========================================
+       * DELETE BUSINESS
+       * ==========================================
+       *
+       * DO NOT delete redemptions, redemptionRequests,
+       * points, payout/history or other historical data.
+       */
       await deleteDoc(
         doc(db, "businesses", id)
       );
@@ -364,14 +343,18 @@ export default function AdminBusinesses() {
               business.id !== id
           )
       );
+
+      alert(
+        `✅ ${name} and its offers deleted successfully. Previous history is preserved.`
+      );
     } catch (error) {
       console.error(
-        "Error deleting business:",
+        "Error deleting business and offers:",
         error
       );
 
       alert(
-        "Unable to delete business."
+        "❌ Unable to delete business and its offers. Please try again."
       );
     } finally {
       setActionLoading(null);
@@ -553,39 +536,31 @@ export default function AdminBusinesses() {
 
   return (
     <AdminProtected>
-      <main className="min-h-screen bg-[#f5f1e6] p-8">
+      <main className="min-h-screen bg-slate-100 p-8">
         <div className="mx-auto max-w-7xl">
 
           {/* ==================================
               HEADER
           =================================== */}
 
-          <div className="mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-[#07111f] via-[#111b2e] to-[#3b2b0b] p-7 shadow-2xl ring-1 ring-[#d4af37]/30">
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-green-700">
+                🏪 Business Management
+              </h1>
 
-              <div>
-                <div className="mb-3 inline-flex items-center rounded-full bg-[#d4af37]/15 px-4 py-1.5 text-xs font-extrabold tracking-[0.18em] text-[#f1cf63]">
-                  SBC ADMIN
-                </div>
-
-                <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                  🏪 Business Management
-                </h1>
-
-                <p className="mt-2 text-sm text-slate-300 sm:text-base">
-                  Approve, Reject and Manage Businesses
-                </p>
-              </div>
-
-              <Link
-                href="/admin/dashboard"
-                className="rounded-xl bg-white px-6 py-3 text-center font-bold text-[#07111f] shadow-lg transition hover:bg-[#f7e8ad] hover:text-[#5b4300]"
-              >
-                ← Dashboard
-              </Link>
-
+              <p className="mt-2 text-gray-600">
+                Approve, Reject and Manage Businesses
+              </p>
             </div>
+
+            <Link
+              href="/admin/dashboard"
+              className="rounded-xl bg-gray-700 px-6 py-3 text-center font-bold text-white transition hover:bg-gray-800"
+            >
+              ← Dashboard
+            </Link>
 
           </div>
 
@@ -597,8 +572,8 @@ export default function AdminBusinesses() {
             <div
               className={`mb-6 rounded-2xl p-5 shadow ${
                 pendingCount > 0
-                  ? "border border-[#d4af37]/40 bg-gradient-to-r from-[#fff8df] to-[#f2df9b]"
-                  : "bg-white/90"
+                  ? "border-2 border-orange-300 bg-orange-50"
+                  : "bg-white"
               }`}
             >
 
@@ -608,8 +583,8 @@ export default function AdminBusinesses() {
                   <p
                     className={`text-lg font-bold ${
                       pendingCount > 0
-                        ? "text-[#8a680c]"
-                        : "text-[#8a680c]"
+                        ? "text-orange-700"
+                        : "text-green-700"
                     }`}
                   >
                     {pendingCount > 0
@@ -627,8 +602,8 @@ export default function AdminBusinesses() {
                 <div
                   className={`rounded-xl px-6 py-3 text-2xl font-extrabold ${
                     pendingCount > 0
-                      ? "bg-[#07111f] text-[#f1cf63]"
-                      : "bg-green-100 text-[#8a680c]"
+                      ? "bg-orange-500 text-white"
+                      : "bg-green-100 text-green-700"
                   }`}
                 >
                   {pendingCount}
@@ -650,7 +625,7 @@ export default function AdminBusinesses() {
             onChange={(e) =>
               setSearch(e.target.value)
             }
-            className="mb-8 w-full rounded-2xl border border-[#d4af37]/30 bg-white/95 p-4 text-[#07111f] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
+            className="mb-8 w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
           />
 
           {/* ==================================
@@ -659,7 +634,7 @@ export default function AdminBusinesses() {
 
           {loading ? (
 
-            <div className="rounded-[28px] border border-[#d4af37]/20 bg-white p-10 text-center shadow-sm">
+            <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
               <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" />
 
@@ -680,7 +655,7 @@ export default function AdminBusinesses() {
               {filteredBusinesses.length ===
               0 ? (
 
-                <div className="rounded-[28px] border border-[#d4af37]/20 bg-white p-10 text-center shadow-sm">
+                <div className="rounded-3xl bg-white p-10 text-center shadow-xl">
 
                   <h2 className="text-2xl font-bold">
                     No Businesses Found
@@ -715,10 +690,10 @@ export default function AdminBusinesses() {
                     return (
                       <div
                         key={business.id}
-                        className={`rounded-[28px] p-6 shadow-lg transition hover:-translate-y-1 hover:shadow-2xl ${
+                        className={`rounded-3xl bg-white p-6 shadow-xl transition hover:-translate-y-1 hover:shadow-2xl ${
                           pending
-                            ? "border-2 border-[#d4af37] bg-gradient-to-r from-[#fff4c7] via-[#fffdf5] to-[#f0d985]"
-                            : "border border-[#d4af37]/25 bg-gradient-to-r from-[#fff8df] via-[#fffdf8] to-[#f4e4a8]"
+                            ? "border-2 border-orange-300"
+                            : "border border-transparent"
                         }`}
                       >
 
@@ -740,12 +715,12 @@ export default function AdminBusinesses() {
 
                             {!pending &&
                               recent && (
-                                <div className="mb-3 inline-flex rounded-full bg-[#07111f]/10 px-4 py-2 text-sm font-bold text-[#07111f]">
+                                <div className="mb-3 inline-flex rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-700">
                                   🆕 RECENTLY JOINED
                                 </div>
                               )}
 
-                            <h2 className="text-3xl font-extrabold text-[#07111f]">
+                            <h2 className="text-3xl font-bold text-green-700">
                               {
                                 business.businessName
                               }
@@ -813,7 +788,7 @@ export default function AdminBusinesses() {
                                 business.status
                                   ?.toLowerCase() ===
                                 "approved"
-                                  ? "bg-emerald-600"
+                                  ? "bg-green-600"
                                   : business.status
                                         ?.toLowerCase() ===
                                     "pending"
@@ -836,7 +811,7 @@ export default function AdminBusinesses() {
                                   openViewBusiness(business)
                                 }
                                 disabled={actionBusy}
-                                className="rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] shadow-sm transition hover:bg-[#18263d] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 👁 View
                               </button>
@@ -848,7 +823,7 @@ export default function AdminBusinesses() {
                                   openEditBusiness(business)
                                 }
                                 disabled={actionBusy}
-                                className="rounded-xl bg-[#6d4aff] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#5938e8] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 ✏️ Edit
                               </button>
@@ -868,7 +843,7 @@ export default function AdminBusinesses() {
                                   disabled={
                                     actionBusy
                                   }
-                                  className="rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   {actionBusy
                                     ? "Processing..."
@@ -891,7 +866,7 @@ export default function AdminBusinesses() {
                                   disabled={
                                     actionBusy
                                   }
-                                  className="rounded-xl bg-[#d97706] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#b45309] disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="rounded-xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   ❌ Reject
                                 </button>
@@ -909,7 +884,7 @@ export default function AdminBusinesses() {
                                 disabled={
                                   actionBusy
                                 }
-                                className="rounded-xl bg-[#dc2626] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#b91c1c] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 🗑 Delete
                               </button>
@@ -937,11 +912,11 @@ export default function AdminBusinesses() {
 
           {selectedBusiness && modalMode && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-[#fffdf7] p-6 shadow-2xl ring-1 ring-[#d4af37]/25">
+              <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
 
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-3xl font-extrabold text-[#07111f]">
+                    <h2 className="text-3xl font-bold text-green-700">
                       {modalMode === "edit"
                         ? "✏️ Edit Business"
                         : "👁 Business Details"}
@@ -964,7 +939,7 @@ export default function AdminBusinesses() {
 
                 {modalMode === "view" ? (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
+                    <div className="rounded-2xl bg-gray-50 p-4">
                       <p className="text-sm font-semibold text-gray-500">
                         Business Name
                       </p>
@@ -973,7 +948,7 @@ export default function AdminBusinesses() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
+                    <div className="rounded-2xl bg-gray-50 p-4">
                       <p className="text-sm font-semibold text-gray-500">
                         Owner Name
                       </p>
@@ -982,7 +957,7 @@ export default function AdminBusinesses() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
+                    <div className="rounded-2xl bg-gray-50 p-4">
                       <p className="text-sm font-semibold text-gray-500">
                         Mobile
                       </p>
@@ -991,7 +966,7 @@ export default function AdminBusinesses() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4">
+                    <div className="rounded-2xl bg-gray-50 p-4">
                       <p className="text-sm font-semibold text-gray-500">
                         Category
                       </p>
@@ -1000,7 +975,7 @@ export default function AdminBusinesses() {
                       </p>
                     </div>
 
-                    <div className="rounded-2xl border border-[#d4af37]/20 bg-gradient-to-r from-[#fffaf0] to-[#f8edc5] p-4 sm:col-span-2">
+                    <div className="rounded-2xl bg-gray-50 p-4 sm:col-span-2">
                       <p className="text-sm font-semibold text-gray-500">
                         Status
                       </p>
@@ -1012,7 +987,7 @@ export default function AdminBusinesses() {
                     <button
                       type="button"
                       onClick={() => openEditBusiness(selectedBusiness)}
-                      className="rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] transition hover:bg-[#18263d] sm:col-span-2"
+                      className="rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white transition hover:bg-indigo-700 sm:col-span-2"
                     >
                       ✏️ Edit Business
                     </button>
@@ -1028,7 +1003,7 @@ export default function AdminBusinesses() {
                         onChange={(e) =>
                           setEditBusinessName(e.target.value)
                         }
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
+                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                       />
                     </div>
 
@@ -1041,7 +1016,7 @@ export default function AdminBusinesses() {
                         onChange={(e) =>
                           setEditOwnerName(e.target.value)
                         }
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
+                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                       />
                     </div>
 
@@ -1055,7 +1030,7 @@ export default function AdminBusinesses() {
                           setEditMobile(e.target.value)
                         }
                         inputMode="tel"
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20"
+                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                       />
                     </div>
 
@@ -1063,37 +1038,13 @@ export default function AdminBusinesses() {
                       <label className="mb-2 block font-bold text-gray-700">
                         Category
                       </label>
-
-                      <select
+                      <input
                         value={editCategory}
                         onChange={(e) =>
                           setEditCategory(e.target.value)
                         }
-                        disabled={categoriesLoading}
-                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/20 disabled:cursor-not-allowed disabled:bg-gray-100"
-                      >
-                        <option value="">
-                          {categoriesLoading
-                            ? "Loading categories..."
-                            : "Select Category"}
-                        </option>
-
-                        {categories.map((category) => (
-                          <option
-                            key={category.id}
-                            value={category.name}
-                          >
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      {!categoriesLoading &&
-                        categories.length === 0 && (
-                          <p className="mt-2 text-sm text-orange-600">
-                            No categories found. Add categories from the Admin Dashboard.
-                          </p>
-                        )}
+                        className="w-full rounded-xl border border-gray-300 bg-white p-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                      />
                     </div>
 
                     <div className="rounded-xl bg-gray-50 p-4">
@@ -1122,7 +1073,7 @@ export default function AdminBusinesses() {
                         type="button"
                         onClick={saveBusiness}
                         disabled={actionLoading === selectedBusiness.id}
-                        className="flex-1 rounded-xl bg-[#07111f] px-5 py-3 font-bold text-[#f1cf63] transition hover:bg-[#18263d] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {actionLoading === selectedBusiness.id
                           ? "Saving..."
