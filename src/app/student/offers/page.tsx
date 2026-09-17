@@ -1791,12 +1791,22 @@ export default function StudentOffers() {
               </div>
             </div>
 
-            <button
-              onClick={logout}
-              className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push("/student/dashboard")}
+                className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+              >
+                <span aria-hidden="true">⌂</span>
+                Home
+              </button>
+
+              <button
+                onClick={logout}
+                className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </header>
 
