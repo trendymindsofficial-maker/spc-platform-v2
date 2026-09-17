@@ -249,10 +249,10 @@ export default function EditOffer({
 
       if (
         description.trim().length >
-        80
+        1000
       ) {
         alert(
-          "❌ Description should be 80 characters or less."
+          "❌ Description should be 1000 characters or less."
         );
 
         return;
@@ -631,14 +631,14 @@ export default function EditOffer({
                   </div>
 
                   <span className="text-[10px] font-bold text-slate-400">
-                    {description.length}/80
+                    {description.length}/1000
                   </span>
 
                 </div>
 
                 <textarea
                   value={description}
-                  maxLength={80}
+                  maxLength={1000}
                   onChange={(e) =>
                     setDescription(
                       e.target.value
