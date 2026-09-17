@@ -1837,7 +1837,7 @@ export default function StudentOffers() {
                           src={offer.image}
                           alt={offer.title || "SBC Offer"}
                           loading="lazy"
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                          className="h-full w-full object-contain transition duration-500"
                         />
                       ) : (
                         <div className="flex h-full min-h-[150px] items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-5xl">
@@ -1981,7 +1981,7 @@ export default function StudentOffers() {
                 <img
                   src={detailsOffer.image}
                   alt={detailsOffer.title || "Offer"}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
 
               ) : (
