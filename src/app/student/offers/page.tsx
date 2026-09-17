@@ -2018,6 +2018,7 @@ export default function StudentOffers() {
       </div>
 
       </div>
+
       {/* ==========================================
           FULL OFFER DETAILS MODAL
       =========================================== */}
@@ -2719,86 +2720,79 @@ export default function StudentOffers() {
       )}
 
 
-        {/* MOBILE BOTTOM NAV */}
+        {/* MOBILE BOTTOM NAV — SAME COMPACT STYLE AS DASHBOARD */}
+        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#07111f]/95 px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 text-white shadow-[0_-15px_40px_rgba(7,17,31,0.25)] backdrop-blur-xl md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
 
-        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden">
-          <div className="mx-auto max-w-lg rounded-[1.5rem] border border-white/10 bg-[#07111f]/95 p-1.5 shadow-[0_-10px_40px_rgba(7,17,31,0.45)] backdrop-blur-2xl">
-            <div className="grid grid-cols-4 gap-1.5">
+            {/* HOME */}
+            <button
+              type="button"
+              onClick={() => router.push("/student/dashboard")}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63] active:scale-95"
+            >
+              <span className="text-xl leading-none">⌂</span>
+              <span>Home</span>
+            </button>
 
-              {/* HOME — NORMAL */}
-              <button
-                type="button"
-                onClick={() => router.push("/student/dashboard")}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg text-lg font-black">
-                  ⌂
-                </span>
-                <span className="text-[10px] font-bold">Home</span>
-              </button>
+            {/* OFFERS — SELECTED */}
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-[#f1cf63] active:scale-95"
+            >
+              <span className="text-xl leading-none">🏷️</span>
+              <span>Offers</span>
+            </button>
 
-              {/* OFFERS — SELECTED */}
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-[#d4af37]/45 bg-[#d4af37]/12 px-1 py-2 text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition active:scale-[0.97]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-base font-black text-[#07111f]">
-                  🏷️
-                </span>
-                <span className="text-[10px] font-black">Offers</span>
-              </button>
+            {/* SCAN & REDEEM */}
+            <button
+              type="button"
+              onClick={() => router.push("/student/dashboard")}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63] active:scale-95"
+            >
+              <span className="flex h-5 w-5 items-center justify-center">
+                <svg
+                  width="21"
+                  height="21"
+                  viewBox="0 0 42 42"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path d="M7 15V9C7 7.9 7.9 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M27 7H33C34.1 7 35 7.9 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M7 27V33C7 34.1 7.9 35 9 35H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M27 35H33C34.1 35 35 34.1 35 33V27" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M11 21H31" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span>Scan &amp; Redeem</span>
+            </button>
 
-              {/* SCAN & REDEEM — NORMAL */}
-              <button
-                type="button"
-                onClick={() => router.push("/student/dashboard")}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg text-white">
-                  <svg
-                    width="26"
-                    height="26"
-                    viewBox="0 0 42 42"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <path d="M7 15V9C7 7.89543 7.89543 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M27 7H33C34.1046 7 35 7.89543 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 27V33C7 34.1046 7.89543 35 9 35H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M27 35H33C34.1046 35 35 34.1046 35 33V27" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M11 21H31" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </span>
-                <span className="text-[10px] font-bold">Scan &amp; Redeem</span>
-              </button>
+            {/* YOUR CARD */}
+            <button
+              type="button"
+              onClick={() => router.push("/student/dashboard#your-card")}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63] active:scale-95"
+            >
+              <span className="flex h-5 w-5 items-center justify-center">
+                <svg
+                  width="21"
+                  height="21"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+                  <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
+                  <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span>Your Card</span>
+            </button>
 
-              {/* YOUR CARD — NORMAL */}
-              <button
-                type="button"
-                onClick={() => router.push("/student/dashboard#your-card")}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg text-white">
-                  <svg
-                    width="27"
-                    height="27"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
-                    <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </span>
-                <span className="text-[10px] font-bold">Your Card</span>
-              </button>
-
-            </div>
           </div>
         </nav>
 
