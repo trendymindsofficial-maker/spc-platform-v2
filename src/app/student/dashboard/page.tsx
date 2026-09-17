@@ -2061,11 +2061,11 @@ export default function StudentDashboard() {
 
             <div>
 
-              <p className="text-[15px] font-black uppercase tracking-[0.25em] text-[#FFD700]">
+              <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
                 Student Benefit Card
               </p>
 
-              <p className="text-sm font-medium text-white/70">
+              <p className="text-xs font-medium text-white/70 sm:text-sm">
                 Premium Student Dashboard
               </p>
 
@@ -2099,7 +2099,7 @@ export default function StudentDashboard() {
                 ✦ Verified SBC Student
               </div>
               <p className="mt-7 text-sm font-semibold text-white/45">Welcome back,</p>
-              <h1 className="mt-1 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-1 break-words text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
                 <span className="text-[#f1cf63]">{student.fullName || "Student"}</span>
                 <span className="ml-2">👋</span>
               </h1>
@@ -2118,8 +2118,8 @@ export default function StudentDashboard() {
 
             <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-4 sm:p-5">
               <div className="rounded-[1.4rem] border border-[#d4af37]/25 bg-[#fbfaf6] p-4 text-[#07111f] shadow-lg">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">📷</div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b18a16]">Scan at Business</p>
@@ -2135,7 +2135,7 @@ export default function StudentDashboard() {
                           const scanButton = scanRedeemRef.current?.querySelector("button");
                           if (scanButton) scanButton.click();
                         }}
-                        className="shrink-0 rounded-xl bg-[#07111f] px-5 py-3.5 text-sm font-black text-[#f1cf63] shadow-lg transition hover:bg-[#10213a]"
+                        className="w-full rounded-xl bg-[#07111f] px-5 py-3.5 text-sm font-black text-[#f1cf63] shadow-lg transition hover:bg-[#10213a] sm:w-auto sm:shrink-0"
                       >
                         📷 Scan Business QR →
                       </button>
@@ -2144,7 +2144,7 @@ export default function StudentDashboard() {
                       </div>
                     </>
                   ) : (
-                    <button type="button" onClick={renewMembership} className="shrink-0 rounded-xl bg-[#d4af37] px-4 py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63]">Renew SBC →</button>
+                    <button type="button" onClick={renewMembership} className="w-full rounded-xl bg-[#d4af37] px-4 py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63] sm:w-auto sm:shrink-0">Renew SBC →</button>
                   )}
                 </div>
               </div>
