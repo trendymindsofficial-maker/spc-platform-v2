@@ -123,12 +123,6 @@ export default function Home() {
             <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
           </div>
 
-          <div className="flex justify-end pb-1 pt-1 sm:hidden">
-            <button type="button" onClick={() => go("/admin/login")} className="rounded-xl bg-[#07111f] px-3 py-2 text-[9px] font-black text-white">
-              Admin Login
-            </button>
-          </div>
-
         </div>
       </header>
 
@@ -537,8 +531,8 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* MOBILE APP NAV */}
-      <div className="fixed bottom-3 left-1/2 z-50 w-[calc(100%-18px)] max-w-md -translate-x-1/2 rounded-[1.5rem] border border-white/90 bg-white/96 px-2 py-2 shadow-[0_20px_55px_rgba(7,17,31,.20)] backdrop-blur-xl sm:hidden">
+      {/* MOBILE APP NAV — SAME FLOATING STYLE AS STUDENT DASHBOARD / OFFERS */}
+      <div className="fixed bottom-3 left-1/2 z-50 w-[calc(100%-18px)] max-w-md -translate-x-1/2 rounded-[1.5rem] border border-white/15 bg-[#07111f]/95 px-2 py-2 shadow-[0_20px_55px_rgba(7,17,31,.35)] backdrop-blur-xl sm:hidden">
         <div className="grid grid-cols-4 gap-1">
           {[
             { icon: "⌂", label: "Home", path: "/", active: true },
@@ -550,16 +544,27 @@ export default function Home() {
               key={item.label}
               type="button"
               onClick={() => go(item.path)}
-              className={`flex min-w-0 flex-col items-center justify-center rounded-[1.15rem] px-1 py-2.5 transition active:scale-95 ${
+              className={`relative flex min-w-0 flex-col items-center justify-center rounded-[1.15rem] px-1 py-2.5 transition active:scale-95 ${
                 item.active
-                  ? "bg-[#eaf2ff] text-[#1557d6] shadow-[inset_0_0_0_1px_rgba(21,87,214,.06)]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-[#1557d6]"
+                  ? "border border-[#d4af37]/80 bg-[#07111f] text-[#f4d35e] shadow-[inset_0_0_0_1px_rgba(212,175,55,.20)]"
+                  : "text-white/85 hover:bg-white/[.05] hover:text-white"
               }`}
             >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-base ${item.active ? "bg-[#1557d6] text-white shadow-[0_7px_16px_rgba(21,87,214,.22)]" : "bg-slate-100 text-slate-500"}`}>
+              <span
+                className={`flex h-9 w-9 items-center justify-center rounded-xl text-[20px] leading-none ${
+                  item.active
+                    ? "bg-[#d4af37] text-[#07111f] shadow-[0_7px_16px_rgba(212,175,55,.24)]"
+                    : "bg-white/[.06] text-white"
+                }`}
+              >
                 {item.icon}
               </span>
-              <span className="mt-1 text-[8px] font-black leading-tight sm:text-[9px]">{item.label}</span>
+              <span className="mt-1 text-[8px] font-black leading-tight sm:text-[9px]">
+                {item.label}
+              </span>
+              {item.active && (
+                <span className="absolute bottom-0.5 h-1 w-10 rounded-full bg-[#f4d35e]" />
+              )}
             </button>
           ))}
         </div>
