@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
@@ -79,6 +79,7 @@ export default function StudentDashboard() {
   const [totalPoints, setTotalPoints] = useState(0);
 
   const referralCode = student?.referralCode || "";
+  const scanRedeemRef = useRef<HTMLDivElement | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -2127,9 +2128,21 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                   {membershipIsActive ? (
-                    <div className="shrink-0 [&_button]:!m-0 [&_button]:!rounded-xl [&_button]:!bg-[#07111f] [&_button]:!px-4 [&_button]:!py-3 [&_button]:!text-sm [&_button]:!font-black [&_button]:!text-[#f1cf63] [&_button]:!shadow-none">
-                      <StudentScanRedeem />
-                    </div>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const scanButton = scanRedeemRef.current?.querySelector("button");
+                          if (scanButton) scanButton.click();
+                        }}
+                        className="shrink-0 rounded-xl bg-[#07111f] px-5 py-3.5 text-sm font-black text-[#f1cf63] shadow-lg transition hover:bg-[#10213a]"
+                      >
+                        📷 Scan Business QR →
+                      </button>
+                      <div ref={scanRedeemRef} className="hidden" aria-hidden="true">
+                        <StudentScanRedeem />
+                      </div>
+                    </>
                   ) : (
                     <button type="button" onClick={renewMembership} className="shrink-0 rounded-xl bg-[#d4af37] px-4 py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63]">Renew SBC →</button>
                   )}
