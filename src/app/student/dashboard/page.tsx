@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
@@ -79,7 +80,6 @@ export default function StudentDashboard() {
   const [totalPoints, setTotalPoints] = useState(0);
 
   const referralCode = student?.referralCode || "";
-  const scanRedeemRef = useRef<HTMLDivElement | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -1740,55 +1740,6 @@ export default function StudentDashboard() {
     setShowPayoutModal(true);
   };
 
-  const getReferralLink = () => {
-    if (typeof window === "undefined" || !referralCode) return "";
-    return `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`;
-  };
-
-  const copyReferralLink = async () => {
-    const link = getReferralLink();
-    if (!link) return;
-
-    try {
-      await navigator.clipboard.writeText(link);
-      setPayoutSuccess("Referral link copied successfully.");
-      setPayoutError("");
-    } catch (error) {
-      console.error("Referral link copy failed:", error);
-      setPayoutError("Unable to copy referral link. Please copy it manually.");
-      setPayoutSuccess("");
-    }
-  };
-
-  const shareReferralLink = async () => {
-    const link = getReferralLink();
-    if (!link) return;
-
-    const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Student Benefit Card - SBC",
-          text: "Join Student Benefit Card using my referral link.",
-          url: link,
-        });
-        return;
-      }
-
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    } catch (error) {
-      if ((error as DOMException)?.name === "AbortError") return;
-      console.error("Referral sharing failed:", error);
-      setPayoutError("Unable to share the referral link right now.");
-      setPayoutSuccess("");
-    }
-  };
-
   const submitPayoutRequest = async () => {
     try {
       setPayoutRequesting(true);
@@ -1965,7 +1916,7 @@ export default function StudentDashboard() {
    */
 
   return (
-    <main className="min-h-screen bg-[#f5f3ed] text-slate-900">
+    <main className="min-h-screen bg-[#f5f3ed] pb-28 text-slate-900 md:pb-0">
 
       {showNotificationPrompt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07111f]/70 p-5 backdrop-blur-sm">
@@ -2061,11 +2012,11 @@ export default function StudentDashboard() {
 
             <div>
 
-              <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
+              <p className="text-[15px] font-black uppercase tracking-[0.25em] text-[#FFD700]">
                 Student Benefit Card
               </p>
 
-              <p className="text-xs font-medium text-white/70 sm:text-sm">
+              <p className="text-sm font-medium text-white/70">
                 Premium Student Dashboard
               </p>
 
@@ -2089,510 +2040,488 @@ export default function StudentDashboard() {
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
 
         {/* HERO */}
-        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-6 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-8 lg:p-10">
+
+        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-10 lg:p-12">
+
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
+
           <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="relative grid gap-7 lg:grid-cols-[1.02fr_0.98fr] lg:items-stretch">
-            <div className="flex flex-col justify-center rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-6 sm:p-8">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+          <div className="relative grid gap-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
+
+            <div>
+
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#f1cf63]">
                 ✦ Verified SBC Student
               </div>
-              <p className="mt-7 text-sm font-semibold text-white/45">Welcome back,</p>
-              <h1 className="mt-1 break-words text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                <span className="text-[#f1cf63]">{student.fullName || "Student"}</span>
-                <span className="ml-2">👋</span>
+
+              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Welcome,
+                <span className="block text-[#f1cf63]">
+                  {student.fullName ||
+                    "Student"}
+                </span>
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
+
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
                 Your SBC card unlocks exclusive student benefits, partner offers and reward points.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/80">
-                  Card {student.cardNumber || "—"}
-                </span>
-                <span className={`rounded-full px-4 py-2 text-sm font-black ${membershipIsActive ? "bg-emerald-400/10 text-emerald-300" : membershipIsExpired ? "bg-red-400/10 text-red-300" : "bg-amber-400/10 text-amber-300"}`}>
-                  ● {membershipIsActive ? "MEMBERSHIP ACTIVE" : membershipIsExpired ? "MEMBERSHIP EXPIRED" : "MEMBERSHIP STATUS UNAVAILABLE"}
-                </span>
-              </div>
-            </div>
 
-            {/* DESKTOP QUICK ACTIONS */}
-            <div className="hidden rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5 md:flex md:flex-col md:justify-center">
-              <div className="grid gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const scanButton = scanRedeemRef.current?.querySelector("button");
-                    if (scanButton) scanButton.click();
-                  }}
-                  disabled={!membershipIsActive}
-                  className={`group rounded-2xl border p-5 text-left transition ${
+              <div className="mt-7 flex flex-wrap gap-3">
+
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm text-white/80">
+                  Card{" "}
+                  {student.cardNumber ||
+                    "—"}
+                </span>
+
+                <span
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
                     membershipIsActive
-                      ? "border-[#d4af37]/30 bg-[#d4af37]/10 hover:border-[#d4af37]/60 hover:bg-[#d4af37]/15"
-                      : "cursor-not-allowed border-white/10 bg-white/[0.03] opacity-60"
+                      ? "bg-emerald-400/10 text-emerald-300"
+                      : membershipIsExpired
+                        ? "bg-red-400/10 text-red-300"
+                        : "bg-amber-400/10 text-amber-300"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-                        Scan at Business
-                      </p>
-                      <h2 className="mt-2 text-2xl font-black text-white">
-                        📷 Scan & Redeem
-                      </h2>
-                      <p className="mt-2 text-sm leading-6 text-white/55">
-                        Scan a business QR and redeem an active SBC offer.
-                      </p>
-                    </div>
-                    <span className="rounded-xl bg-[#d4af37] px-4 py-3 text-sm font-black text-[#07111f] transition group-hover:bg-[#f1cf63]">
-                      Scan QR →
-                    </span>
-                  </div>
-                </button>
+                  ●{" "}
+                  {membershipIsActive
+                    ? "MEMBERSHIP ACTIVE"
+                    : membershipIsExpired
+                      ? "MEMBERSHIP EXPIRED"
+                      : "MEMBERSHIP STATUS UNAVAILABLE"}
+                </span>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/student/offers")}
-                    className="rounded-2xl border border-white/10 bg-white/[0.05] p-5 text-left transition hover:border-[#d4af37]/40 hover:bg-[#d4af37]/10"
-                  >
-                    <span className="text-2xl">🎁</span>
-                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-                      SBC Benefits
-                    </p>
-                    <h3 className="mt-1 text-xl font-black text-white">
-                      Explore Offers
-                    </h3>
-                    <p className="mt-1 text-xs leading-5 text-white/50">
-                      Discover exclusive discounts from verified partners.
-                    </p>
-                    <span className="mt-4 inline-flex rounded-lg bg-[#d4af37] px-4 py-2 text-xs font-black text-[#07111f]">
-                      Explore Offers →
-                    </span>
-                  </button>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
-                      Reward Points
-                    </p>
-                    <div className="mt-2 flex items-end gap-2">
-                      <span className="text-4xl font-black text-[#f1cf63]">
-                        {totalPoints.toLocaleString()}
-                      </span>
-                      <span className="pb-1 text-sm font-bold text-white/50">
-                        / 1000
-                      </span>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-[#d4af37] transition-all"
-                        style={{
-                          width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="mt-3 text-xs font-semibold text-white/55">
-                      {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
-                    </p>
-                  </div>
-                </div>
               </div>
+
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
+
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
+                Current Reward Balance
+              </p>
+
+              <div className="mt-3 flex items-end gap-2">
+
+                <span className="text-5xl font-black tracking-tight text-[#f1cf63]">
+                  {totalPoints.toLocaleString()}
+                </span>
+
+                <span className="pb-2 text-sm font-bold text-white/55">
+                  POINTS
+                </span>
+
+              </div>
+
+              <p className="mt-3 text-sm text-white/55">
+                Earn more points every time you redeem at an SBC partner.
+              </p>
+
             </div>
 
           </div>
+
         </section>
 
-        {/* REFERRAL MARKETING */}
+        {/* TOP ACTIONS */}
 
-        <section className="mt-7">
-          <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#101b2b] to-[#17243a] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-9">
-            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
-            <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+        <section id="scan-redeem" className="mt-7 grid gap-7 lg:grid-cols-[1.35fr_0.65fr]">
 
-            <div className="relative grid gap-7 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-                  🎁 SBC Referral Program
+          <div>
+            {membershipIsActive ? (
+              <StudentScanRedeem />
+            ) : (
+              <section className="rounded-[2rem] border border-red-200 bg-red-50 p-7 text-center shadow-[0_20px_60px_rgba(127,29,29,0.08)] sm:p-9">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
+                  🔒
                 </div>
+                <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-red-600">
+                  Redemption Locked
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-red-800">
+                  Renew your SBC membership to redeem offers
+                </h2>
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-red-700/80">
+                  Your membership has expired, so offer redemption is currently disabled.
+                </p>
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              </section>
+            )}
+          </div>
 
-                <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-                  Refer Friends. Grow Your SBC Rewards.
+          <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">
+              🎁
+            </div>
+            <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+              SBC Benefits
+            </p>
+            <h2 className="mt-2 text-2xl font-black">
+              Explore Offers
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Discover active discounts and exclusive benefits from verified SBC Business Partners.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/student/offers")}
+              className="mt-7 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+            >
+              🎁 Explore Offers →
+            </button>
+          </div>
+
+        </section>
+
+        {/* DIGITAL CARD + QR */}
+
+        <section id="your-card" className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
+
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-9">
+
+            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#d4af37]/10 blur-2xl" />
+
+            <div className="relative flex items-start justify-between gap-4">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#d4af37]">
+                  Digital Membership Card
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
+                  Student Benefit Card
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
-                  Share your personal referral link with friends and help more students join the SBC community. Your referral activity and rewards are tracked automatically.
+              </div>
+
+              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">
+                SBC
+              </div>
+
+            </div>
+
+            <div className="relative mt-9 grid gap-6 sm:grid-cols-2">
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Card Holder
+                </p>
+                <p className="mt-1 text-lg font-bold">
+                  {student.fullName ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Card Number
+                </p>
+                <p className="mt-1 text-lg font-bold tracking-wider">
+                  {student.cardNumber ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  College
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white/80">
+                  {student.college ||
+                    "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  Course / Year
+                </p>
+                <p className="mt-1 text-sm font-semibold text-white/80">
+                  {student.course ||
+                    "—"}{" "}
+                  {student.year
+                    ? `• ${student.year}`
+                    : ""}
+                </p>
+              </div>
+
+            </div>
+
+            <div className="relative mt-10 flex items-center justify-between border-t border-white/10 pt-5">
+
+              <span className="text-xs text-white/40">
+                Verified Student Membership
+              </span>
+
+              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#f1cf63]">
+                SBC • 2026
+              </span>
+
+            </div>
+
+          </div>
+
+          <div className="rounded-[2rem] border border-black/5 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
+                  Scan & Redeem
                 </p>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
-                      Your Code
-                    </p>
-                    <p className="mt-2 break-all text-lg font-black tracking-wider text-[#f1cf63]">
-                      {referralCode || "—"}
-                    </p>
+                <h2 className="mt-1 text-2xl font-black text-[#07111f]">
+                  My QR Code
+                </h2>
+
+              </div>
+
+              <div
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                  membershipIsActive
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {membershipIsActive ? "Active" : "Expired"}
+              </div>
+
+            </div>
+
+            {membershipIsActive ? (
+              <>
+                <div className="mt-7 flex justify-center">
+
+                  <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
+
+                    <QRCode
+                      value={
+                        qrValue
+                      }
+                      size={
+                        205
+                      }
+                    />
+
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
-                      Successful
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-white">
-                      {payoutWallet.successfulReferrals.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
-                      Available Reward
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-[#f1cf63]">
-                      ₹{payoutWallet.available.toLocaleString()}
-                    </p>
-                  </div>
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={shareReferralLink}
-                    disabled={!referralCode}
-                    className="rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    📲 Share Referral Link
-                  </button>
+                <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
+                  {student.cardNumber ||
+                    "—"}
+                </p>
 
-                  <button
-                    type="button"
-                    onClick={copyReferralLink}
-                    disabled={!referralCode}
-                    className="rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-black text-white transition hover:border-[#d4af37]/50 hover:bg-[#d4af37]/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    🔗 Copy Link
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={openPayoutModal}
-                    disabled={payoutWallet.available < 250 || payoutLoading}
-                    className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-6 py-3.5 text-sm font-black text-[#f1cf63] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    💰 Request Payout
-                  </button>
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  Show this QR to an SBC Business Partner to redeem an offer.
+                </p>
+              </>
+            ) : (
+              <div className="mt-7 rounded-[1.5rem] border border-red-200 bg-red-50 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl">
+                  🔒
                 </div>
 
-                {(payoutSuccess || payoutError) && (
-                  <div
-                    className={`mt-4 rounded-xl border p-3 text-sm font-semibold ${
-                      payoutError
-                        ? "border-red-300/20 bg-red-500/10 text-red-200"
-                        : "border-emerald-300/20 bg-emerald-500/10 text-emerald-200"
+                <p className="mt-4 text-base font-black text-red-700">
+                  Membership Expired
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-red-700/80">
+                  Your SBC benefits and redemption access are unavailable until
+                  your membership is renewed.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 rounded-xl bg-[#d4af37] px-5 py-3 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              </div>
+            )}
+
+          </div>
+
+        </section>
+
+        {/* MEMBERSHIP STATUS */}
+
+        <section className="mt-7">
+
+          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
+              Account
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black text-[#07111f]">
+              Membership Status
+            </h2>
+
+            <div
+              className={`mt-6 rounded-2xl border p-5 ${
+                membershipIsActive
+                  ? "border-emerald-100 bg-emerald-50"
+                  : membershipIsExpired
+                    ? "border-red-200 bg-red-50"
+                    : "border-amber-200 bg-amber-50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Membership Status
+                  </p>
+
+                  <p
+                    className={`mt-1 text-2xl font-black ${
+                      membershipIsActive
+                        ? "text-emerald-700"
+                        : membershipIsExpired
+                          ? "text-red-700"
+                          : "text-amber-700"
                     }`}
                   >
-                    {payoutError || payoutSuccess}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-                  Referral Wallet
-                </p>
-
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
-                    <span className="text-sm text-white/55">Total earned</span>
-                    <span className="font-black">₹{payoutWallet.totalEarned.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
-                    <span className="text-sm text-white/55">Paid</span>
-                    <span className="font-black">₹{payoutWallet.paidAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
-                    <span className="text-sm text-white/55">Pending payout</span>
-                    <span className="font-black">₹{payoutWallet.pendingPayout.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/10 px-4 py-3">
-                    <span className="text-sm font-bold text-[#f1cf63]">Available</span>
-                    <span className="text-lg font-black text-[#f1cf63]">₹{payoutWallet.available.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-xs leading-5 text-white/40">
-                  Minimum payout request: ₹250. Referral wallet is verified from the SBC server before payout requests are submitted.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* PAYOUT MODAL */}
-        {showPayoutModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#07111f]/75 p-5 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-[2rem] bg-white p-7 shadow-[0_30px_100px_rgba(7,17,31,0.35)] sm:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">Referral Wallet</p>
-                  <h2 className="mt-2 text-2xl font-black text-[#07111f]">Request Payout</h2>
-                  <p className="mt-2 text-sm text-slate-500">Available: ₹{payoutWallet.available.toLocaleString()}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPayoutModal(false)}
-                  className="rounded-full bg-slate-100 px-3 py-2 text-slate-600"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="mt-6">
-                <label className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">Amount</label>
-                <input
-                  value={payoutAmount}
-                  onChange={(e) => setPayoutAmount(e.target.value)}
-                  inputMode="numeric"
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-bold outline-none focus:border-[#d4af37]"
-                  placeholder="250"
-                />
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPayoutMethod("upi")}
-                  className={`rounded-xl border px-4 py-3 text-sm font-black ${
-                    payoutMethod === "upi"
-                      ? "border-[#d4af37] bg-[#d4af37]/10 text-[#8a680c]"
-                      : "border-slate-200 text-slate-500"
-                  }`}
-                >
-                  UPI
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPayoutMethod("bank")}
-                  className={`rounded-xl border px-4 py-3 text-sm font-black ${
-                    payoutMethod === "bank"
-                      ? "border-[#d4af37] bg-[#d4af37]/10 text-[#8a680c]"
-                      : "border-slate-200 text-slate-500"
-                  }`}
-                >
-                  Bank
-                </button>
-              </div>
-
-              {payoutMethod === "upi" ? (
-                <div className="mt-5">
-                  <label className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">UPI ID</label>
-                  <input
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
-                    placeholder="name@upi"
-                  />
-                </div>
-              ) : (
-                <div className="mt-5 space-y-3">
-                  <input
-                    value={accountHolderName}
-                    onChange={(e) => setAccountHolderName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
-                    placeholder="Account holder name"
-                  />
-                  <input
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold outline-none focus:border-[#d4af37]"
-                    placeholder="Account number"
-                  />
-                  <input
-                    value={ifsc}
-                    onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3.5 font-semibold uppercase outline-none focus:border-[#d4af37]"
-                    placeholder="IFSC code"
-                  />
-                </div>
-              )}
-
-              {payoutError && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
-                  {payoutError}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={submitPayoutRequest}
-                disabled={payoutRequesting || payoutWallet.available < 250}
-                className="mt-6 w-full rounded-xl bg-[#07111f] px-5 py-4 text-sm font-black text-white transition hover:bg-[#122039] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {payoutRequesting ? "Submitting..." : "Submit Payout Request"}
-              </button>
-            </div>
-          </div>
-        )}
-
-                {/* DIGITAL CARD + MEMBERSHIP */}
-        <section id="your-card" className="mt-7 grid gap-7 lg:grid-cols-2">
-          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-8">
-            <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d4af37]/10 blur-3xl" />
-            <div className="relative flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Card</p>
-                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Card</h2>
-              </div>
-              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">SBC</div>
-            </div>
-            <div className="relative mt-7 rounded-[1.6rem] border border-[#d4af37]/25 bg-black/20 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Card</p>
-                  <p className="mt-2 text-xl font-black text-[#f1cf63]">More Benefits. More Savings.</p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">SBC</div>
-              </div>
-              <div className="mt-8 grid gap-5 sm:grid-cols-[1fr_auto] sm:items-end">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Holder</p>
-                  <p className="mt-1 text-xl font-black">{student.fullName || "—"}</p>
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Number</p>
-                  <p className="mt-1 text-sm font-black tracking-wider text-white/80">{student.cardNumber || "—"}</p>
-                </div>
-                <div className="flex w-full justify-center sm:w-auto sm:justify-end">
-                  <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-xl">
-                    <QRCode value={qrValue} size={130} />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-                <span className="text-xs text-white/40">Verified Student Membership</span>
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#f1cf63]">SBC • 2026</span>
-              </div>
-            </div>
-            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC card or QR when visiting an SBC Business Partner.</p>
-          </div>
-
-          <div className="rounded-[2rem] bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">Account</p>
-                <h2 className="mt-2 text-2xl font-black text-[#07111f] sm:text-3xl">Membership Status</h2>
-              </div>
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${membershipIsActive ? "bg-emerald-50 text-emerald-600" : membershipIsExpired ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
-                {membershipIsActive ? "✓" : membershipIsExpired ? "!" : "•"}
-              </div>
-            </div>
-            <div className={`mt-7 rounded-[1.5rem] border p-6 ${membershipIsActive ? "border-emerald-100 bg-emerald-50" : membershipIsExpired ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Current Status</p>
-                  <p className={`mt-1 text-3xl font-black ${membershipIsActive ? "text-emerald-700" : membershipIsExpired ? "text-red-700" : "text-amber-700"}`}>
-                    {membershipIsActive ? "ACTIVE" : membershipIsExpired ? "EXPIRED" : "NOT AVAILABLE"}
+                    {membershipIsActive
+                      ? "ACTIVE"
+                      : membershipIsExpired
+                        ? "EXPIRED"
+                        : "NOT AVAILABLE"}
                   </p>
                 </div>
-                <span className={`rounded-full px-3 py-2 text-xs font-black ${membershipIsActive ? "bg-emerald-100 text-emerald-700" : membershipIsExpired ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                  {membershipIsActive ? "✓ Valid" : membershipIsExpired ? "Renew Required" : "Check Account"}
-                </span>
+
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                    membershipIsActive
+                      ? "bg-emerald-100 text-emerald-700"
+                      : membershipIsExpired
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {membershipIsActive ? "✓" : "!"}
+                </div>
               </div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Started</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipStart)}</p></div>
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Valid Until</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipExpiry)}</p></div>
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Plan</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.membershipPlan || "Student Plan"}</p></div>
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Card Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Started
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipStart)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white/70 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    Valid Until
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#07111f]">
+                    {formatMembershipDate(membershipExpiry)}
+                  </p>
+                </div>
               </div>
-              {membershipIsActive ? (
-                <div className="mt-5 rounded-xl border border-emerald-200 bg-white/70 p-4 text-sm font-semibold text-emerald-800">✓ You are all set. Enjoy exclusive SBC student benefits.</div>
-              ) : membershipIsExpired ? (
-                <button type="button" onClick={renewMembership} className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]">Renew SBC Membership →</button>
-              ) : (
-                <p className="mt-5 rounded-xl border border-amber-200 bg-white/70 p-4 text-xs leading-5 text-amber-700">Membership dates are not available for this account yet. Please refresh after your membership payment is completed.</p>
+
+              {membershipIsExpired && (
+                <button
+                  type="button"
+                  onClick={renewMembership}
+                  className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
+                >
+                  Renew SBC →
+                </button>
+              )}
+
+              {!membershipDateIsValid && (
+                <p className="mt-4 text-xs leading-5 text-amber-700">
+                  Membership dates are not available for this account yet.
+                  Please refresh the dashboard after your membership payment is
+                  completed.
+                </p>
               )}
             </div>
+
           </div>
+
         </section>
 
-        {/* MOBILE BOTTOM NAV */}
-        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden">
-          <div className="mx-auto max-w-lg rounded-[1.5rem] border border-white/10 bg-[#07111f]/95 p-1.5 shadow-[0_-10px_40px_rgba(7,17,31,0.45)] backdrop-blur-2xl">
+        {/* MOBILE BOTTOM NAVIGATION — UI ONLY */}
+        <nav
+          className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden"
+          aria-label="Student navigation"
+        >
+          <div className="mx-auto max-w-lg rounded-[1.65rem] border border-[#d4af37]/35 bg-[#07111f]/95 p-1.5 shadow-[0_-12px_45px_rgba(7,17,31,0.35)] backdrop-blur-2xl">
             <div className="grid grid-cols-4 gap-1.5">
 
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-[#d4af37]/45 bg-[#d4af37]/12 px-1 py-2 text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition active:scale-[0.97]"
+                className="flex min-h-[72px] flex-col items-center justify-center rounded-[1.35rem] border border-[#d4af37]/55 bg-[#d4af37]/10 px-2 py-2 text-[#f1cf63] transition active:scale-95"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-lg font-black text-[#07111f]">
-                  ⌂
-                </span>
-                <span className="text-[10px] font-black">Home</span>
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                  <path d="m3 10 9-7 9 7" />
+                  <path d="M5 9.5V21h14V9.5" />
+                  <path d="M9 21v-7h6v7" />
+                </svg>
+                <span className="mt-1 text-[11px] font-black">Home</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => router.push("/student/offers")}
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
+                className="flex min-h-[72px] flex-col items-center justify-center rounded-[1.35rem] border border-white/10 bg-white/[0.025] px-2 py-2 text-white/65 transition hover:border-white/20 hover:text-white active:scale-95"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-base">
-                  🏷️
-                </span>
-                <span className="text-[10px] font-bold">Offers</span>
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="m20.6 13.2-7.4 7.4a2 2 0 0 1-2.8 0L3.4 13.6a2 2 0 0 1 0-2.8l7.4-7.4A2 2 0 0 1 12.2 3H19a2 2 0 0 1 2 2v6.8a2 2 0 0 1-.4 1.4Z" />
+                  <circle cx="16.5" cy="7.5" r="1.3" />
+                </svg>
+                <span className="mt-1 text-[11px] font-bold">Offers</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  const scanButton = scanRedeemRef.current?.querySelector("button");
-                  if (scanButton) scanButton.click();
-                }}
-                disabled={!membershipIsActive}
-                className={`relative flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border px-1 py-2 transition active:scale-[0.97] ${
-                  membershipIsActive
-                    ? "border-[#d4af37] bg-gradient-to-b from-[#d4af37]/25 to-[#d4af37]/10 text-[#f1cf63] shadow-[0_0_22px_rgba(212,175,55,0.16),inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    : "cursor-not-allowed border-white/10 bg-white/[0.025] text-white/30"
-                }`}
+                onClick={() => document.getElementById("scan-redeem")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="relative -translate-y-3 flex min-h-[82px] flex-col items-center justify-center rounded-[1.45rem] border border-[#f1cf63] bg-gradient-to-b from-[#d4af37] to-[#b18a16] px-2 py-2 text-[#07111f] shadow-[0_8px_25px_rgba(212,175,55,0.35)] transition active:scale-95"
               >
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg font-black ${
-                    membershipIsActive
-                      ? "bg-[#d4af37] text-[#07111f]"
-                      : "bg-slate-700 text-white/40"
-                  }`}
-                >
-                  ⌗
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#07111f]/10">
+                  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z" />
+                  </svg>
                 </span>
-                <span className="text-[10px] font-black">Scan & Redeem</span>
+                <span className="mt-1 text-[10px] font-black leading-tight">Scan &amp; Redeem</span>
               </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  document
-                    .getElementById("your-card")
-                    ?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    })
-                }
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97]"
+                onClick={() => document.getElementById("your-card")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="flex min-h-[72px] flex-col items-center justify-center rounded-[1.35rem] border border-white/10 bg-white/[0.025] px-2 py-2 text-white/65 transition hover:border-white/20 hover:text-white active:scale-95"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-base">
-                  💳
-                </span>
-                <span className="text-[10px] font-bold">Your Card</span>
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                  <path d="M3 9h18M7 14h3" />
+                </svg>
+                <span className="mt-1 text-[11px] font-bold">Your Card</span>
               </button>
 
             </div>
           </div>
         </nav>
 
-        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
-        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
-          <StudentScanRedeem />
-        </div>
-
         {/* FOOTER */}
 
-        <footer className="mt-10 pb-24 md:pb-7 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <footer className="mt-10 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
 
