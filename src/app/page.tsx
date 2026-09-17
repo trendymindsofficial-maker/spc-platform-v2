@@ -117,9 +117,16 @@ export default function Home() {
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
               <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your SBC Card</button>
+              <button type="button" onClick={() => go("/admin/login")} className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-5 sm:py-3 sm:text-xs">Admin Login</button>
             </div>
 
             <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
+          </div>
+
+          <div className="flex justify-end pb-1 pt-1 sm:hidden">
+            <button type="button" onClick={() => go("/admin/login")} className="rounded-xl bg-[#07111f] px-3 py-2 text-[9px] font-black text-white">
+              Admin Login
+            </button>
           </div>
 
         </div>
