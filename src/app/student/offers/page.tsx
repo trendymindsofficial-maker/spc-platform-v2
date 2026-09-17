@@ -26,6 +26,8 @@ interface Offer {
   description?: string;
   category?: string;
   image?: string;
+  desktopImage?: string;
+  mobileImage?: string;
 
   businessId?: string;
   businessName?: string;
@@ -471,6 +473,16 @@ export default function StudentOffers() {
                 "Other",
 
               image:
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+              desktopImage:
+                offerData.desktopImage ||
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+              mobileImage:
+                offerData.mobileImage ||
                 offerData.image ||
                 offerData.imageUrl ||
                 "",
@@ -1720,6 +1732,27 @@ export default function StudentOffers() {
 
   /*
    * ==========================================
+   * RESPONSIVE OFFER IMAGE
+   * ==========================================
+   *
+   * Desktop uses desktopImage.
+   * Mobile uses mobileImage.
+   * Old offers fall back to image.
+   */
+
+  const getOfferDesktopImage = (offer: Offer) =>
+    offer.desktopImage ||
+    offer.image ||
+    "";
+
+  const getOfferMobileImage = (offer: Offer) =>
+    offer.mobileImage ||
+    offer.desktopImage ||
+    offer.image ||
+    "";
+
+  /*
+   * ==========================================
    * PAGE
    * ==========================================
    */
@@ -1832,13 +1865,19 @@ export default function StudentOffers() {
                   <div className="grid min-h-[150px] grid-cols-[42%_58%] sm:grid-cols-[34%_66%] lg:grid-cols-[38%_62%]">
                     {/* OFFER IMAGE */}
                     <div className="relative min-h-[150px] overflow-hidden bg-slate-100">
-                      {offer.image ? (
-                        <img
-                          src={offer.image}
-                          alt={offer.title || "SBC Offer"}
-                          loading="lazy"
-                          className="h-full w-full object-contain transition duration-500"
-                        />
+                      {(getOfferDesktopImage(offer) || getOfferMobileImage(offer)) ? (
+                        <picture>
+                          <source
+                            media="(max-width: 639px)"
+                            srcSet={getOfferMobileImage(offer)}
+                          />
+                          <img
+                            src={getOfferDesktopImage(offer)}
+                            alt={offer.title || "SBC Offer"}
+                            loading="lazy"
+                            className="h-full w-full object-contain transition duration-500"
+                          />
+                        </picture>
                       ) : (
                         <div className="flex h-full min-h-[150px] items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-5xl">
                           🎁
@@ -1976,13 +2015,19 @@ export default function StudentOffers() {
 
             <div className="relative h-56 overflow-hidden bg-[#07111f] sm:h-64">
 
-              {detailsOffer.image ? (
+              {(getOfferDesktopImage(detailsOffer) || getOfferMobileImage(detailsOffer)) ? (
 
-                <img
-                  src={detailsOffer.image}
-                  alt={detailsOffer.title || "Offer"}
-                  className="h-full w-full object-contain"
-                />
+                <picture>
+                  <source
+                    media="(max-width: 639px)"
+                    srcSet={getOfferMobileImage(detailsOffer)}
+                  />
+                  <img
+                    src={getOfferDesktopImage(detailsOffer)}
+                    alt={detailsOffer.title || "Offer"}
+                    className="h-full w-full object-contain"
+                  />
+                </picture>
 
               ) : (
 
