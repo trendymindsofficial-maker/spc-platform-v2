@@ -2088,7 +2088,7 @@ export default function StudentDashboard() {
 
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
 
-        {/* HERO + QUICK ACTIONS */}
+        {/* HERO */}
         <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-6 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-8 lg:p-10">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
           <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
@@ -2116,68 +2116,6 @@ export default function StudentDashboard() {
               </div>
             </div>
 
-            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-4 sm:p-5">
-              <div className="rounded-[1.4rem] border border-[#d4af37]/25 bg-[#fbfaf6] p-4 text-[#07111f] shadow-lg">
-                <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">📷</div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b18a16]">Scan at Business</p>
-                      <h2 className="mt-1 text-xl font-black sm:text-2xl">Scan &amp; Redeem</h2>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">Scan a business QR and redeem an active SBC offer.</p>
-                    </div>
-                  </div>
-                  {membershipIsActive ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const scanButton = scanRedeemRef.current?.querySelector("button");
-                          if (scanButton) scanButton.click();
-                        }}
-                        className="w-full rounded-xl bg-[#07111f] px-5 py-3.5 text-sm font-black text-[#f1cf63] shadow-lg transition hover:bg-[#10213a] sm:w-auto sm:shrink-0"
-                      >
-                        📷 Scan Business QR →
-                      </button>
-                      <div ref={scanRedeemRef} className="hidden" aria-hidden="true">
-                        <StudentScanRedeem />
-                      </div>
-                    </>
-                  ) : (
-                    <button type="button" onClick={renewMembership} className="w-full rounded-xl bg-[#d4af37] px-4 py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63] sm:w-auto sm:shrink-0">Renew SBC →</button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <button type="button" onClick={() => router.push("/student/offers")} className="group rounded-[1.4rem] border border-white/10 bg-[#0c1a2d] p-5 text-left text-white transition hover:-translate-y-0.5 hover:border-[#d4af37]/40 hover:bg-[#10213a]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">🎁</div>
-                    <span className="text-white/30 transition group-hover:text-[#f1cf63]">→</span>
-                  </div>
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">SBC Benefits</p>
-                  <h3 className="mt-1 text-xl font-black">Explore Offers</h3>
-                  <p className="mt-1 text-xs leading-5 text-white/50">Discover discounts from verified SBC Business Partners.</p>
-                </button>
-
-                <div className="rounded-[1.4rem] border border-white/10 bg-[#0c1a2d] p-5 text-white">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">🪙</div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">Reward Points</span>
-                  </div>
-                  <div className="mt-4 flex items-end gap-2">
-                    <span className="text-3xl font-black text-[#f1cf63]">{totalPoints.toLocaleString()}</span>
-                    <span className="pb-1 text-sm font-black text-white/50">/ 1000</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63]" style={{ width: `${Math.min(100, (totalPoints / 1000) * 100)}%` }} />
-                  </div>
-                  <p className="mt-3 text-xs font-semibold text-white/55">
-                    {totalPoints >= 1000 ? "🎁 Surprise Gift Unlocked!" : `${Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁`}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -2412,7 +2350,7 @@ export default function StudentDashboard() {
         )}
 
                 {/* DIGITAL CARD + MEMBERSHIP */}
-        <section className="mt-7 grid gap-7 lg:grid-cols-2">
+        <section id="your-card" className="mt-7 grid gap-7 lg:grid-cols-2">
           <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-8">
             <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="relative flex items-start justify-between gap-4">
@@ -2488,9 +2426,61 @@ export default function StudentDashboard() {
           </div>
         </section>
 
+        {/* MOBILE BOTTOM NAV */}
+        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#07111f]/95 px-2 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2 text-white shadow-[0_-15px_40px_rgba(7,17,31,0.25)] backdrop-blur-xl md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-[#f1cf63]"
+            >
+              <span className="text-xl leading-none">⌂</span>
+              <span>Home</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/student/offers")}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63]"
+            >
+              <span className="text-xl leading-none">🏷️</span>
+              <span>Offers</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const scanButton = scanRedeemRef.current?.querySelector("button");
+                if (scanButton) scanButton.click();
+              }}
+              disabled={!membershipIsActive}
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black transition ${
+                membershipIsActive ? "text-white/70 hover:text-[#f1cf63]" : "cursor-not-allowed text-white/30"
+              }`}
+            >
+              <span className="text-xl leading-none">📷</span>
+              <span>Scan to Redeem</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => document.getElementById("your-card")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black text-white/70 transition hover:text-[#f1cf63]"
+            >
+              <span className="text-xl leading-none">💳</span>
+              <span>Your Card</span>
+            </button>
+          </div>
+        </nav>
+
+        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
+        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
+          <StudentScanRedeem />
+        </div>
+
         {/* FOOTER */}
 
-        <footer className="mt-10 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <footer className="mt-10 pb-24 md:pb-7 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
 
