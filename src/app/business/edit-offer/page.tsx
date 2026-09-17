@@ -46,13 +46,22 @@ export default function EditOffer({
   const [description, setDescription] =
     useState("");
 
-  const [oldImage, setOldImage] =
+  const [oldDesktopImage, setOldDesktopImage] =
     useState("");
 
-  const [preview, setPreview] =
+  const [oldMobileImage, setOldMobileImage] =
     useState("");
 
-  const [imageFile, setImageFile] =
+  const [desktopPreview, setDesktopPreview] =
+    useState("");
+
+  const [mobilePreview, setMobilePreview] =
+    useState("");
+
+  const [desktopImageFile, setDesktopImageFile] =
+    useState<File | null>(null);
+
+  const [mobileImageFile, setMobileImageFile] =
     useState<File | null>(null);
 
   /*
@@ -155,13 +164,16 @@ export default function EditOffer({
         data.description || ""
       );
 
-      setOldImage(
-        data.image || ""
-      );
+      const desktopImage =
+        data.desktopImage || data.image || "";
 
-      setPreview(
-        data.image || ""
-      );
+      const mobileImage =
+        data.mobileImage || data.image || "";
+
+      setOldDesktopImage(desktopImage);
+      setOldMobileImage(mobileImage);
+      setDesktopPreview(desktopImage);
+      setMobilePreview(mobileImage);
 
     } catch (error) {
       console.error(
@@ -188,30 +200,27 @@ export default function EditOffer({
    */
 
   const handleImageChange = (
+    type: "desktop" | "mobile",
     file: File | null
   ) => {
     if (!file) {
       return;
     }
 
-    if (
-      !file.type.startsWith(
-        "image/"
-      )
-    ) {
-      alert(
-        "❌ Please select a valid image."
-      );
-
+    if (!file.type.startsWith("image/")) {
+      alert("❌ Please select a valid image.");
       return;
     }
 
-    setImageFile(file);
+    const url = URL.createObjectURL(file);
 
-    const url =
-      URL.createObjectURL(file);
-
-    setPreview(url);
+    if (type === "desktop") {
+      setDesktopImageFile(file);
+      setDesktopPreview(url);
+    } else {
+      setMobileImageFile(file);
+      setMobilePreview(url);
+    }
   };
 
   /*
@@ -257,11 +266,11 @@ export default function EditOffer({
        */
 
       if (
-        !oldImage &&
-        !imageFile
+        (!oldDesktopImage && !desktopImageFile) ||
+        (!oldMobileImage && !mobileImageFile)
       ) {
         alert(
-          "❌ Please upload an offer image."
+          "❌ Please upload both Desktop and Mobile offer images."
         );
 
         return;
@@ -316,61 +325,41 @@ export default function EditOffer({
          * =====================================
          */
 
-        let image =
-          oldImage;
+        const uploadImage = async (file: File) => {
+          const formData = new FormData();
 
-        if (imageFile) {
-          const formData =
-            new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", "spc_offers");
+          formData.append("public_id", uuid());
 
-          formData.append(
-            "file",
-            imageFile
+          const upload = await fetch(
+            "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
+            {
+              method: "POST",
+              body: formData,
+            }
           );
-
-          /*
-           * Existing Cloudinary preset.
-           */
-
-          formData.append(
-            "upload_preset",
-            "spc_offers"
-          );
-
-          formData.append(
-            "public_id",
-            uuid()
-          );
-
-          const upload =
-            await fetch(
-              "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
 
           if (!upload.ok) {
-            throw new Error(
-              "Cloudinary upload failed."
-            );
+            throw new Error("Cloudinary upload failed.");
           }
 
-          const uploaded =
-            await upload.json();
+          const uploaded = await upload.json();
 
-          if (
-            !uploaded.secure_url
-          ) {
-            throw new Error(
-              "Image upload failed."
-            );
+          if (!uploaded.secure_url) {
+            throw new Error("Image upload failed.");
           }
 
-          image =
-            uploaded.secure_url;
-        }
+          return uploaded.secure_url as string;
+        };
+
+        const desktopImage = desktopImageFile
+          ? await uploadImage(desktopImageFile)
+          : oldDesktopImage;
+
+        const mobileImage = mobileImageFile
+          ? await uploadImage(mobileImageFile)
+          : oldMobileImage;
 
         /*
          * =====================================
@@ -395,7 +384,10 @@ export default function EditOffer({
             description:
               description.trim(),
 
-            image,
+            // Keep legacy "image" as desktop image for backward compatibility.
+            image: desktopImage,
+            desktopImage,
+            mobileImage,
           }
         );
 
@@ -515,78 +507,106 @@ export default function EditOffer({
             <div className="space-y-7 p-6 sm:p-8">
 
               {/* =================================
-                  OFFER IMAGE
+                  DESKTOP + MOBILE OFFER IMAGES
               ================================= */}
 
-              <div>
+              <div className="space-y-5">
 
-                <div className="mb-3 flex items-end justify-between gap-3">
-
-                  <div>
-
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
-                      Offer Image
-                    </label>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Upload the main image containing your offer details.
-                    </p>
-
+                <div>
+                  <div className="mb-3 flex items-end justify-between gap-3">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+                        Desktop Offer Image
+                      </label>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Recommended <b>1920 × 675</b> · wide desktop banner
+                      </p>
+                    </div>
                   </div>
 
-                  <span className="hidden rounded-full bg-[#fff8df] px-3 py-1 text-[10px] font-black text-[#8a680c] sm:block">
-                    Recommended 1200 × 800
-                  </span>
-
-                </div>
-
-                <label className="group block cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#d4af37]/40 bg-[#fbfaf6] transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
-
-                  {preview ? (
-
-                    <img
-                      src={preview}
-                      alt="Offer Preview"
-                      className="h-72 w-full object-contain sm:h-96"
-                    />
-
-                  ) : (
-
-                    <div className="flex h-72 flex-col items-center justify-center text-center sm:h-96">
-
-                      <div className="text-5xl">
-                        🖼️
-                      </div>
-
-                      <p className="mt-4 text-base font-black text-[#07111f]">
-                        Upload Offer Image
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        JPG, PNG or WEBP
-                      </p>
-
+                  <label className="group block cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#d4af37]/40 bg-[#fbfaf6] transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
+                    <div className="p-3">
+                      {desktopPreview ? (
+                        <img
+                          src={desktopPreview}
+                          alt="Desktop Offer Preview"
+                          className="aspect-[1920/675] w-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex h-40 flex-col items-center justify-center text-center">
+                          <div className="text-4xl">🖥️</div>
+                          <p className="mt-3 text-sm font-black text-[#07111f]">
+                            Upload Desktop Image
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                  )}
+                    <div className="border-t border-black/5 bg-white px-5 py-3 text-center text-sm font-black text-[#8a680c]">
+                      📷 Change Desktop Image
+                    </div>
 
-                  <div className="border-t border-black/5 bg-white px-5 py-3 text-center text-sm font-black text-[#8a680c]">
-                    📷 Change Offer Image
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleImageChange(
+                          "desktop",
+                          e.target.files?.[0] || null
+                        )
+                      }
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
+
+                <div>
+                  <div className="mb-3">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Mobile Offer Image
+                    </label>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Recommended <b>675 × 950</b> · mobile portrait banner
+                    </p>
                   </div>
 
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) =>
-                      handleImageChange(
-                        e.target.files?.[0] ||
-                          null
-                      )
-                    }
-                  />
+                  <label className="group block cursor-pointer overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#d4af37]/40 bg-[#fbfaf6] transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
+                    <div className="flex min-h-52 justify-center p-3">
+                      {mobilePreview ? (
+                        <img
+                          src={mobilePreview}
+                          alt="Mobile Offer Preview"
+                          className="max-h-[520px] w-auto max-w-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex h-40 flex-col items-center justify-center text-center">
+                          <div className="text-4xl">📱</div>
+                          <p className="mt-3 text-sm font-black text-[#07111f]">
+                            Upload Mobile Image
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                </label>
+                    <div className="border-t border-black/5 bg-white px-5 py-3 text-center text-sm font-black text-[#8a680c]">
+                      📷 Change Mobile Image
+                    </div>
+
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleImageChange(
+                          "mobile",
+                          e.target.files?.[0] || null
+                        )
+                      }
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
 
               </div>
 

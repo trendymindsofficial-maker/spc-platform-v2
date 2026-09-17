@@ -24,6 +24,8 @@ interface ExistingOffer {
   id: string;
   category: string;
   image: string;
+  desktopImage?: string;
+  mobileImage?: string;
   description: string;
 }
 
@@ -34,10 +36,14 @@ export default function AddOffer() {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
 
-  const [imageFile, setImageFile] =
+  const [desktopImageFile, setDesktopImageFile] =
     useState<File | null>(null);
 
-  const [preview, setPreview] = useState("");
+  const [mobileImageFile, setMobileImageFile] =
+    useState<File | null>(null);
+
+  const [desktopPreview, setDesktopPreview] = useState("");
+  const [mobilePreview, setMobilePreview] = useState("");
 
   const [categories, setCategories] =
     useState<string[]>([]);
@@ -115,6 +121,8 @@ export default function AddOffer() {
           id: offerDoc.id,
           category: data.category || "",
           image: data.image || "",
+          desktopImage: data.desktopImage || data.image || "",
+          mobileImage: data.mobileImage || data.image || "",
           description:
             data.description || "",
         });
@@ -181,6 +189,7 @@ export default function AddOffer() {
    */
 
   const handleImageChange = (
+    type: "desktop" | "mobile",
     file: File | null
   ) => {
     if (!file) {
@@ -192,12 +201,15 @@ export default function AddOffer() {
       return;
     }
 
-    setImageFile(file);
+    const url = URL.createObjectURL(file);
 
-    const url =
-      URL.createObjectURL(file);
-
-    setPreview(url);
+    if (type === "desktop") {
+      setDesktopImageFile(file);
+      setDesktopPreview(url);
+    } else {
+      setMobileImageFile(file);
+      setMobilePreview(url);
+    }
   };
 
   /*
@@ -231,9 +243,9 @@ export default function AddOffer() {
       return;
     }
 
-    if (!imageFile) {
+    if (!desktopImageFile || !mobileImageFile) {
       alert(
-        "Please select an offer image."
+        "Please select both Desktop and Mobile offer images."
       );
       return;
     }
@@ -343,26 +355,14 @@ export default function AddOffer() {
        * ======================================================
        */
 
-      const formData =
-        new FormData();
+      const uploadImage = async (file: File) => {
+        const formData = new FormData();
 
-      formData.append(
-        "file",
-        imageFile
-      );
+        formData.append("file", file);
+        formData.append("upload_preset", "spc_offers");
+        formData.append("public_id", uuid());
 
-      formData.append(
-        "upload_preset",
-        "spc_offers"
-      );
-
-      formData.append(
-        "public_id",
-        uuid()
-      );
-
-      const upload =
-        await fetch(
+        const upload = await fetch(
           "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
           {
             method: "POST",
@@ -370,20 +370,23 @@ export default function AddOffer() {
           }
         );
 
-      if (!upload.ok) {
-        throw new Error(
-          "Cloudinary upload failed."
-        );
-      }
+        if (!upload.ok) {
+          throw new Error("Cloudinary upload failed.");
+        }
 
-      const uploaded =
-        await upload.json();
+        const uploaded = await upload.json();
 
-      if (!uploaded.secure_url) {
-        throw new Error(
-          "Image upload failed."
-        );
-      }
+        if (!uploaded.secure_url) {
+          throw new Error("Image upload failed.");
+        }
+
+        return uploaded.secure_url as string;
+      };
+
+      const [desktopImage, mobileImage] = await Promise.all([
+        uploadImage(desktopImageFile),
+        uploadImage(mobileImageFile),
+      ]);
 
       /*
        * ======================================================
@@ -406,8 +409,10 @@ export default function AddOffer() {
 
           description: description.trim(),
 
-          image:
-            uploaded.secure_url,
+          // Keep legacy "image" as desktop image for backward compatibility.
+          image: desktopImage,
+          desktopImage,
+          mobileImage,
 
           businessId:
             user.uid,
@@ -693,63 +698,77 @@ export default function AddOffer() {
 
               </div>
 
-              {/* OFFER IMAGE */}
+              {/* DESKTOP + MOBILE OFFER IMAGES */}
 
-              <div>
+              <div className="space-y-4">
 
-                <label className="mb-2 block text-sm font-black text-slate-800">
-                  Offer Image
-                </label>
-
-                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-[#fafbf9] p-5 transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      handleImageChange(
-                        e.target.files?.[0] ||
-                          null
-                      )
-                    }
-                    className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-[#d4af37]"
-                  />
-
-                  <p className="mt-2 text-xs font-medium text-slate-400">
-                    Recommended image ratio: 16:9
+                <div>
+                  <label className="mb-1 block text-sm font-black text-slate-800">
+                    Desktop Offer Image
+                  </label>
+                  <p className="mb-3 text-xs text-slate-400">
+                    Recommended: <b>1920 × 675</b> (wide desktop banner)
                   </p>
 
+                  <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-[#fafbf9] p-4 transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) =>
+                        handleImageChange(
+                          "desktop",
+                          e.target.files?.[0] || null
+                        )
+                      }
+                      className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-[#d4af37]"
+                    />
+
+                    {desktopPreview && (
+                      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                        <img
+                          src={desktopPreview}
+                          alt="Desktop Offer Preview"
+                          className="aspect-[1920/675] w-full object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-black text-slate-800">
+                    Mobile Offer Image
+                  </label>
+                  <p className="mb-3 text-xs text-slate-400">
+                    Recommended: <b>675 × 950</b> (mobile portrait banner)
+                  </p>
+
+                  <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-[#fafbf9] p-4 transition hover:border-[#d4af37] hover:bg-[#fffdf5]">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) =>
+                        handleImageChange(
+                          "mobile",
+                          e.target.files?.[0] || null
+                        )
+                      }
+                      className="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 transition hover:border-[#d4af37]"
+                    />
+
+                    {mobilePreview && (
+                      <div className="mt-4 flex justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+                        <img
+                          src={mobilePreview}
+                          alt="Mobile Offer Preview"
+                          className="max-h-[520px] w-auto max-w-full object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </div>
-
-              {/* IMAGE PREVIEW */}
-
-              {preview && (
-                <div>
-
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-700">
-                      Image Preview
-                    </p>
-
-                    <span className="rounded-full bg-[#fff8df] px-3 py-1 text-xs font-black text-[#8a680c]">
-                      16:9 Display
-                    </span>
-                  </div>
-
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
-
-                    <img
-                      src={preview}
-                      alt="Offer Preview"
-                      className="aspect-video w-full object-cover"
-                    />
-
-                  </div>
-
-                </div>
-              )}
 
               {/* INFO */}
 
