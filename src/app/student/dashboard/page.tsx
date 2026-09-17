@@ -2087,145 +2087,85 @@ export default function StudentDashboard() {
 
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:py-10">
 
-        {/* HERO */}
-
-        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-7 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-10 lg:p-12">
-
+        {/* HERO + QUICK ACTIONS */}
+        <section className="relative overflow-hidden rounded-[2rem] bg-[#07111f] p-6 text-white shadow-[0_25px_80px_rgba(7,17,31,0.20)] sm:p-8 lg:p-10">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#d4af37]/10 blur-3xl" />
-
           <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="relative grid gap-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
-
-            <div>
-
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#f1cf63]">
+          <div className="relative grid gap-7 lg:grid-cols-[1.02fr_0.98fr] lg:items-stretch">
+            <div className="flex flex-col justify-center rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-6 sm:p-8">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
                 ✦ Verified SBC Student
               </div>
-
-              <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Welcome,
-                <span className="block text-[#f1cf63]">
-                  {student.fullName ||
-                    "Student"}
-                </span>
+              <p className="mt-7 text-sm font-semibold text-white/45">Welcome back,</p>
+              <h1 className="mt-1 text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                <span className="text-[#f1cf63]">{student.fullName || "Student"}</span>
+                <span className="ml-2">👋</span>
               </h1>
-
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
                 Your SBC card unlocks exclusive student benefits, partner offers and reward points.
               </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-
-                <span className="rounded-full bg-white/10 px-4 py-2 text-sm text-white/80">
-                  Card{" "}
-                  {student.cardNumber ||
-                    "—"}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/80">
+                  Card {student.cardNumber || "—"}
                 </span>
-
-                <span
-                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                    membershipIsActive
-                      ? "bg-emerald-400/10 text-emerald-300"
-                      : membershipIsExpired
-                        ? "bg-red-400/10 text-red-300"
-                        : "bg-amber-400/10 text-amber-300"
-                  }`}
-                >
-                  ●{" "}
-                  {membershipIsActive
-                    ? "MEMBERSHIP ACTIVE"
-                    : membershipIsExpired
-                      ? "MEMBERSHIP EXPIRED"
-                      : "MEMBERSHIP STATUS UNAVAILABLE"}
+                <span className={`rounded-full px-4 py-2 text-sm font-black ${membershipIsActive ? "bg-emerald-400/10 text-emerald-300" : membershipIsExpired ? "bg-red-400/10 text-red-300" : "bg-amber-400/10 text-amber-300"}`}>
+                  ● {membershipIsActive ? "MEMBERSHIP ACTIVE" : membershipIsExpired ? "MEMBERSHIP EXPIRED" : "MEMBERSHIP STATUS UNAVAILABLE"}
                 </span>
-
               </div>
-
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-xl">
-
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">
-                Current Reward Balance
-              </p>
-
-              <div className="mt-3 flex items-end gap-2">
-
-                <span className="text-5xl font-black tracking-tight text-[#f1cf63]">
-                  {totalPoints.toLocaleString()}
-                </span>
-
-                <span className="pb-2 text-sm font-bold text-white/55">
-                  POINTS
-                </span>
-
-              </div>
-
-              <p className="mt-3 text-sm text-white/55">
-                Earn more points every time you redeem at an SBC partner.
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* TOP ACTIONS */}
-
-        <section className="mt-7 grid gap-7 lg:grid-cols-[1.35fr_0.65fr]">
-
-          <div>
-            {membershipIsActive ? (
-              <StudentScanRedeem />
-            ) : (
-              <section className="rounded-[2rem] border border-red-200 bg-red-50 p-7 text-center shadow-[0_20px_60px_rgba(127,29,29,0.08)] sm:p-9">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
-                  🔒
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-4 sm:p-5">
+              <div className="rounded-[1.4rem] border border-[#d4af37]/25 bg-[#fbfaf6] p-4 text-[#07111f] shadow-lg">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">📷</div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b18a16]">Scan at Business</p>
+                      <h2 className="mt-1 text-xl font-black sm:text-2xl">Scan &amp; Redeem</h2>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Scan a business QR and redeem an active SBC offer.</p>
+                    </div>
+                  </div>
+                  {membershipIsActive ? (
+                    <div className="shrink-0 [&_button]:!m-0 [&_button]:!rounded-xl [&_button]:!bg-[#07111f] [&_button]:!px-4 [&_button]:!py-3 [&_button]:!text-sm [&_button]:!font-black [&_button]:!text-[#f1cf63] [&_button]:!shadow-none">
+                      <StudentScanRedeem />
+                    </div>
+                  ) : (
+                    <button type="button" onClick={renewMembership} className="shrink-0 rounded-xl bg-[#d4af37] px-4 py-3 text-xs font-black text-[#07111f] transition hover:bg-[#f1cf63]">Renew SBC →</button>
+                  )}
                 </div>
-                <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-red-600">
-                  Redemption Locked
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-red-800">
-                  Renew your SBC membership to redeem offers
-                </h2>
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-red-700/80">
-                  Your membership has expired, so offer redemption is currently disabled.
-                </p>
-                <button
-                  type="button"
-                  onClick={renewMembership}
-                  className="mt-5 rounded-xl bg-[#d4af37] px-6 py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
-                >
-                  Renew SBC →
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <button type="button" onClick={() => router.push("/student/offers")} className="group rounded-[1.4rem] border border-white/10 bg-[#0c1a2d] p-5 text-left text-white transition hover:-translate-y-0.5 hover:border-[#d4af37]/40 hover:bg-[#10213a]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">🎁</div>
+                    <span className="text-white/30 transition group-hover:text-[#f1cf63]">→</span>
+                  </div>
+                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">SBC Benefits</p>
+                  <h3 className="mt-1 text-xl font-black">Explore Offers</h3>
+                  <p className="mt-1 text-xs leading-5 text-white/50">Discover discounts from verified SBC Business Partners.</p>
                 </button>
-              </section>
-            )}
-          </div>
 
-          <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">
-              🎁
+                <div className="rounded-[1.4rem] border border-white/10 bg-[#0c1a2d] p-5 text-white">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d4af37]/15 text-2xl">🪙</div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">Reward Points</span>
+                  </div>
+                  <div className="mt-4 flex items-end gap-2">
+                    <span className="text-3xl font-black text-[#f1cf63]">{totalPoints.toLocaleString()}</span>
+                    <span className="pb-1 text-sm font-black text-white/50">/ 1000</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63]" style={{ width: `${Math.min(100, (totalPoints / 1000) * 100)}%` }} />
+                  </div>
+                  <p className="mt-3 text-xs font-semibold text-white/55">
+                    {totalPoints >= 1000 ? "🎁 Surprise Gift Unlocked!" : `${Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁`}
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">
-              SBC Benefits
-            </p>
-            <h2 className="mt-2 text-2xl font-black">
-              Explore Offers
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Discover active discounts and exclusive benefits from verified SBC Business Partners.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push("/student/offers")}
-              className="mt-7 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
-            >
-              🎁 Explore Offers →
-            </button>
           </div>
-
         </section>
 
         {/* REFERRAL MARKETING */}
@@ -2458,280 +2398,81 @@ export default function StudentDashboard() {
           </div>
         )}
 
-                {/* DIGITAL CARD + QR */}
-
-        <section className="mt-7 grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
-
-          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-9">
-
-            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[#d4af37]/10 blur-2xl" />
-
+                {/* DIGITAL CARD + MEMBERSHIP */}
+        <section className="mt-7 grid gap-7 lg:grid-cols-2">
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#111d2d] via-[#07111f] to-[#020811] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.18)] sm:p-8">
+            <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="relative flex items-start justify-between gap-4">
-
               <div>
-
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#d4af37]">
-                  Digital Membership Card
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
-                  Student Benefit Card
-                </h2>
-
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Card</p>
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Card</h2>
               </div>
-
-              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">
-                SBC
-              </div>
-
+              <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">SBC</div>
             </div>
-
-            <div className="relative mt-9 grid gap-6 sm:grid-cols-2">
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
-                  Card Holder
-                </p>
-                <p className="mt-1 text-lg font-bold">
-                  {student.fullName ||
-                    "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
-                  Card Number
-                </p>
-                <p className="mt-1 text-lg font-bold tracking-wider">
-                  {student.cardNumber ||
-                    "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
-                  College
-                </p>
-                <p className="mt-1 text-sm font-semibold text-white/80">
-                  {student.college ||
-                    "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
-                  Course / Year
-                </p>
-                <p className="mt-1 text-sm font-semibold text-white/80">
-                  {student.course ||
-                    "—"}{" "}
-                  {student.year
-                    ? `• ${student.year}`
-                    : ""}
-                </p>
-              </div>
-
-            </div>
-
-            <div className="relative mt-10 flex items-center justify-between border-t border-white/10 pt-5">
-
-              <span className="text-xs text-white/40">
-                Verified Student Membership
-              </span>
-
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#f1cf63]">
-                SBC • 2026
-              </span>
-
-            </div>
-
-          </div>
-
-          <div className="rounded-[2rem] border border-black/5 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
-                  Scan & Redeem
-                </p>
-
-                <h2 className="mt-1 text-2xl font-black text-[#07111f]">
-                  My QR Code
-                </h2>
-
-              </div>
-
-              <div
-                className={`rounded-full px-3 py-1.5 text-xs font-bold ${
-                  membershipIsActive
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-red-50 text-red-700"
-                }`}
-              >
-                {membershipIsActive ? "Active" : "Expired"}
-              </div>
-
-            </div>
-
-            {membershipIsActive ? (
-              <>
-                <div className="mt-7 flex justify-center">
-
-                  <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fbfaf6] p-5 shadow-inner">
-
-                    <QRCode
-                      value={
-                        qrValue
-                      }
-                      size={
-                        205
-                      }
-                    />
-
-                  </div>
-
-                </div>
-
-                <p className="mt-5 text-center text-sm font-black tracking-wider text-[#07111f]">
-                  {student.cardNumber ||
-                    "—"}
-                </p>
-
-                <p className="mt-2 text-center text-xs text-slate-500">
-                  Show this QR to an SBC Business Partner to redeem an offer.
-                </p>
-              </>
-            ) : (
-              <div className="mt-7 rounded-[1.5rem] border border-red-200 bg-red-50 p-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl">
-                  🔒
-                </div>
-
-                <p className="mt-4 text-base font-black text-red-700">
-                  Membership Expired
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-red-700/80">
-                  Your SBC benefits and redemption access are unavailable until
-                  your membership is renewed.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={renewMembership}
-                  className="mt-5 rounded-xl bg-[#d4af37] px-5 py-3 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
-                >
-                  Renew SBC →
-                </button>
-              </div>
-            )}
-
-          </div>
-
-        </section>
-
-        {/* MEMBERSHIP STATUS */}
-
-        <section className="mt-7">
-
-          <div className="rounded-[2rem] bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
-
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18a16]">
-              Account
-            </p>
-
-            <h2 className="mt-2 text-2xl font-black text-[#07111f]">
-              Membership Status
-            </h2>
-
-            <div
-              className={`mt-6 rounded-2xl border p-5 ${
-                membershipIsActive
-                  ? "border-emerald-100 bg-emerald-50"
-                  : membershipIsExpired
-                    ? "border-red-200 bg-red-50"
-                    : "border-amber-200 bg-amber-50"
-              }`}
-            >
+            <div className="relative mt-7 rounded-[1.6rem] border border-[#d4af37]/25 bg-black/20 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-slate-500">
-                    Membership Status
-                  </p>
-
-                  <p
-                    className={`mt-1 text-2xl font-black ${
-                      membershipIsActive
-                        ? "text-emerald-700"
-                        : membershipIsExpired
-                          ? "text-red-700"
-                          : "text-amber-700"
-                    }`}
-                  >
-                    {membershipIsActive
-                      ? "ACTIVE"
-                      : membershipIsExpired
-                        ? "EXPIRED"
-                        : "NOT AVAILABLE"}
-                  </p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Card</p>
+                  <p className="mt-2 text-xl font-black text-[#f1cf63]">More Benefits. More Savings.</p>
                 </div>
-
-                <div
-                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                    membershipIsActive
-                      ? "bg-emerald-100 text-emerald-700"
-                      : membershipIsExpired
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {membershipIsActive ? "✓" : "!"}
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">SBC</div>
+              </div>
+              <div className="mt-8 grid gap-5 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Holder</p>
+                  <p className="mt-1 text-xl font-black">{student.fullName || "—"}</p>
+                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Number</p>
+                  <p className="mt-1 text-sm font-black tracking-wider text-white/80">{student.cardNumber || "—"}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-3 shadow-xl">
+                  <QRCode value={qrValue} size={130} />
                 </div>
               </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-white/70 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Started
-                  </p>
-                  <p className="mt-1 text-sm font-black text-[#07111f]">
-                    {formatMembershipDate(membershipStart)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-white/70 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Valid Until
-                  </p>
-                  <p className="mt-1 text-sm font-black text-[#07111f]">
-                    {formatMembershipDate(membershipExpiry)}
-                  </p>
-                </div>
+              <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+                <span className="text-xs text-white/40">Verified Student Membership</span>
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#f1cf63]">SBC • 2026</span>
               </div>
-
-              {membershipIsExpired && (
-                <button
-                  type="button"
-                  onClick={renewMembership}
-                  className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]"
-                >
-                  Renew SBC →
-                </button>
-              )}
-
-              {!membershipDateIsValid && (
-                <p className="mt-4 text-xs leading-5 text-amber-700">
-                  Membership dates are not available for this account yet.
-                  Please refresh the dashboard after your membership payment is
-                  completed.
-                </p>
-              )}
             </div>
-
+            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC card or QR when visiting an SBC Business Partner.</p>
           </div>
 
+          <div className="rounded-[2rem] bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">Account</p>
+                <h2 className="mt-2 text-2xl font-black text-[#07111f] sm:text-3xl">Membership Status</h2>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl ${membershipIsActive ? "bg-emerald-50 text-emerald-600" : membershipIsExpired ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
+                {membershipIsActive ? "✓" : membershipIsExpired ? "!" : "•"}
+              </div>
+            </div>
+            <div className={`mt-7 rounded-[1.5rem] border p-6 ${membershipIsActive ? "border-emerald-100 bg-emerald-50" : membershipIsExpired ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Current Status</p>
+                  <p className={`mt-1 text-3xl font-black ${membershipIsActive ? "text-emerald-700" : membershipIsExpired ? "text-red-700" : "text-amber-700"}`}>
+                    {membershipIsActive ? "ACTIVE" : membershipIsExpired ? "EXPIRED" : "NOT AVAILABLE"}
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-2 text-xs font-black ${membershipIsActive ? "bg-emerald-100 text-emerald-700" : membershipIsExpired ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                  {membershipIsActive ? "✓ Valid" : membershipIsExpired ? "Renew Required" : "Check Account"}
+                </span>
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Started</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipStart)}</p></div>
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Valid Until</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipExpiry)}</p></div>
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Plan</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.membershipPlan || "Student Plan"}</p></div>
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Card Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
+              </div>
+              {membershipIsActive ? (
+                <div className="mt-5 rounded-xl border border-emerald-200 bg-white/70 p-4 text-sm font-semibold text-emerald-800">✓ You are all set. Enjoy exclusive SBC student benefits.</div>
+              ) : membershipIsExpired ? (
+                <button type="button" onClick={renewMembership} className="mt-5 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63]">Renew SBC Membership →</button>
+              ) : (
+                <p className="mt-5 rounded-xl border border-amber-200 bg-white/70 p-4 text-xs leading-5 text-amber-700">Membership dates are not available for this account yet. Please refresh after your membership payment is completed.</p>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* FOOTER */}
