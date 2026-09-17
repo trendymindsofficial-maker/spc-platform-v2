@@ -2545,18 +2545,12 @@ export default function StudentDashboard() {
                   if (scanButton) scanButton.click();
                 }}
                 disabled={!membershipIsActive}
-                className={`relative flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border px-1 py-2 transition active:scale-[0.97] ${
-                  membershipIsActive
-                    ? "border-[#d4af37] bg-gradient-to-b from-[#d4af37]/25 to-[#d4af37]/10 text-[#f1cf63] shadow-[0_0_22px_rgba(212,175,55,0.16),inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    : "cursor-not-allowed border-white/10 bg-white/[0.025] text-white/30"
+                className={`flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[1.15rem] border border-white/10 bg-white/[0.035] px-1 py-2 text-white/70 transition hover:border-[#d4af37]/35 hover:bg-[#d4af37]/8 hover:text-[#f1cf63] active:scale-[0.97] ${
+                  !membershipIsActive ? "cursor-not-allowed opacity-60" : ""
                 }`}
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-lg font-black ${
-                    membershipIsActive
-                      ? "bg-[#d4af37] text-[#07111f]"
-                      : "bg-slate-700 text-white/40"
-                  }`}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-lg font-black text-white/70"
                 >
                   ⌗
                 </span>
