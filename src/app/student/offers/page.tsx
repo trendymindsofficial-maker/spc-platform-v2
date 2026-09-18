@@ -1757,6 +1757,53 @@ export default function StudentOffers() {
    * ==========================================
    */
 
+  const shareReferralLink = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        router.replace("/student/login");
+        return;
+      }
+
+      const studentRef = doc(db, "students", user.uid);
+      const studentSnap = await getDoc(studentRef);
+      const data = studentSnap.exists() ? studentSnap.data() : {};
+
+      const referralCode = String(data.referralCode || "").trim();
+      if (!referralCode) {
+        alert("Referral link is not available yet.");
+        return;
+      }
+
+      const link =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`
+          : "";
+
+      if (!link) return;
+
+      const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Student Benefit Card - SBC",
+          text: "Join Student Benefit Card using my referral link.",
+          url: link,
+        });
+        return;
+      }
+
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (error) {
+      if ((error as DOMException)?.name === "AbortError") return;
+      console.error("Referral share error:", error);
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -1767,7 +1814,7 @@ export default function StudentOffers() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f3ed] text-slate-900 py-8">
+    <main className="min-h-screen bg-[#f5f3ed] text-slate-900 py-8 pb-24 md:pb-0">
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
