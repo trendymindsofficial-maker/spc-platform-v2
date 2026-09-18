@@ -1,10 +1,13 @@
 "use client";
 
+
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 
 import {
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -21,6 +24,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const login = async () => {
     if (!email || !password) {
@@ -34,14 +38,13 @@ export default function AdminLoginPage() {
       const credential =
         await signInWithEmailAndPassword(
           auth,
-          email,
+          email.trim(),
           password
         );
 
       const uid = credential.user.uid;
 
       const adminRef = doc(db, "admins", uid);
-
       const adminSnap = await getDoc(adminRef);
 
       if (!adminSnap.exists()) {
@@ -54,9 +57,67 @@ export default function AdminLoginPage() {
 
       router.replace("/admin/dashboard");
     } catch (error: any) {
-      alert(error.message);
+      if (error?.code === "auth/invalid-credential" ||
+          error?.code === "auth/wrong-password" ||
+          error?.code === "auth/user-not-found") {
+        alert("Invalid Email or Password");
+      } else {
+        alert(error?.message || "Login failed");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const forgotPassword = async () => {
+    const adminEmail = email.trim();
+
+    if (!adminEmail) {
+      alert("Enter your admin email first.");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      /*
+       * Check that this Firebase Auth account is actually an
+       * authorized SBC admin before sending the reset email.
+       */
+      const methodsResponse = await fetch("/api/admin/check-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: adminEmail,
+        }),
+      });
+
+      const data = await methodsResponse.json().catch(() => ({}));
+
+      if (!methodsResponse.ok || !data.exists) {
+        alert("❌ No authorized admin account is registered with this email.");
+        return;
+      }
+
+      await sendPasswordResetEmail(auth, adminEmail);
+
+      alert(
+        "✅ Password reset link has been sent to your admin email. Please check your inbox."
+      );
+    } catch (error: any) {
+      console.error("Admin password reset failed:", error);
+
+      if (error?.code === "auth/user-not-found") {
+        alert("❌ No admin account is registered with this email.");
+      } else if (error?.code === "auth/invalid-email") {
+        alert("Please enter a valid email address.");
+      } else {
+        alert(error?.message || "Unable to send password reset email.");
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -112,9 +173,7 @@ export default function AdminLoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@sbc.in"
                 className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-medium text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
               />
@@ -128,12 +187,24 @@ export default function AdminLoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") login();
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-medium text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
               />
+            </div>
+
+            <div className="text-right -mt-2">
+              <button
+                type="button"
+                onClick={forgotPassword}
+                disabled={resetLoading}
+                className="text-sm font-bold text-[#9a7a10] transition hover:text-[#07111f] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resetLoading ? "Sending reset link..." : "Forgot Password?"}
+              </button>
             </div>
 
             <button
