@@ -85,10 +85,42 @@ export default function BusinessLogin() {
   };
 
   useEffect(() => {
-    return () => {
-      cleanupResetRecaptcha();
-    };
+    return () => cleanupResetRecaptcha();
   }, []);
+
+  const normalizeResetMobile = (value: string) => {
+    let number = value.trim().replace(/[\s\-()]/g, "");
+
+    if (number.startsWith("+91")) number = number.slice(3);
+    if (number.startsWith("91") && number.length === 12) number = number.slice(2);
+    if (number.startsWith("0") && number.length === 11) number = number.slice(1);
+
+    return number;
+  };
+
+  const openForgotPassword = () => {
+    setShowForgotPassword(true);
+    setResetStep("mobile");
+    setResetMobile("");
+    setResetOtp("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setResetLoading(false);
+    confirmationResultRef.current = null;
+    cleanupResetRecaptcha();
+  };
+
+  const closeForgotPassword = () => {
+    confirmationResultRef.current = null;
+    cleanupResetRecaptcha();
+    setShowForgotPassword(false);
+    setResetStep("mobile");
+    setResetMobile("");
+    setResetOtp("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setResetLoading(false);
+  };
 
   const createResetRecaptcha = () => {
     if (typeof window === "undefined") return null;
@@ -108,32 +140,8 @@ export default function BusinessLogin() {
     return verifier;
   };
 
-  const openForgotPassword = () => {
-    setResetMobile("");
-    setResetOtp("");
-    setNewPassword("");
-    setConfirmNewPassword("");
-    setResetStep("mobile");
-    setResetLoading(false);
-    confirmationResultRef.current = null;
-    cleanupResetRecaptcha();
-    setShowForgotPassword(true);
-  };
-
-  const closeForgotPassword = () => {
-    confirmationResultRef.current = null;
-    cleanupResetRecaptcha();
-    setShowForgotPassword(false);
-    setResetStep("mobile");
-    setResetMobile("");
-    setResetOtp("");
-    setNewPassword("");
-    setConfirmNewPassword("");
-    setResetLoading(false);
-  };
-
   const sendBusinessResetOtp = async () => {
-    const cleanedMobile = normalizeMobile(resetMobile);
+    const cleanedMobile = normalizeResetMobile(resetMobile);
 
     if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
       alert("Enter a valid 10-digit mobile number.");
@@ -142,6 +150,37 @@ export default function BusinessLogin() {
 
     try {
       setResetLoading(true);
+
+      /*
+       * IMPORTANT:
+       * FIRST check whether this mobile belongs to a
+       * registered business. Only then send OTP.
+       *
+       * This prevents a student-only number or any
+       * unregistered number from receiving a business
+       * password-reset OTP.
+       */
+      const checkResponse = await fetch(
+        "/api/business/check-mobile",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mobile: cleanedMobile,
+          }),
+        }
+      );
+
+      const checkData = await checkResponse.json().catch(() => ({}));
+
+      if (!checkResponse.ok || !checkData.exists) {
+        alert(
+          "❌ No business account is registered with this mobile number. Please use your registered business mobile number."
+        );
+        return;
+      }
 
       const verifier = createResetRecaptcha();
 
@@ -158,7 +197,8 @@ export default function BusinessLogin() {
       confirmationResultRef.current = confirmationResult;
       setResetMobile(cleanedMobile);
       setResetStep("otp");
-      alert("OTP sent to your registered mobile number.");
+
+      alert("OTP sent to your registered business mobile number.");
     } catch (error: any) {
       console.error("Business Forgot Password OTP Error:", error);
       cleanupResetRecaptcha();
@@ -243,7 +283,7 @@ export default function BusinessLogin() {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          mobile: normalizeMobile(resetMobile),
+          mobile: normalizeResetMobile(resetMobile),
           newPassword,
         }),
       });
@@ -257,10 +297,11 @@ export default function BusinessLogin() {
       }
 
       await signOut(auth);
-
       closeForgotPassword();
 
-      alert("✅ Password reset successful. Please login with your new password.");
+      alert(
+        "✅ Password reset successful. Please login with your new password."
+      );
     } catch (error: any) {
       console.error("Business Password Reset Error:", error);
       alert(error?.message || "Unable to reset password. Please try again.");
@@ -640,11 +681,9 @@ export default function BusinessLogin() {
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">
                     Business Account
                   </p>
-                  <h2 className="mt-1 text-2xl font-black">
-                    Reset Password
-                  </h2>
+                  <h2 className="mt-1 text-2xl font-black">Reset Password</h2>
                   <p className="mt-1 text-xs text-white/55">
-                    Verify your registered mobile number with OTP.
+                    Verify your registered business mobile number.
                   </p>
                 </div>
 
@@ -664,20 +703,17 @@ export default function BusinessLogin() {
                 <div className="space-y-5">
                   <div>
                     <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
-                      Registered Mobile Number
+                      Registered Business Mobile
                     </label>
-
                     <input
                       type="tel"
                       inputMode="numeric"
                       autoComplete="tel"
-                      placeholder="Enter registered mobile number"
+                      placeholder="Enter business mobile number"
                       value={resetMobile}
                       onChange={(e) => setResetMobile(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          sendBusinessResetOtp();
-                        }
+                        if (e.key === "Enter") sendBusinessResetOtp();
                       }}
                       className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                     />
@@ -689,7 +725,7 @@ export default function BusinessLogin() {
                     disabled={resetLoading}
                     className="w-full rounded-2xl bg-[#07111f] py-4 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {resetLoading ? "⏳ Sending OTP..." : "Send OTP →"}
+                    {resetLoading ? "⏳ Checking..." : "Continue →"}
                   </button>
                 </div>
               )}
@@ -704,7 +740,6 @@ export default function BusinessLogin() {
                     <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
                       Enter OTP
                     </label>
-
                     <input
                       type="text"
                       inputMode="numeric"
@@ -716,9 +751,7 @@ export default function BusinessLogin() {
                         setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
                       }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          verifyBusinessResetOtp();
-                        }
+                        if (e.key === "Enter") verifyBusinessResetOtp();
                       }}
                       className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-center text-xl font-black tracking-[0.35em] text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                     />
@@ -758,7 +791,6 @@ export default function BusinessLogin() {
                     <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
                       New Password
                     </label>
-
                     <input
                       type="password"
                       autoComplete="new-password"
@@ -773,7 +805,6 @@ export default function BusinessLogin() {
                     <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
                       Confirm New Password
                     </label>
-
                     <input
                       type="password"
                       autoComplete="new-password"
@@ -781,9 +812,7 @@ export default function BusinessLogin() {
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          resetBusinessPassword();
-                        }
+                        if (e.key === "Enter") resetBusinessPassword();
                       }}
                       className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
                     />
