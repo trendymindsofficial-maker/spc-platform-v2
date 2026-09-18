@@ -2314,6 +2314,40 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
+                {/* REFERRAL PROGRESS */}
+                <div className="mt-6 rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f1cf63]">
+                        Refer & Earn ₹250
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-white">
+                        {Math.min(10, payoutWallet.successfulReferrals)} / 10 students joined
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-[#f1cf63]">
+                        {Math.min(100, (payoutWallet.successfulReferrals / 10) * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-[#d4af37] transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, (payoutWallet.successfulReferrals / 10) * 100)}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="mt-3 text-xs font-semibold text-white/55">
+                    {payoutWallet.successfulReferrals >= 10
+                      ? "🎉 10 successful referrals completed. ₹250 reward is unlocked."
+                      : `${10 - payoutWallet.successfulReferrals} more successful referral${10 - payoutWallet.successfulReferrals === 1 ? "" : "s"} to unlock ₹250.`}
+                  </p>
+                </div>
+
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
