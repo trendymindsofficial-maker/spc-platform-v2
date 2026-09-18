@@ -2831,21 +2831,21 @@ export default function StudentOffers() {
                 <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
               </button>
 
-              {/* YOUR CARD — NORMAL */}
+              {/* REFER A FRIEND — DIRECT SHARE */}
               <button
                 type="button"
-                onClick={() => router.push("/student/dashboard#your-card")}
+                onClick={shareReferralLink}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
                   <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
-                    <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+                    <path d="M3.5 19C4.2 15.8 6 14 9 14C12 14 13.8 15.8 14.5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M16 8V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M13 11H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4">Your Card</span>
+                <span className="text-[10px] font-bold leading-4 text-center">Refer a Friend</span>
               </button>
 
             </div>
