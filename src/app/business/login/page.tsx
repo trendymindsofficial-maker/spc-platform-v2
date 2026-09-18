@@ -1,12 +1,18 @@
  "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
 
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  RecaptchaVerifier,
+  signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  signOut,
+  type ConfirmationResult,
+} from "firebase/auth";
 
 import {
   doc,
@@ -19,6 +25,20 @@ export default function BusinessLogin() {
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  /* ==========================================
+   * FORGOT PASSWORD
+   * ========================================== */
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetMobile, setResetMobile] = useState("");
+  const [resetOtp, setResetOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetStep, setResetStep] = useState<"mobile" | "otp" | "password">("mobile");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const confirmationResultRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
   /*
    * ==========================================
@@ -55,6 +75,198 @@ export default function BusinessLogin() {
     }
 
     return number;
+  };
+
+  const cleanupResetRecaptcha = () => {
+    try {
+      recaptchaVerifierRef.current?.clear();
+    } catch {}
+    recaptchaVerifierRef.current = null;
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanupResetRecaptcha();
+    };
+  }, []);
+
+  const createResetRecaptcha = () => {
+    if (typeof window === "undefined") return null;
+    if (recaptchaVerifierRef.current) return recaptchaVerifierRef.current;
+
+    const verifier = new RecaptchaVerifier(
+      auth,
+      "business-reset-recaptcha-container",
+      {
+        size: "invisible",
+        callback: () => {},
+        "expired-callback": () => cleanupResetRecaptcha(),
+      }
+    );
+
+    recaptchaVerifierRef.current = verifier;
+    return verifier;
+  };
+
+  const openForgotPassword = () => {
+    setResetMobile("");
+    setResetOtp("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setResetStep("mobile");
+    setResetLoading(false);
+    confirmationResultRef.current = null;
+    cleanupResetRecaptcha();
+    setShowForgotPassword(true);
+  };
+
+  const closeForgotPassword = () => {
+    confirmationResultRef.current = null;
+    cleanupResetRecaptcha();
+    setShowForgotPassword(false);
+    setResetStep("mobile");
+    setResetMobile("");
+    setResetOtp("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setResetLoading(false);
+  };
+
+  const sendBusinessResetOtp = async () => {
+    const cleanedMobile = normalizeMobile(resetMobile);
+
+    if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
+      alert("Enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      const verifier = createResetRecaptcha();
+
+      if (!verifier) {
+        throw new Error("Unable to initialize security verification.");
+      }
+
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        `+91${cleanedMobile}`,
+        verifier
+      );
+
+      confirmationResultRef.current = confirmationResult;
+      setResetMobile(cleanedMobile);
+      setResetStep("otp");
+      alert("OTP sent to your registered mobile number.");
+    } catch (error: any) {
+      console.error("Business Forgot Password OTP Error:", error);
+      cleanupResetRecaptcha();
+
+      if (error?.code === "auth/invalid-phone-number") {
+        alert("Enter a valid mobile number.");
+      } else if (error?.code === "auth/too-many-requests") {
+        alert("Too many attempts. Please try again later.");
+      } else if (error?.code === "auth/quota-exceeded") {
+        alert("OTP limit reached. Please try again later.");
+      } else {
+        alert(error?.message || "Unable to send OTP. Please try again.");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const verifyBusinessResetOtp = async () => {
+    if (!resetOtp.trim()) {
+      alert("Enter the OTP.");
+      return;
+    }
+
+    if (!confirmationResultRef.current) {
+      alert("Please request a new OTP.");
+      setResetStep("mobile");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      await confirmationResultRef.current.confirm(resetOtp.trim());
+
+      setResetStep("password");
+      cleanupResetRecaptcha();
+    } catch (error: any) {
+      console.error("Business Forgot Password OTP Verify Error:", error);
+
+      if (error?.code === "auth/invalid-verification-code") {
+        alert("Invalid OTP. Please check and try again.");
+      } else if (error?.code === "auth/code-expired") {
+        alert("OTP expired. Please request a new OTP.");
+        setResetStep("mobile");
+      } else {
+        alert("OTP verification failed. Please try again.");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const resetBusinessPassword = async () => {
+    if (newPassword.length < 6) {
+      alert("Password should be at least 6 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    const phoneUser = auth.currentUser;
+
+    if (!phoneUser) {
+      alert("Reset session expired. Please start again.");
+      setResetStep("mobile");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      const idToken = await phoneUser.getIdToken();
+
+      const response = await fetch("/api/business/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          mobile: normalizeMobile(resetMobile),
+          newPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error || "Unable to reset business password."
+        );
+      }
+
+      await signOut(auth);
+
+      closeForgotPassword();
+
+      alert("✅ Password reset successful. Please login with your new password.");
+    } catch (error: any) {
+      console.error("Business Password Reset Error:", error);
+      alert(error?.message || "Unable to reset password. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   /*
@@ -378,6 +590,16 @@ export default function BusinessLogin() {
                   </div>
                 </div>
 
+                <div className="-mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={openForgotPassword}
+                    className="text-xs font-black text-[#a37b0d] hover:text-[#07111f] hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={loginBusiness}
@@ -408,6 +630,185 @@ export default function BusinessLogin() {
           </div>
         </div>
       </div>
+      {/* FORGOT PASSWORD MODAL */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07111f]/70 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_30px_100px_rgba(7,17,31,0.3)]">
+            <div className="bg-[#07111f] px-6 py-6 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">
+                    Business Account
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black">
+                    Reset Password
+                  </h2>
+                  <p className="mt-1 text-xs text-white/55">
+                    Verify your registered mobile number with OTP.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeForgotPassword}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-white transition hover:bg-white/15"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-7">
+              {resetStep === "mobile" && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Registered Mobile Number
+                    </label>
+
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="Enter registered mobile number"
+                      value={resetMobile}
+                      onChange={(e) => setResetMobile(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          sendBusinessResetOtp();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={sendBusinessResetOtp}
+                    disabled={resetLoading}
+                    className="w-full rounded-2xl bg-[#07111f] py-4 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resetLoading ? "⏳ Sending OTP..." : "Send OTP →"}
+                  </button>
+                </div>
+              )}
+
+              {resetStep === "otp" && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-[#d4af37]/25 bg-[#fff8df] p-4 text-sm text-[#07111f]">
+                    OTP sent to <strong>+91 {resetMobile}</strong>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Enter OTP
+                    </label>
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="Enter 6-digit OTP"
+                      value={resetOtp}
+                      onChange={(e) =>
+                        setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          verifyBusinessResetOtp();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-center text-xl font-black tracking-[0.35em] text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={verifyBusinessResetOtp}
+                    disabled={resetLoading}
+                    className="w-full rounded-2xl bg-[#07111f] py-4 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resetLoading ? "⏳ Verifying..." : "Verify OTP →"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      confirmationResultRef.current = null;
+                      cleanupResetRecaptcha();
+                      setResetOtp("");
+                      setResetStep("mobile");
+                    }}
+                    className="w-full text-xs font-black text-[#a37b0d] hover:text-[#07111f] hover:underline"
+                  >
+                    Use a different number
+                  </button>
+                </div>
+              )}
+
+              {resetStep === "password" && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">
+                    ✓ Mobile number verified. Create your new password.
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      New Password
+                    </label>
+
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Enter new password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                      Confirm New Password
+                    </label>
+
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Confirm new password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          resetBusinessPassword();
+                        }
+                      }}
+                      className="w-full rounded-2xl border border-black/10 bg-[#fbfaf6] px-4 py-3.5 text-base text-[#07111f] outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetBusinessPassword}
+                    disabled={resetLoading}
+                    className="w-full rounded-2xl bg-[#07111f] py-4 text-sm font-black text-white shadow-lg transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resetLoading ? "⏳ Resetting Password..." : "Reset Password →"}
+                  </button>
+                </div>
+              )}
+
+              <div
+                id="business-reset-recaptcha-container"
+                className="pointer-events-none absolute h-0 w-0 overflow-hidden"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
