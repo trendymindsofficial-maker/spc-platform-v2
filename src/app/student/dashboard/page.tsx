@@ -2636,12 +2636,7 @@ export default function StudentDashboard() {
               {/* REFER A FRIEND — NORMAL */}
               <button
                 type="button"
-                onClick={() =>
-                  document.getElementById("referral")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
-                }
+                onClick={shareReferralLink}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
