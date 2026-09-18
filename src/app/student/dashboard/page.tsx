@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -2199,6 +2200,34 @@ export default function StudentDashboard() {
               </div>
             </div>
 
+          </div>
+        </section>
+
+        {/* MOBILE REWARD POINTS */}
+        <section className="mt-7 md:hidden">
+          <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
+              Reward Points
+            </p>
+            <div className="mt-2 flex items-end gap-2">
+              <span className="text-4xl font-black text-[#f1cf63]">
+                {totalPoints.toLocaleString()}
+              </span>
+              <span className="pb-1 text-sm font-bold text-white/50">
+                / 1000
+              </span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-[#d4af37] transition-all"
+                style={{
+                  width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-3 text-xs font-semibold text-white/55">
+              {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
+            </p>
           </div>
         </section>
 
