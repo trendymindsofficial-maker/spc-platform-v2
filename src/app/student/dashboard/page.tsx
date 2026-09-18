@@ -2266,7 +2266,7 @@ export default function StudentDashboard() {
 
         {/* REFERRAL MARKETING */}
 
-        <section className="mt-7">
+        <section id="referral" className="mt-7">
           <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#101b2b] to-[#17243a] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-9">
             <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
@@ -2633,11 +2633,11 @@ export default function StudentDashboard() {
                 <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
               </button>
 
-              {/* YOUR CARD — NORMAL */}
+              {/* REFER A FRIEND — NORMAL */}
               <button
                 type="button"
                 onClick={() =>
-                  document.getElementById("your-card")?.scrollIntoView({
+                  document.getElementById("referral")?.scrollIntoView({
                     behavior: "smooth",
                     block: "start",
                   })
@@ -2646,13 +2646,12 @@ export default function StudentDashboard() {
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
                   <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
-                    <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M16 21V19C16 17.3431 14.6569 16 13 16H7C5.34315 16 4 17.3431 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="10" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+                    <path d="M19 8V14M16 11H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4">Your Card</span>
+                <span className="text-[10px] font-bold leading-4 text-center">Refer a Friend</span>
               </button>
 
             </div>
