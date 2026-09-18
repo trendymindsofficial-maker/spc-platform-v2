@@ -1757,53 +1757,6 @@ export default function StudentOffers() {
    * ==========================================
    */
 
-  const shareReferralLink = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        router.replace("/student/login");
-        return;
-      }
-
-      const studentRef = doc(db, "students", user.uid);
-      const studentSnap = await getDoc(studentRef);
-      const data = studentSnap.exists() ? studentSnap.data() : {};
-
-      const referralCode = String(data.referralCode || "").trim();
-      if (!referralCode) {
-        alert("Referral link is not available yet.");
-        return;
-      }
-
-      const link =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`
-          : "";
-
-      if (!link) return;
-
-      const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
-
-      if (navigator.share) {
-        await navigator.share({
-          title: "Student Benefit Card - SBC",
-          text: "Join Student Benefit Card using my referral link.",
-          url: link,
-        });
-        return;
-      }
-
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    } catch (error) {
-      if ((error as DOMException)?.name === "AbortError") return;
-      console.error("Referral share error:", error);
-    }
-  };
-
   const logout = async () => {
     try {
       await signOut(auth);
@@ -1814,7 +1767,7 @@ export default function StudentOffers() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f3ed] text-slate-900 py-8 pb-24 md:pb-0">
+    <main className="min-h-screen bg-[#f5f3ed] text-slate-900 py-8">
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
@@ -1961,9 +1914,6 @@ export default function StudentOffers() {
                         </div>
                       )}
 
-                      <div className="absolute left-2.5 top-2.5 rounded-full bg-[#1557d6] px-2.5 py-1 text-[9px] font-black text-white shadow-md sm:left-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-[10px]">
-                        SBC OFFER
-                      </div>
                     </div>
 
                     {/* OFFER INFO */}
@@ -2831,21 +2781,21 @@ export default function StudentOffers() {
                 <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
               </button>
 
-              {/* REFER A FRIEND — DIRECT SHARE */}
+              {/* YOUR CARD — NORMAL */}
               <button
                 type="button"
-                onClick={shareReferralLink}
+                onClick={() => router.push("/student/dashboard#your-card")}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
                   <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3.5 19C4.2 15.8 6 14 9 14C12 14 13.8 15.8 14.5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M16 8V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M13 11H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+                    <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
+                    <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4 text-center">Refer a Friend</span>
+                <span className="text-[10px] font-bold leading-4">Your Card</span>
               </button>
 
             </div>
