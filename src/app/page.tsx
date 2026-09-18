@@ -80,21 +80,21 @@ export default function Home() {
   const active = slides[slide];
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white pb-20 text-[#07111f] sm:pb-0">
+    <main className="min-h-screen overflow-x-hidden bg-white pb-20 pt-[74px] text-[#07111f] sm:pb-0 sm:pt-[76px]">
       {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-black/[.06] bg-[#07111f]/95 backdrop-blur-xl sm:bg-white/95">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-black/[.06] bg-[#07111f]/95 text-white backdrop-blur-xl">
         <div className="mx-auto max-w-[1440px] px-3 py-2.5 sm:px-6 sm:py-0 lg:px-10">
           <div className="flex min-h-[54px] items-center justify-between gap-2 sm:h-[76px]">
             <button type="button" onClick={() => go("/")} className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-[11px] font-black text-[#07111f] shadow-lg sm:h-12 sm:w-12 sm:rounded-2xl sm:bg-[#07111f] sm:text-white sm:text-sm">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#d4af37] text-[11px] font-black text-[#07111f] shadow-lg sm:h-12 sm:w-12 sm:rounded-2xl sm:bg-[#d4af37] sm:text-[#07111f] sm:text-sm">
                 <span className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-[#d4af37] blur-md" />
                 <span className="relative">SBC</span>
               </span>
               <span className="min-w-0 text-left">
-                <span className="block truncate text-[11px] font-black tracking-[.10em] text-white sm:text-[#07111f] sm:text-[14px] sm:tracking-[.12em]">
+                <span className="block truncate text-[11px] font-black tracking-[.10em] text-white sm:text-white sm:text-[14px] sm:tracking-[.12em]">
                   STUDENT BENEFIT CARD
                 </span>
-                <span className="mt-0.5 block text-[7px] font-semibold uppercase tracking-[.16em] text-white/55 sm:text-slate-500 sm:text-[9px] sm:tracking-[.2em]">
+                <span className="mt-0.5 block text-[7px] font-semibold uppercase tracking-[.16em] text-white/55 sm:text-white/55 sm:text-[9px] sm:tracking-[.2em]">
                   More Benefits. More Savings.
                 </span>
               </span>
