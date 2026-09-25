@@ -433,7 +433,7 @@ export default function AdminDashboard() {
   return (
     <AdminProtected>
 
-      <main className="min-h-screen bg-[#f5f3ed] p-4 md:p-8">
+      <main className="min-h-screen w-full overflow-x-hidden bg-[#f5f3ed] p-3 sm:p-4 md:p-8">
 
         <div className="mx-auto max-w-7xl">
 
@@ -441,15 +441,15 @@ export default function AdminDashboard() {
               HEADER
           =================================== */}
 
-          <div className="mb-8 flex flex-col gap-5 rounded-[2rem] bg-[#07111f] p-6 shadow-[0_20px_60px_rgba(7,17,31,0.16)] md:flex-row md:items-center md:justify-between md:p-7">
+          <div className="mb-6 flex w-full flex-col gap-4 rounded-2xl bg-[#07111f] p-4 shadow-[0_20px_60px_rgba(7,17,31,0.16)] sm:mb-8 sm:rounded-[2rem] sm:p-6 md:flex-row md:items-center md:justify-between md:p-7">
 
             <div>
 
-              <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
+              <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl md:text-4xl">
                 👋 Welcome Super Admin
               </h1>
 
-              <p className="mt-2 text-white/60">
+              <p className="mt-1.5 text-sm text-white/60 sm:mt-2 sm:text-base">
                 SBC Administration Dashboard
               </p>
 
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
 
             <button
               onClick={logout}
-              className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-6 py-3 font-black text-[#f1cf63] transition hover:bg-[#d4af37]/20"
+              className="w-full rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-5 py-3 font-black text-[#f1cf63] transition hover:bg-[#d4af37]/20 sm:w-auto sm:px-6"
             >
               Logout
             </button>
@@ -469,17 +469,17 @@ export default function AdminDashboard() {
               STATISTICS
           =================================== */}
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
 
             {/* STUDENTS */}
 
-            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
+            <div className="min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] sm:rounded-[2rem] sm:p-6 md:p-7">
 
-              <p className="text-slate-500">
+              <p className="text-sm text-slate-500 sm:text-base">
                 👨‍🎓 Total Students
               </p>
 
-              <h2 className="mt-4 text-5xl font-black text-[#b18a16]">
+              <h2 className="mt-2 text-4xl font-black sm:mt-4 sm:text-5xl text-[#b18a16]">
 
                 {loading
                   ? "..."
@@ -492,13 +492,13 @@ export default function AdminDashboard() {
 
             {/* BUSINESSES */}
 
-            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
+            <div className="min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] sm:rounded-[2rem] sm:p-6 md:p-7">
 
-              <p className="text-slate-500">
+              <p className="text-sm text-slate-500 sm:text-base">
                 🏪 Total Businesses
               </p>
 
-              <h2 className="mt-4 text-5xl font-black text-[#8a680c]">
+              <h2 className="mt-2 text-4xl font-black sm:mt-4 sm:text-5xl text-[#8a680c]">
 
                 {loading
                   ? "..."
@@ -511,13 +511,13 @@ export default function AdminDashboard() {
 
             {/* OFFERS */}
 
-            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
+            <div className="min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] sm:rounded-[2rem] sm:p-6 md:p-7">
 
-              <p className="text-slate-500">
+              <p className="text-sm text-slate-500 sm:text-base">
                 🎁 Total Offers
               </p>
 
-              <h2 className="mt-4 text-5xl font-black text-[#b18a16]">
+              <h2 className="mt-2 text-4xl font-black sm:mt-4 sm:text-5xl text-[#b18a16]">
 
                 {loading
                   ? "..."
@@ -530,13 +530,13 @@ export default function AdminDashboard() {
 
             {/* REDEMPTIONS */}
 
-            <div className="rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] md:p-7">
+            <div className="min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)] sm:rounded-[2rem] sm:p-6 md:p-7">
 
-              <p className="text-slate-500">
+              <p className="text-sm text-slate-500 sm:text-base">
                 🎉 Total Redemptions
               </p>
 
-              <h2 className="mt-4 text-5xl font-black text-[#8a680c]">
+              <h2 className="mt-2 text-4xl font-black sm:mt-4 sm:text-5xl text-[#8a680c]">
 
                 {loading
                   ? "..."
@@ -550,18 +550,56 @@ export default function AdminDashboard() {
 
 
           {/* ==================================
+              PENDING APPROVALS
+          =================================== */}
+
+          <div className="mt-5 w-full overflow-hidden rounded-2xl border-2 border-[#d4af37]/30 bg-white shadow-[0_18px_55px_rgba(7,17,31,0.08)] sm:mt-8 sm:rounded-[2rem]">
+
+            <Link
+              href="/admin/pending-approvals"
+              className="block p-4 transition hover:border-[#d4af37] hover:bg-[#fffdf7] sm:p-7"
+            >
+
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                <div className="min-w-0">
+                  <h2 className="text-2xl font-bold text-[#8a680c] sm:text-3xl">
+                    ⏳ Pending Approvals
+                  </h2>
+
+                  <p className="mt-2 text-sm text-slate-600 sm:text-base">
+                    Review and approve pending student and business registrations.
+                  </p>
+                </div>
+
+                <div className="shrink-0 rounded-2xl bg-[#fff8df] px-5 py-3 text-center">
+                  <span className="block text-3xl font-extrabold text-[#8a680c]">
+                    {loading ? "..." : totalPendingApprovals}
+                  </span>
+                  <span className="text-xs font-bold uppercase text-[#8a680c]">
+                    Pending
+                  </span>
+                </div>
+
+              </div>
+
+            </Link>
+
+          </div>
+
+          {/* ==================================
               CATEGORY MANAGEMENT
           =================================== */}
 
-          <div className="mt-10 rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] md:p-8">
+          <div className="mt-5 sm:mt-6 w-full min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] sm:mt-10 sm:rounded-[2rem] sm:p-6 md:p-8">
 
             <div className="mb-6">
 
-              <h2 className="text-3xl font-bold text-[#8a680c]">
+              <h2 className="text-2xl font-bold text-[#8a680c] sm:text-3xl">
                 🏷️ Manage Categories
               </h2>
 
-              <p className="mt-2 text-white/60">
+              <p className="mt-1.5 text-sm text-white/60 sm:mt-2 sm:text-base">
                 Add or remove categories used
                 across Business Registration,
                 Offers and Student Offers.
@@ -605,7 +643,7 @@ export default function AdminDashboard() {
                   disabled={
                     addingCategory
                   }
-                  className="rounded-xl bg-[#07111f] px-7 py-3 font-bold text-white transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-[#07111f] px-5 py-3 font-bold text-white transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-7"
                 >
 
                   {addingCategory
@@ -621,9 +659,9 @@ export default function AdminDashboard() {
 
             {/* CATEGORY LIST */}
 
-            <div className="mt-6">
+            <div className="mt-5 sm:mt-6">
 
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 
                 <h3 className="text-xl font-bold text-[#07111f]">
                   Available Categories
@@ -640,7 +678,7 @@ export default function AdminDashboard() {
 
                 <div className="rounded-2xl bg-[#fbfaf6] p-6 text-center">
 
-                  <p className="font-semibold text-slate-500">
+                  <p className="font-semibold text-sm text-slate-500 sm:text-base">
                     Loading categories...
                   </p>
 
@@ -654,7 +692,7 @@ export default function AdminDashboard() {
                     No categories added yet.
                   </p>
 
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-2 text-sm text-sm text-slate-500 sm:text-base">
                     Add your first category above.
                   </p>
 
@@ -662,7 +700,7 @@ export default function AdminDashboard() {
 
               ) : (
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 
                   {categories.map(
                     (category) => (
@@ -671,10 +709,10 @@ export default function AdminDashboard() {
                         key={
                           category.id
                         }
-                        className="flex items-center justify-between rounded-2xl border border-black/5 bg-[#fbfaf6] p-4"
+                        className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-black/5 bg-[#fbfaf6] p-4"
                       >
 
-                        <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
 
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff8df] text-xl">
                             🏷️
@@ -724,9 +762,9 @@ export default function AdminDashboard() {
               REFERRAL PAYOUT CENTER
           =================================== */}
 
-          <div className="mt-10 overflow-hidden rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white shadow-[0_18px_55px_rgba(7,17,31,0.08)]">
+          <div className="mt-6 w-full overflow-hidden rounded-2xl sm:mt-10 sm:rounded-[2rem] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white shadow-[0_18px_55px_rgba(7,17,31,0.08)]">
 
-            <div className="flex flex-col gap-6 p-7 md:flex-row md:items-center md:justify-between md:p-9">
+            <div className="flex flex-col gap-5 p-4 sm:gap-6 sm:p-7 md:flex-row md:items-center md:justify-between md:p-9">
 
               <div className="max-w-3xl">
 
@@ -740,7 +778,7 @@ export default function AdminDashboard() {
                   </span>
                 </div>
 
-                <h2 className="mt-4 text-3xl font-black text-emerald-700 md:text-4xl">
+                <h2 className="mt-4 text-2xl font-black text-emerald-700 sm:text-3xl md:text-4xl">
                   💰 Referral Payouts
                 </h2>
 
@@ -749,7 +787,7 @@ export default function AdminDashboard() {
                   make the payment, enter the UTR and mark the request as paid.
                 </p>
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-5 sm:mt-6 flex flex-wrap gap-3">
                   <span className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm">
                     📋 Pending payout requests
                   </span>
@@ -767,7 +805,7 @@ export default function AdminDashboard() {
 
               <Link
                 href="/admin/payouts"
-                className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-[#07111f] px-7 py-4 text-sm font-black text-[#f1cf63] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#111d2d]"
+                className="inline-flex w-full shrink-0 items-center justify-center rounded-2xl bg-[#07111f] px-5 py-4 text-sm font-black text-[#f1cf63] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#111d2d] sm:w-auto sm:px-7"
               >
                 Open Referral Payouts →
               </Link>
@@ -781,59 +819,17 @@ export default function AdminDashboard() {
               QUICK ACTIONS
           =================================== */}
 
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <div className="mt-6 grid w-full grid-cols-1 gap-4 sm:mt-10 sm:gap-6 md:grid-cols-2">
 
-            {/* PENDING APPROVALS */}
-
-            <Link
-              href="/admin/pending-approvals"
-              className="rounded-[2rem] border-2 border-[#d4af37]/30 bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-[#d4af37] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
-            >
-
-              <div className="flex items-start justify-between gap-4">
-
-                <div>
-
-                  <h2 className="text-3xl font-bold text-[#8a680c]">
-                    ⏳ Pending Approvals
-                  </h2>
-
-                  <p className="mt-3 text-slate-600">
-                    Review and approve pending
-                    student and business
-                    registrations.
-                  </p>
-
-                </div>
-
-                <div className="shrink-0 rounded-2xl bg-[#fff8df] px-5 py-3 text-center">
-
-                  <span className="block text-3xl font-extrabold text-[#8a680c]">
-
-                    {loading
-                      ? "..."
-                      : totalPendingApprovals}
-
-                  </span>
-
-                  <span className="text-xs font-bold uppercase text-[#8a680c]">
-                    Pending
-                  </span>
-
-                </div>
-
-              </div>
-
-            </Link>
             <Link
   href="/admin/notifications"
-  className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+  className="min-w-0 rounded-2xl bg-white p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
 >
-  <h2 className="text-3xl font-bold text-[#b18a16]">
+  <h2 className="text-2xl font-bold text-[#b18a16] sm:text-3xl">
     🔔 Send Notifications
   </h2>
 
-  <p className="mt-3 text-slate-600">
+  <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
     Send web push notifications to all registered students.
   </p>
 </Link>
@@ -843,19 +839,19 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/referrals"
-              className="rounded-[2rem] border-2 border-[#d4af37]/30 bg-gradient-to-br from-[#fffdf5] to-[#f7f1dd] p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-[#d4af37] hover:shadow-[0_25px_70px_rgba(120,90,20,0.14)]"
+              className="min-w-0 rounded-2xl border-2 border-[#d4af37]/30 bg-gradient-to-br from-[#fffdf5] to-[#f7f1dd] p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:border-[#d4af37] hover:shadow-[0_25px_70px_rgba(120,90,20,0.14)]"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-3xl font-bold text-[#8a680c]">
+                  <h2 className="text-2xl font-bold text-[#8a680c] sm:text-3xl">
                     🎁 Referral Management
                   </h2>
-                  <p className="mt-3 text-slate-600">
+                  <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
                     See who referred whom, full student details, and referral history.
                   </p>
                 </div>
 
-                <div className="shrink-0 rounded-2xl bg-[#07111f] px-5 py-3 text-center text-[#f1cf63]">
+                <div className="w-full shrink-0 rounded-2xl bg-[#07111f] px-4 py-3 text-center text-[#f1cf63] sm:w-auto sm:px-5">
                   <span className="block text-2xl font-extrabold">
                     VIEW
                   </span>
@@ -865,7 +861,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-6 inline-flex rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63]">
+              <div className="mt-5 sm:mt-5 inline-flex w-full justify-center rounded-xl bg-[#07111f] px-5 py-3 text-sm font-black text-[#f1cf63] sm:mt-6 sm:w-auto">
                 Open Referral Management →
               </div>
             </Link>
@@ -875,14 +871,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/businesses"
-              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+              className="min-w-0 rounded-2xl bg-white p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-[#8a680c]">
+              <h2 className="text-2xl font-bold text-[#8a680c] sm:text-3xl">
                 🏪 Manage Businesses
               </h2>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
                 Approve, Reject and Manage Businesses
               </p>
 
@@ -893,14 +889,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/students"
-              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+              className="min-w-0 rounded-2xl bg-white p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-[#b18a16]">
+              <h2 className="text-2xl font-bold text-[#b18a16] sm:text-3xl">
                 👨‍🎓 Manage Students
               </h2>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
                 View all registered students
               </p>
 
@@ -911,14 +907,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/offers"
-              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+              className="min-w-0 rounded-2xl bg-white p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-[#b18a16]">
+              <h2 className="text-2xl font-bold text-[#b18a16] sm:text-3xl">
                 🎁 Manage Offers
               </h2>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
                 View and manage all offers
               </p>
 
@@ -929,14 +925,14 @@ export default function AdminDashboard() {
 
             <Link
               href="/admin/redemptions"
-              className="rounded-[2rem] bg-white p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
+              className="min-w-0 rounded-2xl bg-white p-4 sm:rounded-[2rem] sm:p-8 shadow-[0_18px_55px_rgba(7,17,31,0.08)] transition hover:scale-[1.02] hover:shadow-[0_25px_70px_rgba(7,17,31,0.12)]"
             >
 
-              <h2 className="text-3xl font-bold text-[#8a680c]">
+              <h2 className="text-2xl font-bold text-[#8a680c] sm:text-3xl">
                 📊 Redemption Reports
               </h2>
 
-              <p className="mt-3 text-slate-600">
+              <p className="mt-3 break-words text-sm text-slate-600 sm:text-base">
                 View all redemption history
               </p>
 
@@ -949,13 +945,13 @@ export default function AdminDashboard() {
               PORTAL INFORMATION
           =================================== */}
 
-          <div className="mt-10 rounded-[2rem] border border-black/5 bg-white p-6 shadow-[0_18px_55px_rgba(7,17,31,0.08)] md:p-8">
+          <div className="mt-5 sm:mt-6 w-full min-w-0 rounded-2xl border border-black/5 bg-white p-4 shadow-[0_18px_55px_rgba(7,17,31,0.08)] sm:mt-10 sm:rounded-[2rem] sm:p-6 md:p-8">
 
-            <h2 className="text-3xl font-bold text-[#b18a16]">
+            <h2 className="text-2xl font-bold text-[#b18a16] sm:text-3xl">
               🚀 SBC Admin Portal
             </h2>
 
-            <p className="mt-4 text-lg text-slate-600">
+            <p className="mt-3 text-sm text-slate-600 sm:mt-4 sm:text-lg">
               Manage Students, Businesses,
               Offers, Categories and
               Redemptions from one central
