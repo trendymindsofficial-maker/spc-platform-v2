@@ -28,6 +28,7 @@ interface Offer {
   image?: string;
   desktopImage?: string;
   mobileImage?: string;
+  displayPriority?: number | null;
 
   businessId?: string;
   businessName?: string;
@@ -43,6 +44,67 @@ interface BusinessInfo {
 }
 
 const MAX_REDEMPTIONS = 4;
+
+const OFFER_ORDER_SESSION_KEY = "sbc_offer_order_seed";
+
+const getOfferOrderSeed = () => {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  const existing =
+    window.sessionStorage.getItem(
+      OFFER_ORDER_SESSION_KEY
+    );
+
+  if (existing) {
+    const parsed = Number(existing);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  let seed = Date.now();
+
+  try {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    seed = values[0];
+  } catch {
+    seed = Date.now() + Math.floor(Math.random() * 1000000);
+  }
+
+  window.sessionStorage.setItem(
+    OFFER_ORDER_SESSION_KEY,
+    String(seed)
+  );
+
+  return seed;
+};
+
+const seededShuffle = <T,>(
+  input: T[],
+  seed: number
+): T[] => {
+  const result = [...input];
+  let state = seed >>> 0;
+
+  const random = () => {
+    state += 0x6D2B79F5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
+};
 
 export default function StudentOffers() {
   const router = useRouter();
@@ -64,6 +126,7 @@ export default function StudentOffers() {
 
   const [category, setCategory] =
     useState("All");
+
 
   /*
    * ==========================================
@@ -486,6 +549,13 @@ export default function StudentOffers() {
                 offerData.image ||
                 offerData.imageUrl ||
                 "",
+
+              displayPriority:
+                [1, 2, 3].includes(
+                  Number(offerData.displayPriority)
+                )
+                  ? Number(offerData.displayPriority)
+                  : null,
 
               businessId,
 
@@ -1004,7 +1074,48 @@ export default function StudentOffers() {
 
       }
 
-      return list;
+      /*
+       * DISPLAY ORDER
+       *
+       * If no priority (1/2/3) is configured in Admin,
+       * every offer is randomized.
+       *
+       * If Admin has configured priorities, those offers
+       * always occupy the first 3 positions in priority
+       * order. Every other offer is randomized after them.
+       *
+       * This is applied AFTER category/search filtering, so
+       * category pages follow the exact same rule.
+       */
+      const prioritized = list
+        .filter((offer) =>
+          [1, 2, 3].includes(
+            Number(offer.displayPriority)
+          )
+        )
+        .sort(
+          (a, b) =>
+            Number(a.displayPriority) -
+            Number(b.displayPriority)
+        );
+
+      const randomOffers = list.filter(
+        (offer) =>
+          ![1, 2, 3].includes(
+            Number(offer.displayPriority)
+          )
+      );
+
+      const seed = getOfferOrderSeed();
+      const randomized = seededShuffle(
+        randomOffers,
+        seed
+      );
+
+      return [
+        ...prioritized,
+        ...randomized,
+      ];
 
     }, [
       offers,
@@ -1812,6 +1923,12 @@ export default function StudentOffers() {
 
   const logout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(
+          OFFER_ORDER_SESSION_KEY
+        );
+      }
+
       await signOut(auth);
       router.replace("/student/login");
     } catch (error) {
