@@ -126,7 +126,7 @@ export default function AdminOffers() {
 
   const openEdit = (offer: Offer) => {
     setSelectedOffer(offer);
-    setEditTitle(offer.title || "");
+    setEditTitle("SBC Offer");
     setEditDiscount(offer.discount || "");
     setEditCategory(offer.category || "");
     setEditDescription(offer.description || "");
@@ -263,7 +263,7 @@ export default function AdminOffers() {
   const saveOffer = async () => {
     if (!selectedOffer) return;
 
-    const title = editTitle.trim();
+    const title = "SBC Offer";
     const discount = editDiscount.trim();
     const category = editCategory.trim();
     const description = editDescription.trim();
@@ -753,6 +753,169 @@ export default function AdminOffers() {
                       </p>
                     </div>
 
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Partner Business
+                      </p>
+
+                      <p className="mt-1 text-base font-black text-slate-800">
+                        🏪 {selectedOffer.businessName || "-"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Description
+                      </p>
+
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                        {selectedOffer.description || "No description available."}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Status
+                        </p>
+
+                        <p
+                          className={`mt-2 text-sm font-black uppercase ${
+                            selectedOffer.status?.toLowerCase() === "active"
+                              ? "text-emerald-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {selectedOffer.status || "active"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Offer ID
+                        </p>
+
+                        <p className="mt-2 break-all text-xs font-bold text-slate-600">
+                          {selectedOffer.id}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(selectedOffer)}
+                        className="rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white hover:bg-[#101d2e]"
+                      >
+                        ✏️ Edit Offer
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deleteOffer(
+                            selectedOffer.id,
+                            selectedOffer.title
+                          )
+                        }
+                        className="rounded-2xl bg-red-50 py-3.5 text-sm font-black text-red-600 hover:bg-red-100"
+                      >
+                        🗑 Delete Offer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Offer Title
+                      </label>
+
+                      <input
+                        value="SBC Offer"
+                        readOnly
+                        className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3.5 text-sm font-semibold text-slate-600 outline-none"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Discount
+                        </label>
+
+                        <input
+                          value={editDiscount}
+                          onChange={(e) => setEditDiscount(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Status
+                        </label>
+
+                        <select
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Category
+                      </label>
+
+                      <select
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                      >
+                        <option value="">Select Category</option>
+
+                        {categories.map((category) => (
+                          <option
+                            key={category.id}
+                            value={category.name}
+                          >
+                            {category.name}
+                          </option>
+                        ))}
+
+                        {/* Preserve an old category if it no longer exists */}
+                        {editCategory &&
+                          !categories.some(
+                            (category) =>
+                              category.name.toLowerCase() ===
+                              editCategory.toLowerCase()
+                          ) && (
+                            <option value={editCategory}>
+                              {editCategory}
+                            </option>
+                          )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Description
+                      </label>
+
+                      <textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        rows={5}
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold leading-6 outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                      />
+                    </div>
+
                     {/* OFFER IMAGES */}
                     <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div>
@@ -847,168 +1010,7 @@ export default function AdminOffers() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Partner Business
-                      </p>
 
-                      <p className="mt-1 text-base font-black text-slate-800">
-                        🏪 {selectedOffer.businessName || "-"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Description
-                      </p>
-
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                        {selectedOffer.description || "No description available."}
-                      </p>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          Status
-                        </p>
-
-                        <p
-                          className={`mt-2 text-sm font-black uppercase ${
-                            selectedOffer.status?.toLowerCase() === "active"
-                              ? "text-emerald-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {selectedOffer.status || "active"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          Offer ID
-                        </p>
-
-                        <p className="mt-2 break-all text-xs font-bold text-slate-600">
-                          {selectedOffer.id}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(selectedOffer)}
-                        className="rounded-2xl bg-[#07111f] py-3.5 text-sm font-black text-white hover:bg-[#101d2e]"
-                      >
-                        ✏️ Edit Offer
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteOffer(
-                            selectedOffer.id,
-                            selectedOffer.title
-                          )
-                        }
-                        className="rounded-2xl bg-red-50 py-3.5 text-sm font-black text-red-600 hover:bg-red-100"
-                      >
-                        🗑 Delete Offer
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-
-                    <div>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Offer Title
-                      </label>
-
-                      <input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                          Discount
-                        </label>
-
-                        <input
-                          value={editDiscount}
-                          onChange={(e) => setEditDiscount(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                          Status
-                        </label>
-
-                        <select
-                          value={editStatus}
-                          onChange={(e) => setEditStatus(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Category
-                      </label>
-
-                      <select
-                        value={editCategory}
-                        onChange={(e) => setEditCategory(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                      >
-                        <option value="">Select Category</option>
-
-                        {categories.map((category) => (
-                          <option
-                            key={category.id}
-                            value={category.name}
-                          >
-                            {category.name}
-                          </option>
-                        ))}
-
-                        {/* Preserve an old category if it no longer exists */}
-                        {editCategory &&
-                          !categories.some(
-                            (category) =>
-                              category.name.toLowerCase() ===
-                              editCategory.toLowerCase()
-                          ) && (
-                            <option value={editCategory}>
-                              {editCategory}
-                            </option>
-                          )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        Description
-                      </label>
-
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        rows={5}
-                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold leading-6 outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                      />
-                    </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
