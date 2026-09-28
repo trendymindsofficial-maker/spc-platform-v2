@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
+import StudentScanRedeem from "@/components/StudentScanRedeem";
 
 import { auth, db } from "@/lib/firebase";
 import { enableStudentNotifications } from "@/lib/firebase-messaging";
@@ -79,6 +80,7 @@ export default function StudentDashboard() {
   const [totalPoints, setTotalPoints] = useState(0);
 
   const referralCode = student?.referralCode || "";
+  const scanRedeemRef = useRef<HTMLDivElement | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -1492,7 +1494,35 @@ export default function StudentDashboard() {
     membershipDateIsValid &&
     membershipExpiry!.getTime() <= Date.now();
 
-    const formatMembershipDate = (date: Date | null) => {
+  /*
+   * ==========================================
+   * OPEN SCANNER FROM MOBILE NAV
+   * ==========================================
+   *
+   * When Offers → Scan & Redeem navigates here with
+   * ?open=scan, trigger the same StudentScanRedeem
+   * scanner through a window event.
+   */
+  useEffect(() => {
+    if (!student || !membershipIsActive) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("open") !== "scan") return;
+
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event("sbc-open-scan"));
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${window.location.hash}`
+      );
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [student?.uid, membershipIsActive]);
+
+  const formatMembershipDate = (date: Date | null) => {
     if (!date || Number.isNaN(date.getTime())) {
       return "—";
     }
@@ -2120,7 +2150,9 @@ export default function StudentDashboard() {
               <div className="grid gap-4">
                 <button
                   type="button"
-                  onClick={() => router.push("/student/scan-redeem?open=scan")}
+                  onClick={() => {
+                    window.dispatchEvent(new Event("sbc-open-scan"));
+                  }}
                   disabled={!membershipIsActive}
                   className={`group rounded-2xl border p-5 text-left transition ${
                     membershipIsActive
@@ -2611,6 +2643,11 @@ export default function StudentDashboard() {
             </div>
           </div>
         </nav>
+
+        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
+        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
+          <StudentScanRedeem />
+        </div>
 
         {/* FOOTER */}
 
