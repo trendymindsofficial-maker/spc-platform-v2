@@ -34,6 +34,7 @@ export default function AddOffer() {
   const router = useRouter();
 
   const [category, setCategory] = useState("");
+  const [discount, setDiscount] = useState("");
   const [description, setDescription] = useState("");
 
   const [desktopImageFile, setDesktopImageFile] =
@@ -188,27 +189,48 @@ export default function AddOffer() {
    * ==========================================================
    */
 
-  const handleImageChange = (
-    type: "desktop" | "mobile",
-    file: File | null
-  ) => {
-    if (!file) {
-      return;
-    }
+  const optimizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image.");
-      return;
-    }
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) return reject(new Error("Unable to process image."));
+        context.drawImage(image, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error("Unable to optimize image."));
+          resolve(new File([blob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, { type: "image/webp", lastModified: Date.now() }));
+        }, "image/webp", 0.85);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Unable to read image."));
+      };
+      image.src = objectUrl;
+    });
+  };
 
-    const url = URL.createObjectURL(file);
-
-    if (type === "desktop") {
-      setDesktopImageFile(file);
-      setDesktopPreview(url);
-    } else {
-      setMobileImageFile(file);
-      setMobilePreview(url);
+  const handleImageChange = async (type: "desktop" | "mobile", file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Please select a valid image."); return; }
+    try {
+      const optimized = type === "desktop"
+        ? await optimizeImage(file, 1920, 675)
+        : await optimizeImage(file, 675, 950);
+      const url = URL.createObjectURL(optimized);
+      if (type === "desktop") { setDesktopImageFile(optimized); setDesktopPreview(url); }
+      else { setMobileImageFile(optimized); setMobilePreview(url); }
+    } catch (error) {
+      console.error("Image optimization error:", error);
+      alert("Unable to process the selected image.");
     }
   };
 
@@ -231,6 +253,11 @@ export default function AddOffer() {
    */
 
   const addOffer = async () => {
+    if (!discount.trim()) {
+      alert("Please enter the discount.");
+      return;
+    }
+
     if (!category) {
       alert("Please select a category.");
       return;
@@ -355,94 +382,15 @@ export default function AddOffer() {
        * ======================================================
        */
 
-      const uploadImage = async (
-        file: File,
-        type: "desktop" | "mobile"
-      ) => {
-        // Optimize the image in the browser before uploading.
-        // Desktop: max 1920x675
-        // Mobile:  max 675x950
-        // Quality is kept high at 85% and images are converted to WebP.
-        const optimizeImage = async (sourceFile: File) => {
-          const maxWidth = type === "desktop" ? 1920 : 675;
-          const maxHeight = type === "desktop" ? 675 : 950;
-
-          const objectUrl = URL.createObjectURL(sourceFile);
-
-          try {
-            const image = new Image();
-
-            await new Promise<void>((resolve, reject) => {
-              image.onload = () => resolve();
-              image.onerror = () =>
-                reject(new Error("Unable to read the selected image."));
-              image.src = objectUrl;
-            });
-
-            const scale = Math.min(
-              1,
-              maxWidth / image.naturalWidth,
-              maxHeight / image.naturalHeight
-            );
-
-            const width = Math.max(
-              1,
-              Math.round(image.naturalWidth * scale)
-            );
-            const height = Math.max(
-              1,
-              Math.round(image.naturalHeight * scale)
-            );
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-
-            const context = canvas.getContext("2d");
-
-            if (!context) {
-              throw new Error("Image optimization is not supported.");
-            }
-
-            context.imageSmoothingEnabled = true;
-            context.imageSmoothingQuality = "high";
-            context.drawImage(image, 0, 0, width, height);
-
-            const blob = await new Promise<Blob | null>((resolve) => {
-              canvas.toBlob(
-                (result) => resolve(result),
-                "image/webp",
-                0.85
-              );
-            });
-
-            if (!blob) {
-              throw new Error("Failed to optimize image.");
-            }
-
-            return new File(
-              [blob],
-              `${sourceFile.name.replace(/\.[^/.]+$/, "")}.webp`,
-              {
-                type: "image/webp",
-                lastModified: Date.now(),
-              }
-            );
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          }
-        };
-
-        const optimizedFile = await optimizeImage(file);
-
+      const uploadImage = async (file: File) => {
         const formData = new FormData();
 
-        formData.append("file", optimizedFile);
+        formData.append("file", file);
         formData.append("upload_preset", "spc_offers");
         formData.append("public_id", uuid());
 
         const upload = await fetch(
-          "https://api.cloudinary.com/v1_1/vwyjcwb/image/upload",
+          "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
           {
             method: "POST",
             body: formData,
@@ -463,8 +411,8 @@ export default function AddOffer() {
       };
 
       const [desktopImage, mobileImage] = await Promise.all([
-        uploadImage(desktopImageFile, "desktop"),
-        uploadImage(mobileImageFile, "mobile"),
+        uploadImage(desktopImageFile),
+        uploadImage(mobileImageFile),
       ]);
 
       /*
@@ -482,7 +430,7 @@ export default function AddOffer() {
         {
           title: "SBC Offer",
 
-          discount: "",
+          discount: discount.trim(),
 
           category,
 
@@ -718,6 +666,33 @@ export default function AddOffer() {
             {/* FORM */}
 
             <div className="space-y-6 p-6 sm:p-8">
+
+              {/* OFFER TITLE */}
+              <div>
+                <label className="mb-2 block text-sm font-black text-slate-800">
+                  Offer Title
+                </label>
+                <input
+                  type="text"
+                  value="SBC Offer"
+                  readOnly
+                  className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-black text-slate-900 outline-none"
+                />
+              </div>
+
+              {/* DISCOUNT */}
+              <div>
+                <label className="mb-2 block text-sm font-black text-slate-800">
+                  Discount
+                </label>
+                <input
+                  type="text"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="Example: 15% OFF or Branded Shirt @ ₹349/- only"
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                />
+              </div>
 
               {/* CATEGORY */}
 

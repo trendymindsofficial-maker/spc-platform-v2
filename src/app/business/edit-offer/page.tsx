@@ -43,6 +43,10 @@ export default function EditOffer({
   const [saving, setSaving] =
     useState(false);
 
+  const [discount, setDiscount] = useState("");
+
+  const [category, setCategory] = useState("");
+
   const [description, setDescription] =
     useState("");
 
@@ -160,6 +164,9 @@ export default function EditOffer({
        * are intentionally NOT editable.
        */
 
+      setDiscount(data.discount || "");
+      setCategory(data.category || "");
+
       setDescription(
         data.description || ""
       );
@@ -199,27 +206,41 @@ export default function EditOffer({
    * ==========================================
    */
 
-  const handleImageChange = (
-    type: "desktop" | "mobile",
-    file: File | null
-  ) => {
-    if (!file) {
-      return;
-    }
+  const optimizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) return reject(new Error("Unable to process image."));
+        context.drawImage(image, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error("Unable to optimize image."));
+          resolve(new File([blob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, { type: "image/webp", lastModified: Date.now() }));
+        }, "image/webp", 0.85);
+      };
+      image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Unable to read image.")); };
+      image.src = objectUrl;
+    });
+  };
 
-    if (!file.type.startsWith("image/")) {
-      alert("❌ Please select a valid image.");
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
-
-    if (type === "desktop") {
-      setDesktopImageFile(file);
-      setDesktopPreview(url);
-    } else {
-      setMobileImageFile(file);
-      setMobilePreview(url);
+  const handleImageChange = async (type: "desktop" | "mobile", file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("❌ Please select a valid image."); return; }
+    try {
+      const optimized = type === "desktop" ? await optimizeImage(file, 1920, 675) : await optimizeImage(file, 675, 950);
+      const url = URL.createObjectURL(optimized);
+      if (type === "desktop") { setDesktopImageFile(optimized); setDesktopPreview(url); }
+      else { setMobileImageFile(optimized); setMobilePreview(url); }
+    } catch (error) {
+      console.error("Image optimization error:", error);
+      alert("❌ Unable to process the selected image.");
     }
   };
 
@@ -239,6 +260,16 @@ export default function EditOffer({
           "❌ Business login required."
         );
 
+        return;
+      }
+
+      if (!discount.trim()) {
+        alert("❌ Please enter the discount.");
+        return;
+      }
+
+      if (!category) {
+        alert("❌ Please select a category.");
         return;
       }
 
@@ -325,134 +356,12 @@ export default function EditOffer({
          * =====================================
          */
 
-        const uploadImage = async (
-          file: File,
-          type: "desktop" | "mobile"
-        ) => {
-          // Optimize the image in the browser before uploading.
-          // Desktop: max 1920x675
-          // Mobile: max 675x950
-          // Quality: 85% WebP
-          const optimizeImage = async (sourceFile: File) => {
-            const maxWidth =
-              type === "desktop" ? 1920 : 675;
-            const maxHeight =
-              type === "desktop" ? 675 : 950;
-
-            const objectUrl =
-              URL.createObjectURL(sourceFile);
-
-            try {
-              const image = new Image();
-
-              await new Promise<void>(
-                (resolve, reject) => {
-                  image.onload = () => resolve();
-                  image.onerror = () =>
-                    reject(
-                      new Error(
-                        "Unable to read the selected image."
-                      )
-                    );
-                  image.src = objectUrl;
-                }
-              );
-
-              const scale = Math.min(
-                1,
-                maxWidth / image.naturalWidth,
-                maxHeight / image.naturalHeight
-              );
-
-              const width = Math.max(
-                1,
-                Math.round(
-                  image.naturalWidth * scale
-                )
-              );
-
-              const height = Math.max(
-                1,
-                Math.round(
-                  image.naturalHeight * scale
-                )
-              );
-
-              const canvas =
-                document.createElement("canvas");
-
-              canvas.width = width;
-              canvas.height = height;
-
-              const context =
-                canvas.getContext("2d");
-
-              if (!context) {
-                throw new Error(
-                  "Image optimization is not supported."
-                );
-              }
-
-              context.imageSmoothingEnabled = true;
-              context.imageSmoothingQuality = "high";
-              context.drawImage(
-                image,
-                0,
-                0,
-                width,
-                height
-              );
-
-              const blob =
-                await new Promise<Blob | null>(
-                  (resolve) => {
-                    canvas.toBlob(
-                      (result) => resolve(result),
-                      "image/webp",
-                      0.85
-                    );
-                  }
-                );
-
-              if (!blob) {
-                throw new Error(
-                  "Failed to optimize image."
-                );
-              }
-
-              return new File(
-                [blob],
-                `${sourceFile.name.replace(
-                  /\.[^/.]+$/,
-                  ""
-                )}.webp`,
-                {
-                  type: "image/webp",
-                  lastModified: Date.now(),
-                }
-              );
-            } finally {
-              URL.revokeObjectURL(objectUrl);
-            }
-          };
-
-          const optimizedFile =
-            await optimizeImage(file);
-
+        const uploadImage = async (file: File) => {
           const formData = new FormData();
 
-          formData.append(
-            "file",
-            optimizedFile
-          );
-          formData.append(
-            "upload_preset",
-            "spc_offers"
-          );
-          formData.append(
-            "public_id",
-            uuid()
-          );
+          formData.append("file", file);
+          formData.append("upload_preset", "spc_offers");
+          formData.append("public_id", uuid());
 
           const upload = await fetch(
             "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
@@ -463,35 +372,24 @@ export default function EditOffer({
           );
 
           if (!upload.ok) {
-            throw new Error(
-              "Cloudinary upload failed."
-            );
+            throw new Error("Cloudinary upload failed.");
           }
 
-          const uploaded =
-            await upload.json();
+          const uploaded = await upload.json();
 
           if (!uploaded.secure_url) {
-            throw new Error(
-              "Image upload failed."
-            );
+            throw new Error("Image upload failed.");
           }
 
           return uploaded.secure_url as string;
         };
 
         const desktopImage = desktopImageFile
-          ? await uploadImage(
-              desktopImageFile,
-              "desktop"
-            )
+          ? await uploadImage(desktopImageFile)
           : oldDesktopImage;
 
         const mobileImage = mobileImageFile
-          ? await uploadImage(
-              mobileImageFile,
-              "mobile"
-            )
+          ? await uploadImage(mobileImageFile)
           : oldMobileImage;
 
         /*
@@ -514,8 +412,10 @@ export default function EditOffer({
         await updateDoc(
           offerRef,
           {
-            description:
-              description.trim(),
+            title: "SBC Offer",
+            discount: discount.trim(),
+            category,
+            description: description.trim(),
 
             // Keep legacy "image" as desktop image for backward compatibility.
             image: desktopImage,
@@ -638,6 +538,24 @@ export default function EditOffer({
             ================================= */}
 
             <div className="space-y-7 p-6 sm:p-8">
+
+              {/* OFFER TITLE */}
+              <div>
+                <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Offer Title</label>
+                <input type="text" value="SBC Offer" readOnly className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-black text-[#07111f] outline-none" />
+              </div>
+
+              {/* DISCOUNT + CATEGORY */}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Discount</label>
+                  <input type="text" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="Example: 15% OFF" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
+                </div>
+                <div>
+                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Category</label>
+                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Fashion / Food & Beverages / Beauty and salon / Entertainment" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
+                </div>
+              </div>
 
               {/* =================================
                   DESKTOP + MOBILE OFFER IMAGES
