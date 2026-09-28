@@ -2606,7 +2606,7 @@ export default function StudentDashboard() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => router.push("/student/scan-redeem?open=scan")}
+                onClick={() => window.dispatchEvent(new Event("sbc-open-scan"))}
                 disabled={!membershipIsActive}
                 className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
                   membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
