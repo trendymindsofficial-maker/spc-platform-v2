@@ -2645,7 +2645,7 @@ export default function StudentDashboard() {
         </nav>
 
         {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
-        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
+        <div className="mt-8">
           <StudentScanRedeem />
         </div>
 
