@@ -228,14 +228,14 @@ export default function StudentScanRedeem() {
 
     window.setTimeout(async () => {
       try {
-        const reader = document.getElementById("sbc-dashboard-business-qr-reader");
+        const reader = document.getElementById("sbc-business-qr-reader");
         if (!reader) {
           setScannerError("❌ Scanner could not be opened. Please tap Scan & Redeem again.");
           return;
         }
 
         reader.innerHTML = "";
-        const scanner = new Html5Qrcode("sbc-dashboard-business-qr-reader");
+        const scanner = new Html5Qrcode("sbc-business-qr-reader");
 
         await scanner.start(
           { facingMode: "environment" },
@@ -483,7 +483,7 @@ export default function StudentScanRedeem() {
               </button>
             </div>
             <div
-              id="sbc-dashboard-business-qr-reader"
+              id="sbc-business-qr-reader"
               className="mt-5 overflow-hidden rounded-2xl border-2 border-[#d4af37]/40"
             />
             <button
