@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { v4 as uuid } from "uuid";
 
 import AdminProtected from "@/components/AdminProtected";
 import { db } from "@/lib/firebase";
@@ -23,6 +24,8 @@ interface Offer {
   status: string;
   description?: string;
   image?: string;
+  desktopImage?: string;
+  mobileImage?: string;
 }
 
 interface Category {
@@ -50,6 +53,13 @@ export default function AdminOffers() {
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState("active");
 
+  const [editDesktopImageFile, setEditDesktopImageFile] =
+    useState<File | null>(null);
+  const [editMobileImageFile, setEditMobileImageFile] =
+    useState<File | null>(null);
+  const [editDesktopPreview, setEditDesktopPreview] = useState("");
+  const [editMobilePreview, setEditMobilePreview] = useState("");
+
   useEffect(() => {
     loadOffers();
     loadCategories();
@@ -73,6 +83,8 @@ export default function AdminOffers() {
           status: raw.status || "active",
           description: raw.description || "",
           image: raw.image || "",
+          desktopImage: raw.desktopImage || raw.image || "",
+          mobileImage: raw.mobileImage || raw.image || "",
         };
       }) as Offer[];
 
@@ -119,6 +131,16 @@ export default function AdminOffers() {
     setEditCategory(offer.category || "");
     setEditDescription(offer.description || "");
     setEditStatus(offer.status || "active");
+
+    setEditDesktopImageFile(null);
+    setEditMobileImageFile(null);
+    setEditDesktopPreview(
+      offer.desktopImage || offer.image || ""
+    );
+    setEditMobilePreview(
+      offer.mobileImage || offer.image || ""
+    );
+
     setModalMode("edit");
   };
 
@@ -127,6 +149,115 @@ export default function AdminOffers() {
 
     setSelectedOffer(null);
     setModalMode(null);
+    setEditDesktopImageFile(null);
+    setEditMobileImageFile(null);
+    setEditDesktopPreview("");
+    setEditMobilePreview("");
+  };
+
+  const optimizeImage = async (
+    sourceFile: File,
+    type: "desktop" | "mobile"
+  ) => {
+    const maxWidth = type === "desktop" ? 1920 : 675;
+    const maxHeight = type === "desktop" ? 675 : 950;
+
+    const objectUrl = URL.createObjectURL(sourceFile);
+
+    try {
+      const imageElement = new Image();
+
+      await new Promise<void>((resolve, reject) => {
+        imageElement.onload = () => resolve();
+        imageElement.onerror = () =>
+          reject(new Error("Unable to read the selected image."));
+        imageElement.src = objectUrl;
+      });
+
+      const scale = Math.min(
+        1,
+        maxWidth / imageElement.naturalWidth,
+        maxHeight / imageElement.naturalHeight
+      );
+
+      const width = Math.max(
+        1,
+        Math.round(imageElement.naturalWidth * scale)
+      );
+      const height = Math.max(
+        1,
+        Math.round(imageElement.naturalHeight * scale)
+      );
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Image optimization is not supported.");
+      }
+
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(imageElement, 0, 0, width, height);
+
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(
+          (result) => resolve(result),
+          "image/webp",
+          0.85
+        );
+      });
+
+      if (!blob) {
+        throw new Error("Failed to optimize image.");
+      }
+
+      return new File(
+        [blob],
+        `${sourceFile.name.replace(/\.[^/.]+$/, "")}.webp`,
+        {
+          type: "image/webp",
+          lastModified: Date.now(),
+        }
+      );
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
+  const uploadOptimizedImage = async (
+    sourceFile: File,
+    type: "desktop" | "mobile"
+  ) => {
+    const optimizedFile = await optimizeImage(sourceFile, type);
+
+    const formData = new FormData();
+    formData.append("file", optimizedFile);
+    formData.append("upload_preset", "spc_offers");
+    formData.append("public_id", uuid());
+
+    const upload = await fetch(
+      "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (!upload.ok) {
+      throw new Error("Cloudinary upload failed.");
+    }
+
+    const uploaded = await upload.json();
+
+    if (!uploaded.secure_url) {
+      throw new Error("Image upload failed.");
+    }
+
+    return uploaded.secure_url as string;
   };
 
   const saveOffer = async () => {
@@ -146,12 +277,38 @@ export default function AdminOffers() {
     try {
       setSaving(true);
 
+      let desktopImage =
+        selectedOffer.desktopImage ||
+        selectedOffer.image ||
+        "";
+      let mobileImage =
+        selectedOffer.mobileImage ||
+        selectedOffer.image ||
+        "";
+
+      if (editDesktopImageFile) {
+        desktopImage = await uploadOptimizedImage(
+          editDesktopImageFile,
+          "desktop"
+        );
+      }
+
+      if (editMobileImageFile) {
+        mobileImage = await uploadOptimizedImage(
+          editMobileImageFile,
+          "mobile"
+        );
+      }
+
       await updateDoc(doc(db, "offers", selectedOffer.id), {
         title,
         discount,
         category,
         description,
         status,
+        image: desktopImage,
+        desktopImage,
+        mobileImage,
       });
 
       const updatedOffer: Offer = {
@@ -161,6 +318,9 @@ export default function AdminOffers() {
         category,
         description,
         status,
+        image: desktopImage,
+        desktopImage,
+        mobileImage,
       };
 
       setOffers((current) =>
@@ -171,6 +331,8 @@ export default function AdminOffers() {
 
       setSelectedOffer(updatedOffer);
       setModalMode("view");
+      setEditDesktopImageFile(null);
+      setEditMobileImageFile(null);
 
       alert("Offer updated successfully.");
     } catch (error) {
@@ -408,9 +570,9 @@ export default function AdminOffers() {
                   >
                     {/* IMAGE / TOP */}
                     <div className="relative h-44 overflow-hidden bg-[#07111f]">
-                      {offer.image ? (
+                      {(offer.desktopImage || offer.image) ? (
                         <img
-                          src={offer.image}
+                          src={offer.desktopImage || offer.image}
                           alt={offer.title}
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />
@@ -567,10 +729,10 @@ export default function AdminOffers() {
                 {modalMode === "view" ? (
                   <div className="space-y-5">
 
-                    {selectedOffer.image && (
+                    {(selectedOffer.desktopImage || selectedOffer.image) && (
                       <div className="overflow-hidden rounded-3xl bg-[#07111f]">
                         <img
-                          src={selectedOffer.image}
+                          src={selectedOffer.desktopImage || selectedOffer.image}
                           alt={selectedOffer.title}
                           className="h-56 w-full object-cover"
                         />
@@ -589,6 +751,100 @@ export default function AdminOffers() {
                       <p className="mt-2 text-2xl font-black text-[#b18a16]">
                         {selectedOffer.discount || "-"}
                       </p>
+                    </div>
+
+                    {/* OFFER IMAGES */}
+                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Offer Images
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Upload separate Desktop and Mobile images. Images are automatically resized and converted to WebP at 85% quality before Cloudinary upload.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {/* DESKTOP */}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                          <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            Desktop Image
+                            <span className="ml-1 text-slate-400">
+                              (1920×675)
+                            </span>
+                          </label>
+
+                          {editDesktopPreview && (
+                            <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                              <img
+                                src={editDesktopPreview}
+                                alt="Desktop offer preview"
+                                className="h-32 w-full object-cover"
+                              />
+                            </div>
+                          )}
+
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={(e) => {
+                              const file =
+                                e.target.files?.[0] || null;
+                              if (!file) return;
+
+                              setEditDesktopImageFile(file);
+                              setEditDesktopPreview(
+                                URL.createObjectURL(file)
+                              );
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] p-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#07111f] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+                          />
+
+                          <p className="mt-2 text-[10px] font-semibold text-slate-400">
+                            Recommended: 1920×675
+                          </p>
+                        </div>
+
+                        {/* MOBILE */}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                          <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            Mobile Image
+                            <span className="ml-1 text-slate-400">
+                              (675×950)
+                            </span>
+                          </label>
+
+                          {editMobilePreview && (
+                            <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                              <img
+                                src={editMobilePreview}
+                                alt="Mobile offer preview"
+                                className="h-32 w-full object-contain"
+                              />
+                            </div>
+                          )}
+
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={(e) => {
+                              const file =
+                                e.target.files?.[0] || null;
+                              if (!file) return;
+
+                              setEditMobileImageFile(file);
+                              setEditMobilePreview(
+                                URL.createObjectURL(file)
+                              );
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] p-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#07111f] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+                          />
+
+                          <p className="mt-2 text-[10px] font-semibold text-slate-400">
+                            Recommended: 675×950
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
