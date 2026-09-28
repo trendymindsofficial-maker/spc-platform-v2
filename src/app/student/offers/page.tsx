@@ -276,7 +276,7 @@ export default function StudentOffers() {
     const unsubscribe =
       onSnapshot(
         requestRef,
-        async (snapshot) => {
+        (snapshot) => {
           if (
             !snapshot.exists()
           ) {
@@ -303,137 +303,39 @@ export default function StudentOffers() {
             "approved"
           ) {
 
-            /*
-             * Business approval only stores the points earned
-             * on the redemption request. The cumulative points
-             * balance is maintained in studentPoints/{studentId}.
-             *
-             * Also load the Google Review link directly from the
-             * partner business so the button does not depend on
-             * an old offer object that was loaded before approval.
-             */
-            const approvedBusinessId = String(
-              data.businessId ||
-              pendingOffer?.businessId ||
-              ""
-            ).trim();
-
             const approvedBusinessName =
               data.businessName ||
               pendingOffer?.businessName ||
               "SBC Partner Business";
 
             const approvedOfferData: Offer =
-              {
-                ...(pendingOffer || {}),
+              pendingOffer || {
                 id:
-                  pendingOffer?.id ||
                   data.offerId ||
                   "",
                 title:
-                  pendingOffer?.title ||
                   data.offerTitle ||
                   "SBC Offer",
                 discount:
-                  pendingOffer?.discount ||
                   data.offerDiscount ||
                   "",
                 businessId:
-                  approvedBusinessId,
+                  data.businessId ||
+                  "",
                 businessName:
                   approvedBusinessName,
-                googleReviewLink:
-                  pendingOffer?.googleReviewLink ||
-                  "",
               };
-
-            let earnedPoints = Number(
-              data.pointsAwarded ||
-              data.lastPointsEarned ||
-              0
-            );
-
-            let totalPoints = Math.max(
-              Number(data.totalPoints || 0),
-              Number(data.studentPointsAfterRedemption || 0)
-            );
-
-            try {
-              /* Load the partner business review link directly. */
-              if (approvedBusinessId) {
-                const businessSnap = await getDoc(
-                  doc(db, "businesses", approvedBusinessId)
-                );
-
-                if (businessSnap.exists()) {
-                  const businessData = businessSnap.data();
-
-                  approvedOfferData.googleReviewLink =
-                    String(
-                      businessData.googleReviewLink ||
-                      businessData.googleReviewUrl ||
-                      businessData.googleReview ||
-                      approvedOfferData.googleReviewLink ||
-                      ""
-                    ).trim();
-                }
-              }
-            } catch (error) {
-              console.error(
-                "Approved business review link load error:",
-                error
-              );
-            }
-
-            try {
-              /*
-               * Read the exact studentPoints document used by
-               * the business approval transaction.
-               */
-              const possibleStudentIds = auth.currentUser
-                ? await findStudentIds(auth.currentUser.uid)
-                : [];
-
-              for (const studentId of possibleStudentIds) {
-                const pointsSnap = await getDoc(
-                  doc(db, "studentPoints", studentId)
-                );
-
-                if (!pointsSnap.exists()) continue;
-
-                const pointsData = pointsSnap.data();
-
-                earnedPoints = Math.max(
-                  earnedPoints,
-                  Number(
-                    pointsData.lastPointsEarned ||
-                    pointsData.pointsAwarded ||
-                    0
-                  )
-                );
-
-                totalPoints = Math.max(
-                  totalPoints,
-                  Number(pointsData.totalPoints || 0)
-                );
-              }
-            } catch (error) {
-              console.error(
-                "Approved student points load error:",
-                error
-              );
-            }
 
             setApprovedOffer(
               approvedOfferData
             );
 
             setApprovedPoints(
-              earnedPoints
+              Number(data.pointsAwarded || 0)
             );
 
             setApprovedTotalPoints(
-              totalPoints
+              Number(data.totalPoints || 0)
             );
 
             setPendingOffer(
@@ -2957,9 +2859,6 @@ export default function StudentOffers() {
                   +{approvedPoints}
                 </p>
 
-                <p className="mt-1 text-xs font-bold text-purple-500">
-                  Total Points: {approvedTotalPoints}
-                </p>
 
               </div>
 
