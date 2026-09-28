@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
-import StudentScanRedeem from "@/components/StudentScanRedeem";
 
 import { auth, db } from "@/lib/firebase";
 import { enableStudentNotifications } from "@/lib/firebase-messaging";
@@ -80,7 +79,6 @@ export default function StudentDashboard() {
   const [totalPoints, setTotalPoints] = useState(0);
 
   const referralCode = student?.referralCode || "";
-  const scanRedeemRef = useRef<HTMLDivElement | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -2150,9 +2148,7 @@ export default function StudentDashboard() {
               <div className="grid gap-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    window.dispatchEvent(new Event("sbc-open-scan"));
-                  }}
+                  onClick={() => router.push("/student/scan-redeem?open=scan")}
                   disabled={!membershipIsActive}
                   className={`group rounded-2xl border p-5 text-left transition ${
                     membershipIsActive
@@ -2606,7 +2602,7 @@ export default function StudentDashboard() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new Event("sbc-open-scan"))}
+                onClick={() => router.push("/student/scan-redeem?open=scan")}
                 disabled={!membershipIsActive}
                 className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
                   membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
@@ -2643,11 +2639,6 @@ export default function StudentDashboard() {
             </div>
           </div>
         </nav>
-
-        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
-        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
-          <StudentScanRedeem />
-        </div>
 
         {/* FOOTER */}
 
