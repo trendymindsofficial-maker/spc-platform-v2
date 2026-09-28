@@ -325,12 +325,134 @@ export default function EditOffer({
          * =====================================
          */
 
-        const uploadImage = async (file: File) => {
+        const uploadImage = async (
+          file: File,
+          type: "desktop" | "mobile"
+        ) => {
+          // Optimize the image in the browser before uploading.
+          // Desktop: max 1920x675
+          // Mobile: max 675x950
+          // Quality: 85% WebP
+          const optimizeImage = async (sourceFile: File) => {
+            const maxWidth =
+              type === "desktop" ? 1920 : 675;
+            const maxHeight =
+              type === "desktop" ? 675 : 950;
+
+            const objectUrl =
+              URL.createObjectURL(sourceFile);
+
+            try {
+              const image = new Image();
+
+              await new Promise<void>(
+                (resolve, reject) => {
+                  image.onload = () => resolve();
+                  image.onerror = () =>
+                    reject(
+                      new Error(
+                        "Unable to read the selected image."
+                      )
+                    );
+                  image.src = objectUrl;
+                }
+              );
+
+              const scale = Math.min(
+                1,
+                maxWidth / image.naturalWidth,
+                maxHeight / image.naturalHeight
+              );
+
+              const width = Math.max(
+                1,
+                Math.round(
+                  image.naturalWidth * scale
+                )
+              );
+
+              const height = Math.max(
+                1,
+                Math.round(
+                  image.naturalHeight * scale
+                )
+              );
+
+              const canvas =
+                document.createElement("canvas");
+
+              canvas.width = width;
+              canvas.height = height;
+
+              const context =
+                canvas.getContext("2d");
+
+              if (!context) {
+                throw new Error(
+                  "Image optimization is not supported."
+                );
+              }
+
+              context.imageSmoothingEnabled = true;
+              context.imageSmoothingQuality = "high";
+              context.drawImage(
+                image,
+                0,
+                0,
+                width,
+                height
+              );
+
+              const blob =
+                await new Promise<Blob | null>(
+                  (resolve) => {
+                    canvas.toBlob(
+                      (result) => resolve(result),
+                      "image/webp",
+                      0.85
+                    );
+                  }
+                );
+
+              if (!blob) {
+                throw new Error(
+                  "Failed to optimize image."
+                );
+              }
+
+              return new File(
+                [blob],
+                `${sourceFile.name.replace(
+                  /\.[^/.]+$/,
+                  ""
+                )}.webp`,
+                {
+                  type: "image/webp",
+                  lastModified: Date.now(),
+                }
+              );
+            } finally {
+              URL.revokeObjectURL(objectUrl);
+            }
+          };
+
+          const optimizedFile =
+            await optimizeImage(file);
+
           const formData = new FormData();
 
-          formData.append("file", file);
-          formData.append("upload_preset", "spc_offers");
-          formData.append("public_id", uuid());
+          formData.append(
+            "file",
+            optimizedFile
+          );
+          formData.append(
+            "upload_preset",
+            "spc_offers"
+          );
+          formData.append(
+            "public_id",
+            uuid()
+          );
 
           const upload = await fetch(
             "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
@@ -341,24 +463,35 @@ export default function EditOffer({
           );
 
           if (!upload.ok) {
-            throw new Error("Cloudinary upload failed.");
+            throw new Error(
+              "Cloudinary upload failed."
+            );
           }
 
-          const uploaded = await upload.json();
+          const uploaded =
+            await upload.json();
 
           if (!uploaded.secure_url) {
-            throw new Error("Image upload failed.");
+            throw new Error(
+              "Image upload failed."
+            );
           }
 
           return uploaded.secure_url as string;
         };
 
         const desktopImage = desktopImageFile
-          ? await uploadImage(desktopImageFile)
+          ? await uploadImage(
+              desktopImageFile,
+              "desktop"
+            )
           : oldDesktopImage;
 
         const mobileImage = mobileImageFile
-          ? await uploadImage(mobileImageFile)
+          ? await uploadImage(
+              mobileImageFile,
+              "mobile"
+            )
           : oldMobileImage;
 
         /*
