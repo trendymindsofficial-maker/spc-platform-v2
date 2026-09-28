@@ -331,11 +331,20 @@ export default function StudentOffers() {
             );
 
             setApprovedPoints(
-              Number(data.pointsAwarded || 0)
+              Number(
+                data.pointsAwarded ??
+                data.points ??
+                data.rewardPoints ??
+                0
+              )
             );
 
             setApprovedTotalPoints(
-              Number(data.totalPoints || 0)
+              Number(
+                data.totalPoints ??
+                data.studentPointsAfterRedemption ??
+                0
+              )
             );
 
             setPendingOffer(
@@ -2798,16 +2807,6 @@ export default function StudentOffers() {
 
           <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
 
-                        {approvedOffer?.googleReviewLink ? (
-              <button
-                type="button"
-                onClick={() => shareGoogleReview(approvedOffer)}
-                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
-              >
-                ⭐ Share your experience on Google
-              </button>
-            ) : null}
-
 <button
               type="button"
               onClick={closeApproved}
@@ -2862,17 +2861,39 @@ export default function StudentOffers() {
 
               </div>
 
+              {approvedOffer?.googleReviewLink ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => shareGoogleReview(approvedOffer)}
+                    className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
+                  >
+                    ⭐ Share your experience on Google
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeApproved}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Maybe later / Continue to SBC
+                  </button>
+                </>
+              ) : null}
+
               <p className="mt-3 text-xs font-semibold text-gray-400">
                 Redemption successful.
               </p>
 
-              <button
-                type="button"
-                onClick={closeApproved}
-                className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
-              >
-                ✓ Done
-              </button>
+              {!approvedOffer?.googleReviewLink && (
+                <button
+                  type="button"
+                  onClick={closeApproved}
+                  className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
+                >
+                  ✓ Done
+                </button>
+              )}
 
             </div>
 
@@ -2975,7 +2996,15 @@ export default function StudentOffers() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => router.push("/student/dashboard?open=scan")}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(
+                      "sbc_open_scan",
+                      "1"
+                    );
+                  }
+                  router.push("/student/dashboard");
+                }}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">

@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -81,6 +80,30 @@ export default function StudentDashboard() {
 
   const referralCode = student?.referralCode || "";
   const scanRedeemRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const shouldOpenScan =
+      window.sessionStorage.getItem(
+        "sbc_open_scan"
+      ) === "1";
+
+    if (!shouldOpenScan) return;
+
+    window.sessionStorage.removeItem(
+      "sbc_open_scan"
+    );
+
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(
+        new Event("sbc-open-scan")
+      );
+    }, 450);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, []);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -301,15 +324,33 @@ export default function StudentDashboard() {
     try {
       /*
        * IMPORTANT:
-       * Do not choose the highest duplicate studentPoints
-       * document. The points document must belong to the
-       * same student document used for the student profile.
+       * Redemption approval writes reward points to
+       * studentPoints/{studentId}, where studentId is the
+       * authenticated Firebase UID used by the redemption request.
+       *
+       * Read that UID document first. Only fall back to an older
+       * student-profile document ID when the UID points document
+       * does not exist. This prevents the dashboard from showing
+       * 0 while the correct studentPoints/{authUid} document has
+       * already received the reward.
        */
 
       let pointsDocumentId = authUid;
 
-      try {
-        const studentUidQuery =
+      const authPointsSnap =
+        await getDoc(
+          doc(
+            db,
+            "studentPoints",
+            authUid
+          )
+        );
+
+      if (authPointsSnap.exists()) {
+        pointsDocumentId = authUid;
+      } else {
+        try {
+          const studentUidQuery =
           query(
             collection(
               db,
@@ -354,13 +395,14 @@ export default function StudentDashboard() {
           pointsDocumentId =
             studentUidSnap.docs[0].id;
         }
-      } catch (
-        studentLookupError
-      ) {
-        console.error(
-          "Student document ID lookup for points failed:",
+        } catch (
           studentLookupError
-        );
+        ) {
+          console.error(
+            "Student document ID lookup for points failed:",
+            studentLookupError
+          );
+        }
       }
 
       const pointsSnap =
@@ -1494,39 +1536,6 @@ export default function StudentDashboard() {
     membershipDateIsValid &&
     membershipExpiry!.getTime() <= Date.now();
 
-
-  /*
-   * ==========================================
-   * OPEN SCANNER FROM MOBILE NAV
-   * ==========================================
-   *
-   * When Offers → Scan & Redeem navigates here with
-   * ?open=scan, trigger the same existing hidden
-   * StudentScanRedeem button used by this dashboard.
-   */
-  useEffect(() => {
-    if (!student || !membershipIsActive) return;
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("open") !== "scan") return;
-
-    const timer = window.setTimeout(() => {
-      const scanButton = scanRedeemRef.current?.querySelector("button");
-
-      if (scanButton) {
-        scanButton.click();
-        window.history.replaceState(
-          {},
-          "",
-          `${window.location.pathname}${window.location.hash}`
-        );
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [student?.uid, membershipIsActive]);
-
   const formatMembershipDate = (date: Date | null) => {
     if (!date || Number.isNaN(date.getTime())) {
       return "—";
@@ -2156,8 +2165,9 @@ export default function StudentDashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    const scanButton = scanRedeemRef.current?.querySelector("button");
-                    if (scanButton) scanButton.click();
+                    window.dispatchEvent(
+                      new Event("sbc-open-scan")
+                    );
                   }}
                   disabled={!membershipIsActive}
                   className={`group rounded-2xl border p-5 text-left transition ${
@@ -2236,37 +2246,9 @@ export default function StudentDashboard() {
           </div>
         </section>
 
-        {/* MOBILE REWARD POINTS */}
-        <section className="mt-7 md:hidden">
-          <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)]">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
-              Reward Points
-            </p>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="text-4xl font-black text-[#f1cf63]">
-                {totalPoints.toLocaleString()}
-              </span>
-              <span className="pb-1 text-sm font-bold text-white/50">
-                / 1000
-              </span>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-[#d4af37] transition-all"
-                style={{
-                  width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-3 text-xs font-semibold text-white/55">
-              {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
-            </p>
-          </div>
-        </section>
-
         {/* REFERRAL MARKETING */}
 
-        <section id="referral" className="mt-7">
+        <section className="mt-7">
           <div className="relative overflow-hidden rounded-[2rem] border border-[#d4af37]/25 bg-gradient-to-br from-[#07111f] via-[#101b2b] to-[#17243a] p-7 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-9">
             <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
@@ -2312,40 +2294,6 @@ export default function StudentDashboard() {
                       ₹{payoutWallet.available.toLocaleString()}
                     </p>
                   </div>
-                </div>
-
-                {/* REFERRAL PROGRESS */}
-                <div className="mt-6 rounded-2xl border border-[#d4af37]/25 bg-[#d4af37]/10 p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#f1cf63]">
-                        Refer & Earn ₹250
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-white">
-                        {Math.min(10, payoutWallet.successfulReferrals)} / 10 students joined
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-[#f1cf63]">
-                        {Math.min(100, (payoutWallet.successfulReferrals / 10) * 100)}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-[#d4af37] transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, (payoutWallet.successfulReferrals / 10) * 100)}%`,
-                      }}
-                    />
-                  </div>
-
-                  <p className="mt-3 text-xs font-semibold text-white/55">
-                    {payoutWallet.successfulReferrals >= 10
-                      ? "🎉 10 successful referrals completed. ₹250 reward is unlocked."
-                      : `${10 - payoutWallet.successfulReferrals} more successful referral${10 - payoutWallet.successfulReferrals === 1 ? "" : "s"} to unlock ₹250.`}
-                  </p>
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -2608,55 +2556,60 @@ export default function StudentDashboard() {
         </section>
 
         {/* MOBILE BOTTOM NAV */}
-        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+6px)] md:hidden">
-          <div className="mx-auto max-w-lg rounded-[1.35rem] border border-[#24364d] bg-[#020d19]/95 p-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
-            <div className="grid grid-cols-4 items-center gap-1">
+        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden">
+          <div className="mx-auto max-w-lg rounded-[1.5rem] border border-[#24364d] bg-[#020d19]/95 px-2 py-2 shadow-[0_-10px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+            <div className="grid grid-cols-4 items-end">
 
               {/* HOME — SELECTED */}
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="relative flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] border border-[#d4af37] bg-[#d4af37]/10 px-1 py-1.5 text-[#f1cf63] transition active:scale-[0.97]"
+                className="relative flex min-h-[82px] flex-col items-center justify-center gap-1 rounded-[1.25rem] border border-[#d4af37] bg-[#d4af37]/10 px-1 py-2 text-[#f1cf63] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition active:scale-[0.97]"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#d4af37] text-[#07111f]">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d4af37] text-[#07111f] shadow-[0_4px_14px_rgba(212,175,55,0.22)]">
+                  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V10.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M9 21V14H15V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-black leading-4">Home</span>
-                <span className="absolute bottom-0 h-1 w-16 max-w-[72%] rounded-full bg-[#f1cf63]" />
+                <span className="text-[11px] font-black">Home</span>
+                <span className="absolute bottom-0 h-1.5 w-24 max-w-[72%] rounded-full bg-[#f1cf63]" />
               </button>
 
               {/* OFFERS — NORMAL */}
               <button
                 type="button"
                 onClick={() => router.push("/student/offers")}
-                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
+                className="flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-[1.25rem] px-1 py-2 text-white transition active:scale-[0.97]"
               >
-                <span className="flex h-7 w-7 items-center justify-center text-white">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl text-white">
+                  <svg width="27" height="27" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M20.59 13.41L13.41 20.59C12.63 21.37 11.37 21.37 10.59 20.59L3.41 13.41C2.63 12.63 2.63 11.37 3.41 10.59L10.59 3.41C11.37 2.63 12.63 2.63 13.41 3.41L20.59 10.59C21.37 11.37 21.37 12.63 20.59 13.41Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     <circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4">Offers</span>
+                <span className="text-[11px] font-bold">Offers</span>
               </button>
 
-              {/* SCAN & REDEEM — COMPACT */}
+              {/* SCAN & REDEEM — CENTER SCANNER */}
               <button
                 type="button"
                 onClick={() => {
-                  const scanButton = scanRedeemRef.current?.querySelector("button");
-                  if (scanButton) scanButton.click();
+                  window.dispatchEvent(
+                    new Event("sbc-open-scan")
+                  );
                 }}
                 disabled={!membershipIsActive}
-                className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
-                  membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
-                }`}
+                className="relative flex min-h-[100px] flex-col items-center justify-end px-1 pb-1 transition active:scale-[0.97]"
               >
-                <span className={`flex h-7 w-7 items-center justify-center ${membershipIsActive ? "text-white" : "text-white/30"}`}>
-                  <svg width="25" height="25" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <span
+                  className={`absolute -top-7 flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] ${
+                    membershipIsActive
+                      ? "border-[#f1c232] bg-[#121c1b] text-[#f1c232] shadow-[0_0_10px_rgba(212,175,55,0.45),0_0_30px_rgba(212,175,55,0.18)]"
+                      : "border-slate-600 bg-[#101820] text-slate-500"
+                  }`}
+                >
+                  <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M7 15V9C7 7.89543 7.89543 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M27 7H33C34.1046 7 35 7.89543 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M7 27V33C7 34.1046 7.89543 35 9 35H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -2664,23 +2617,31 @@ export default function StudentDashboard() {
                     <path d="M11 21H31" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
+                <span className={`mt-2 text-center text-[11px] font-black ${membershipIsActive ? "text-white" : "text-white/35"}`}>
+                  Scan & Redeem
+                </span>
               </button>
 
-              {/* REFER A FRIEND — NORMAL */}
+              {/* YOUR CARD — NORMAL */}
               <button
                 type="button"
-                onClick={shareReferralLink}
-                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
+                onClick={() =>
+                  document.getElementById("your-card")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
+                }
+                className="flex min-h-[82px] flex-col items-center justify-center gap-2 rounded-[1.25rem] px-1 py-2 text-white transition active:scale-[0.97]"
               >
-                <span className="flex h-7 w-7 items-center justify-center text-white">
-                  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M16 21V19C16 17.3431 14.6569 16 13 16H7C5.34315 16 4 17.3431 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <circle cx="10" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
-                    <path d="M19 8V14M16 11H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl text-white">
+                  <svg width="29" height="29" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+                    <path d="M3 10H21" stroke="currentColor" strokeWidth="2" />
+                    <path d="M7 15H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M15 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4 text-center">Refer a Friend</span>
+                <span className="text-[11px] font-bold">Your Card</span>
               </button>
 
             </div>
