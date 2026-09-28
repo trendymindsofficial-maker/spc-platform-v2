@@ -2644,8 +2644,8 @@ export default function StudentDashboard() {
           </div>
         </nav>
 
-        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
-        <div className="mt-8">
+        {/* Scan & Redeem lives on the dashboard so scanned business offers remain visible here. */}
+        <div className="mt-6 pb-4">
           <StudentScanRedeem />
         </div>
 

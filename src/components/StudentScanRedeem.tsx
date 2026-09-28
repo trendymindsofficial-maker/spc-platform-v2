@@ -100,38 +100,16 @@ export default function StudentScanRedeem() {
 
   const extractBusinessId = (decodedText: string) => {
     const value = decodedText.trim();
-    if (!value) return "";
 
     try {
       const parsed = JSON.parse(value);
-      const id =
-        parsed?.businessId ||
-        parsed?.sbcBusinessId ||
-        parsed?.business_id ||
-        parsed?.id;
-
-      if (id) return String(id).trim();
-    } catch {}
-
-    if (value.toUpperCase().startsWith("SBC-BIZ-")) return value;
-
-    try {
-      const url = new URL(value);
-      const idFromQuery =
-        url.searchParams.get("businessId") ||
-        url.searchParams.get("business") ||
-        url.searchParams.get("id");
-
-      if (idFromQuery) return idFromQuery.trim();
-
-      const parts = url.pathname.split("/").filter(Boolean);
-      const lastPart = parts[parts.length - 1];
-      if (lastPart && lastPart.toUpperCase().startsWith("SBC-BIZ-")) {
-        return lastPart.trim();
+      if (parsed?.type === "SBC_BUSINESS" && parsed?.businessId) {
+        return String(parsed.businessId).trim();
       }
     } catch {}
 
-    return value;
+    if (value.toUpperCase().startsWith("SBC-BIZ-")) return value;
+    return "";
   };
 
   const loadBusiness = async (publicBusinessId: string) => {
@@ -139,33 +117,20 @@ export default function StudentScanRedeem() {
     setScannerError("");
 
     try {
-      const cleanBusinessId = publicBusinessId.trim();
       const businessQuery = query(
         collection(db, "businesses"),
-        where("businessId", "==", cleanBusinessId)
+        where("businessId", "==", publicBusinessId.trim().toUpperCase())
       );
-      let businessSnap = await getDocs(businessQuery);
-      let businessDoc = businessSnap.docs[0];
+      const businessSnap = await getDocs(businessQuery);
 
-      // Some older SBC business QRs contain the Firestore document UID
-      // instead of the public SBC-BIZ-* ID. Support both formats.
-      if (!businessDoc) {
-        try {
-          const directBusinessSnap = await getDoc(
-            doc(db, "businesses", cleanBusinessId)
-          );
-          if (directBusinessSnap.exists()) {
-            businessDoc = directBusinessSnap;
-          }
-        } catch {}
-      }
-
-      if (!businessDoc) {
+      if (businessSnap.empty) {
         setBusiness(null);
         setOffers([]);
-        setScannerError("❌ Business QR scanned, but this business could not be found.");
+        setScannerError("❌ Invalid SBC Business QR.");
         return;
       }
+
+      const businessDoc = businessSnap.docs[0];
       const data = businessDoc.data();
       const businessAuthUid = businessDoc.id;
 
@@ -228,21 +193,19 @@ export default function StudentScanRedeem() {
 
     window.setTimeout(async () => {
       try {
-        const reader = document.getElementById("sbc-business-qr-reader");
+        const reader = document.getElementById("sbc-dashboard-business-qr-reader");
         if (!reader) {
           setScannerError("❌ Scanner could not be opened. Please tap Scan & Redeem again.");
           return;
         }
 
         reader.innerHTML = "";
-        const scanner = new Html5Qrcode("sbc-business-qr-reader");
+        const scanner = new Html5Qrcode("sbc-dashboard-business-qr-reader");
 
         await scanner.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
           async (decodedText) => {
-            console.log("SBC QR decoded:", decodedText);
-
             try { await scanner.stop(); } catch {}
             try { scanner.clear(); } catch {}
 
@@ -250,16 +213,13 @@ export default function StudentScanRedeem() {
 
             const businessId = extractBusinessId(decodedText);
             if (!businessId) {
-              setScannerError("❌ QR was scanned, but no Business ID was found.");
+              setScannerError("❌ This is not a valid SBC Business QR.");
               return;
             }
 
             await loadBusiness(businessId);
           },
-          (scanErrorMessage) => {
-            // html5-qrcode calls this continuously while searching.
-            // Do not show these normal frame-by-frame scan misses to the user.
-          }
+          () => {}
         );
       } catch (error) {
         console.error("Dashboard QR scanner error:", error);
@@ -483,7 +443,7 @@ export default function StudentScanRedeem() {
               </button>
             </div>
             <div
-              id="sbc-business-qr-reader"
+              id="sbc-dashboard-business-qr-reader"
               className="mt-5 overflow-hidden rounded-2xl border-2 border-[#d4af37]/40"
             />
             <button
