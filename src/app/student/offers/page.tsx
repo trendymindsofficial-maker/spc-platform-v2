@@ -29,6 +29,7 @@ interface Offer {
   desktopImage?: string;
   mobileImage?: string;
   displayPriority?: number | null;
+  googleReviewLink?: string;
 
   businessId?: string;
   businessName?: string;
@@ -465,6 +466,7 @@ export default function StudentOffers() {
             name: string;
             mobile: string;
             address: string;
+            googleReviewLink: string;
           }
         >();
 
@@ -492,6 +494,12 @@ export default function StudentOffers() {
                 data.businessAddress ||
                 data.location ||
                 data.fullAddress ||
+                "",
+
+              googleReviewLink:
+                data.googleReviewLink ||
+                data.googleReviewUrl ||
+                data.googleReview ||
                 "",
             }
           );
@@ -556,6 +564,11 @@ export default function StudentOffers() {
                 )
                   ? Number(offerData.displayPriority)
                   : null,
+
+              googleReviewLink:
+                offerData.googleReviewLink ||
+                business?.googleReviewLink ||
+                "",
 
               businessId,
 
@@ -1813,6 +1826,22 @@ export default function StudentOffers() {
    * ==========================================
    */
 
+  const shareGoogleReview = (offer: Offer | null) => {
+    const reviewLink = String(
+      offer?.googleReviewLink || ""
+    ).trim();
+
+    if (!reviewLink) {
+      return;
+    }
+
+    window.open(
+      reviewLink,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
   const closeApproved =
     () => {
 
@@ -2769,7 +2798,17 @@ export default function StudentOffers() {
 
           <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
 
-            <button
+                        {approvedOffer?.googleReviewLink ? (
+              <button
+                type="button"
+                onClick={() => shareGoogleReview(approvedOffer)}
+                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
+              >
+                ⭐ Share your experience on Google
+              </button>
+            ) : null}
+
+<button
               type="button"
               onClick={closeApproved}
               aria-label="Close"
