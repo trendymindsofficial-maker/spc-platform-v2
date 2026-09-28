@@ -276,7 +276,7 @@ export default function StudentOffers() {
     const unsubscribe =
       onSnapshot(
         requestRef,
-        (snapshot) => {
+        async (snapshot) => {
           if (
             !snapshot.exists()
           ) {
@@ -303,48 +303,137 @@ export default function StudentOffers() {
             "approved"
           ) {
 
+            /*
+             * Business approval only stores the points earned
+             * on the redemption request. The cumulative points
+             * balance is maintained in studentPoints/{studentId}.
+             *
+             * Also load the Google Review link directly from the
+             * partner business so the button does not depend on
+             * an old offer object that was loaded before approval.
+             */
+            const approvedBusinessId = String(
+              data.businessId ||
+              pendingOffer?.businessId ||
+              ""
+            ).trim();
+
             const approvedBusinessName =
               data.businessName ||
               pendingOffer?.businessName ||
               "SBC Partner Business";
 
             const approvedOfferData: Offer =
-              pendingOffer || {
+              {
+                ...(pendingOffer || {}),
                 id:
+                  pendingOffer?.id ||
                   data.offerId ||
                   "",
                 title:
+                  pendingOffer?.title ||
                   data.offerTitle ||
                   "SBC Offer",
                 discount:
+                  pendingOffer?.discount ||
                   data.offerDiscount ||
                   "",
                 businessId:
-                  data.businessId ||
-                  "",
+                  approvedBusinessId,
                 businessName:
                   approvedBusinessName,
+                googleReviewLink:
+                  pendingOffer?.googleReviewLink ||
+                  "",
               };
+
+            let earnedPoints = Number(
+              data.pointsAwarded ||
+              data.lastPointsEarned ||
+              0
+            );
+
+            let totalPoints = Math.max(
+              Number(data.totalPoints || 0),
+              Number(data.studentPointsAfterRedemption || 0)
+            );
+
+            try {
+              /* Load the partner business review link directly. */
+              if (approvedBusinessId) {
+                const businessSnap = await getDoc(
+                  doc(db, "businesses", approvedBusinessId)
+                );
+
+                if (businessSnap.exists()) {
+                  const businessData = businessSnap.data();
+
+                  approvedOfferData.googleReviewLink =
+                    String(
+                      businessData.googleReviewLink ||
+                      businessData.googleReviewUrl ||
+                      businessData.googleReview ||
+                      approvedOfferData.googleReviewLink ||
+                      ""
+                    ).trim();
+                }
+              }
+            } catch (error) {
+              console.error(
+                "Approved business review link load error:",
+                error
+              );
+            }
+
+            try {
+              /*
+               * Read the exact studentPoints document used by
+               * the business approval transaction.
+               */
+              const possibleStudentIds = auth.currentUser
+                ? await findStudentIds(auth.currentUser.uid)
+                : [];
+
+              for (const studentId of possibleStudentIds) {
+                const pointsSnap = await getDoc(
+                  doc(db, "studentPoints", studentId)
+                );
+
+                if (!pointsSnap.exists()) continue;
+
+                const pointsData = pointsSnap.data();
+
+                earnedPoints = Math.max(
+                  earnedPoints,
+                  Number(
+                    pointsData.lastPointsEarned ||
+                    pointsData.pointsAwarded ||
+                    0
+                  )
+                );
+
+                totalPoints = Math.max(
+                  totalPoints,
+                  Number(pointsData.totalPoints || 0)
+                );
+              }
+            } catch (error) {
+              console.error(
+                "Approved student points load error:",
+                error
+              );
+            }
 
             setApprovedOffer(
               approvedOfferData
             );
 
             setApprovedPoints(
-              Number(
-                data.pointsAwarded ??
-                data.points ??
-                data.rewardPoints ??
-                0
-              )
+              earnedPoints
             );
 
             setApprovedTotalPoints(
-              Number(
-                data.totalPoints ??
-                data.studentPointsAfterRedemption ??
-                0
-              )
+              totalPoints
             );
 
             setPendingOffer(
@@ -2807,6 +2896,16 @@ export default function StudentOffers() {
 
           <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
 
+                        {approvedOffer?.googleReviewLink ? (
+              <button
+                type="button"
+                onClick={() => shareGoogleReview(approvedOffer)}
+                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
+              >
+                ⭐ Share your experience on Google
+              </button>
+            ) : null}
+
 <button
               type="button"
               onClick={closeApproved}
@@ -2858,42 +2957,23 @@ export default function StudentOffers() {
                   +{approvedPoints}
                 </p>
 
+                <p className="mt-1 text-xs font-bold text-purple-500">
+                  Total Points: {approvedTotalPoints}
+                </p>
 
               </div>
-
-              {approvedOffer?.googleReviewLink ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => shareGoogleReview(approvedOffer)}
-                    className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
-                  >
-                    ⭐ Share your experience on Google
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={closeApproved}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Maybe later / Continue to SBC
-                  </button>
-                </>
-              ) : null}
 
               <p className="mt-3 text-xs font-semibold text-gray-400">
                 Redemption successful.
               </p>
 
-              {!approvedOffer?.googleReviewLink && (
-                <button
-                  type="button"
-                  onClick={closeApproved}
-                  className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
-                >
-                  ✓ Done
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={closeApproved}
+                className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
+              >
+                ✓ Done
+              </button>
 
             </div>
 
@@ -2996,9 +3076,7 @@ export default function StudentOffers() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => {
-                  router.push("/student/scan-redeem?open=scan");
-                }}
+                onClick={() => router.push("/student/dashboard?open=scan")}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
