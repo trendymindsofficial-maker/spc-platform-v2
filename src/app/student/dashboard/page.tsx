@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
@@ -1492,35 +1492,7 @@ export default function StudentDashboard() {
     membershipDateIsValid &&
     membershipExpiry!.getTime() <= Date.now();
 
-  /*
-   * ==========================================
-   * OPEN SCANNER FROM MOBILE NAV
-   * ==========================================
-   *
-   * When Offers → Scan & Redeem navigates here with
-   * ?open=scan, trigger the same StudentScanRedeem
-   * scanner through a window event.
-   */
-  useEffect(() => {
-    if (!student || !membershipIsActive) return;
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("open") !== "scan") return;
-
-    const timer = window.setTimeout(() => {
-      window.dispatchEvent(new Event("sbc-open-scan"));
-      window.history.replaceState(
-        {},
-        "",
-        `${window.location.pathname}${window.location.hash}`
-      );
-    }, 150);
-
-    return () => window.clearTimeout(timer);
-  }, [student?.uid, membershipIsActive]);
-
-  const formatMembershipDate = (date: Date | null) => {
+    const formatMembershipDate = (date: Date | null) => {
     if (!date || Number.isNaN(date.getTime())) {
       return "—";
     }

@@ -3089,7 +3089,7 @@ export default function StudentScanRedeem() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => router.push("/student/dashboard?open=scan")}
+                onClick={() => window.dispatchEvent(new Event("sbc-open-scan"))}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
                 <span className="flex h-7 w-7 items-center justify-center text-white">
