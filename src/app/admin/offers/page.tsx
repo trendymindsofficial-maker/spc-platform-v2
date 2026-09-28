@@ -26,6 +26,7 @@ interface Offer {
   image?: string;
   desktopImage?: string;
   mobileImage?: string;
+  displayPriority?: 1 | 2 | 3 | null;
 }
 
 interface Category {
@@ -52,6 +53,7 @@ export default function AdminOffers() {
   const [editCategory, setEditCategory] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState("active");
+  const [editDisplayPriority, setEditDisplayPriority] = useState<"" | "1" | "2" | "3">("");
 
   const [editDesktopImageFile, setEditDesktopImageFile] =
     useState<File | null>(null);
@@ -85,6 +87,7 @@ export default function AdminOffers() {
           image: raw.image || "",
           desktopImage: raw.desktopImage || raw.image || "",
           mobileImage: raw.mobileImage || raw.image || "",
+          displayPriority: raw.displayPriority === 1 || raw.displayPriority === 2 || raw.displayPriority === 3 ? raw.displayPriority : null,
         };
       }) as Offer[];
 
@@ -131,6 +134,7 @@ export default function AdminOffers() {
     setEditCategory(offer.category || "");
     setEditDescription(offer.description || "");
     setEditStatus(offer.status || "active");
+    setEditDisplayPriority(offer.displayPriority ? String(offer.displayPriority) as "1" | "2" | "3" : "");
 
     setEditDesktopImageFile(null);
     setEditMobileImageFile(null);
@@ -268,6 +272,7 @@ export default function AdminOffers() {
     const category = editCategory.trim();
     const description = editDescription.trim();
     const status = editStatus.trim() || "active";
+    const displayPriority = editDisplayPriority ? Number(editDisplayPriority) as 1 | 2 | 3 : null;
 
     if (!title || !discount || !category) {
       alert("Please fill Offer Title, Discount and Category.");
@@ -276,6 +281,20 @@ export default function AdminOffers() {
 
     try {
       setSaving(true);
+
+      // Only one offer can occupy each priority slot (1, 2, 3).
+      if (displayPriority !== null) {
+        const duplicate = offers.find(
+          (offer) =>
+            offer.id !== selectedOffer.id &&
+            offer.displayPriority === displayPriority
+        );
+        if (duplicate) {
+          alert(`Priority ${displayPriority} is already assigned to "${duplicate.businessName || duplicate.title}". Please choose another priority or set it to Random.`);
+          setSaving(false);
+          return;
+        }
+      }
 
       let desktopImage =
         selectedOffer.desktopImage ||
@@ -306,6 +325,7 @@ export default function AdminOffers() {
         category,
         description,
         status,
+        displayPriority,
         image: desktopImage,
         desktopImage,
         mobileImage,
@@ -318,6 +338,7 @@ export default function AdminOffers() {
         category,
         description,
         status,
+        displayPriority,
         image: desktopImage,
         desktopImage,
         mobileImage,
@@ -901,6 +922,25 @@ export default function AdminOffers() {
                             </option>
                           )}
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Display Priority
+                      </label>
+                      <select
+                        value={editDisplayPriority}
+                        onChange={(e) => setEditDisplayPriority(e.target.value as "" | "1" | "2" | "3")}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                      >
+                        <option value="">Random</option>
+                        <option value="1">1st Offer</option>
+                        <option value="2">2nd Offer</option>
+                        <option value="3">3rd Offer</option>
+                      </select>
+                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                        Optional. If not set, this offer is randomized for students.
+                      </p>
                     </div>
 
                     <div>

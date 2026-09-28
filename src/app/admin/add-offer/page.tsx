@@ -40,6 +40,7 @@ export default function AdminAddOffer() {
   const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [displayPriority, setDisplayPriority] = useState<"" | "1" | "2" | "3">("");
 
   const [desktopImageFile, setDesktopImageFile] = useState<File | null>(null);
   const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
@@ -249,6 +250,19 @@ export default function AdminAddOffer() {
     try {
       setSaving(true);
 
+      // Priority is optional. If selected, each slot (1/2/3) can belong to only one offer.
+      if (displayPriority) {
+        const priorityQuery = query(
+          collection(db, "offers"),
+          where("displayPriority", "==", Number(displayPriority))
+        );
+        const prioritySnap = await getDocs(priorityQuery);
+        if (!prioritySnap.empty) {
+          alert(`Priority ${displayPriority} is already assigned to another offer. Please choose another priority or Random.`);
+          return;
+        }
+      }
+
       // Preserve the existing SBC rule:
       // one active offer per business.
       const activeOfferQuery = query(
@@ -311,6 +325,7 @@ export default function AdminAddOffer() {
         businessMobile: selectedBusiness.mobile || "",
         businessAddress: selectedBusiness.address || "",
         status: "active",
+        displayPriority: displayPriority ? Number(displayPriority) : null,
         createdAt: serverTimestamp(),
       });
 
@@ -464,6 +479,28 @@ export default function AdminAddOffer() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* DISPLAY PRIORITY */}
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Display Priority
+                  </label>
+
+                  <select
+                    value={displayPriority}
+                    onChange={(e) => setDisplayPriority(e.target.value as "" | "1" | "2" | "3")}
+                    className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-semibold text-[#07111f] outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                  >
+                    <option value="">Random</option>
+                    <option value="1">1st Offer</option>
+                    <option value="2">2nd Offer</option>
+                    <option value="3">3rd Offer</option>
+                  </select>
+
+                  <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                    Optional. If not set, this offer will appear randomly for students.
+                  </p>
                 </div>
 
                 {/* DESCRIPTION */}
