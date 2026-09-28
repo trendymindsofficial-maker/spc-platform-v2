@@ -43,12 +43,10 @@ export default function EditOffer({
   const [saving, setSaving] =
     useState(false);
 
-  const [discount, setDiscount] = useState("");
-
-  const [category, setCategory] = useState("");
-
   const [description, setDescription] =
     useState("");
+
+  const [googleReviewLink, setGoogleReviewLink] = useState("");
 
   const [oldDesktopImage, setOldDesktopImage] =
     useState("");
@@ -164,11 +162,12 @@ export default function EditOffer({
        * are intentionally NOT editable.
        */
 
-      setDiscount(data.discount || "");
-      setCategory(data.category || "");
-
       setDescription(
         data.description || ""
+      );
+
+      setGoogleReviewLink(
+        data.googleReviewLink || ""
       );
 
       const desktopImage =
@@ -206,41 +205,27 @@ export default function EditOffer({
    * ==========================================
    */
 
-  const optimizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      image.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
-        const width = Math.max(1, Math.round(image.naturalWidth * scale));
-        const height = Math.max(1, Math.round(image.naturalHeight * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width; canvas.height = height;
-        const context = canvas.getContext("2d");
-        if (!context) return reject(new Error("Unable to process image."));
-        context.drawImage(image, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (!blob) return reject(new Error("Unable to optimize image."));
-          resolve(new File([blob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, { type: "image/webp", lastModified: Date.now() }));
-        }, "image/webp", 0.85);
-      };
-      image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Unable to read image.")); };
-      image.src = objectUrl;
-    });
-  };
+  const handleImageChange = (
+    type: "desktop" | "mobile",
+    file: File | null
+  ) => {
+    if (!file) {
+      return;
+    }
 
-  const handleImageChange = async (type: "desktop" | "mobile", file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("❌ Please select a valid image."); return; }
-    try {
-      const optimized = type === "desktop" ? await optimizeImage(file, 1920, 675) : await optimizeImage(file, 675, 950);
-      const url = URL.createObjectURL(optimized);
-      if (type === "desktop") { setDesktopImageFile(optimized); setDesktopPreview(url); }
-      else { setMobileImageFile(optimized); setMobilePreview(url); }
-    } catch (error) {
-      console.error("Image optimization error:", error);
-      alert("❌ Unable to process the selected image.");
+    if (!file.type.startsWith("image/")) {
+      alert("❌ Please select a valid image.");
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+
+    if (type === "desktop") {
+      setDesktopImageFile(file);
+      setDesktopPreview(url);
+    } else {
+      setMobileImageFile(file);
+      setMobilePreview(url);
     }
   };
 
@@ -263,16 +248,6 @@ export default function EditOffer({
         return;
       }
 
-      if (!discount.trim()) {
-        alert("❌ Please enter the discount.");
-        return;
-      }
-
-      if (!category) {
-        alert("❌ Please select a category.");
-        return;
-      }
-
       /*
        * Description is optional.
        * But if entered, keep it short.
@@ -280,10 +255,10 @@ export default function EditOffer({
 
       if (
         description.trim().length >
-        1000
+        80
       ) {
         alert(
-          "❌ Description should be 1000 characters or less."
+          "❌ Description should be 80 characters or less."
         );
 
         return;
@@ -412,10 +387,11 @@ export default function EditOffer({
         await updateDoc(
           offerRef,
           {
-            title: "SBC Offer",
-            discount: discount.trim(),
-            category,
-            description: description.trim(),
+            description:
+              description.trim(),
+
+            googleReviewLink:
+              googleReviewLink.trim(),
 
             // Keep legacy "image" as desktop image for backward compatibility.
             image: desktopImage,
@@ -539,22 +515,23 @@ export default function EditOffer({
 
             <div className="space-y-7 p-6 sm:p-8">
 
-              {/* OFFER TITLE */}
-              <div>
-                <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Offer Title</label>
-                <input type="text" value="SBC Offer" readOnly className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-black text-[#07111f] outline-none" />
-              </div>
+              {/* =================================
+                  GOOGLE REVIEW LINK */}
 
-              {/* DISCOUNT + CATEGORY */}
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Discount</label>
-                  <input type="text" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="Example: 15% OFF" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
-                </div>
-                <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Category</label>
-                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Fashion / Food & Beverages / Beauty and salon / Entertainment" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
-                </div>
+              <div>
+                <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                  Google Review Link
+                </label>
+                <input
+                  type="url"
+                  value={googleReviewLink}
+                  onChange={(e) => setGoogleReviewLink(e.target.value)}
+                  placeholder="https://g.page/.../review"
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Optional. Students will see the Google Review button only when this link is available.
+                </p>
               </div>
 
               {/* =================================
@@ -682,14 +659,14 @@ export default function EditOffer({
                   </div>
 
                   <span className="text-[10px] font-bold text-slate-400">
-                    {description.length}/1000
+                    {description.length}/80
                   </span>
 
                 </div>
 
                 <textarea
                   value={description}
-                  maxLength={1000}
+                  maxLength={80}
                   onChange={(e) =>
                     setDescription(
                       e.target.value

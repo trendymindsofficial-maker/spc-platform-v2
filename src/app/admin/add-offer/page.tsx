@@ -40,6 +40,7 @@ export default function AdminAddOffer() {
   const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [googleReviewLink, setGoogleReviewLink] = useState("");
   const [displayPriority, setDisplayPriority] = useState<"" | "1" | "2" | "3">("");
 
   const [desktopImageFile, setDesktopImageFile] = useState<File | null>(null);
@@ -324,6 +325,7 @@ export default function AdminAddOffer() {
         businessName: selectedBusiness.businessName,
         businessMobile: selectedBusiness.mobile || "",
         businessAddress: selectedBusiness.address || "",
+        googleReviewLink: googleReviewLink.trim(),
         status: "active",
         displayPriority: displayPriority ? Number(displayPriority) : null,
         createdAt: serverTimestamp(),
@@ -522,6 +524,24 @@ export default function AdminAddOffer() {
                 <div className="sm:col-span-2">
                   <div className="mb-3">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
+              {/* GOOGLE REVIEW LINK */}
+
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  Google Review Link
+                </label>
+                <input
+                  type="url"
+                  value={googleReviewLink}
+                  onChange={(e) => setGoogleReviewLink(e.target.value)}
+                  placeholder="https://g.page/.../review"
+                  className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-semibold text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                />
+                <p className="mt-2 text-xs font-semibold text-slate-400">
+                  Optional. Leave empty if the business does not have a Google Review link yet.
+                </p>
+              </div>
+
                       Offer Images
                     </label>
                     <p className="mt-1 text-xs font-semibold text-slate-400">

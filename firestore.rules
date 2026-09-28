@@ -90,8 +90,6 @@ service cloud.firestore {
     // CATEGORIES
     // =========================
     match /categories/{categoryId} {
-      // Categories are non-sensitive and must be readable
-      // on the public business registration page before login.
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -102,8 +100,13 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow read: if signedIn();
 
-      allow create: if signedIn()
-        && request.resource.data.businessId == request.auth.uid;
+      // Admin can create an offer for any approved partner business.
+      // A business can create an offer only for itself.
+      allow create: if isAdmin()
+        || (
+          signedIn() &&
+          request.resource.data.businessId == request.auth.uid
+        );
 
       allow update: if isAdmin() ||
         (
@@ -161,8 +164,6 @@ service cloud.firestore {
     // REDEMPTION REQUESTS
     // =========================
     match /redemptionRequests/{requestId} {
-      // Creation is server-only. /api/redemption/create performs
-      // authentication, membership-expiry, offer and usage checks.
       allow create: if false;
 
       allow read: if isAdmin()

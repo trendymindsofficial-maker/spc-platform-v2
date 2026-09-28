@@ -27,6 +27,7 @@ interface Offer {
   desktopImage?: string;
   mobileImage?: string;
   displayPriority?: 1 | 2 | 3 | null;
+  googleReviewLink?: string;
 }
 
 interface Category {
@@ -52,6 +53,7 @@ export default function AdminOffers() {
   const [editDiscount, setEditDiscount] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editGoogleReviewLink, setEditGoogleReviewLink] = useState("");
   const [editStatus, setEditStatus] = useState("active");
   const [editDisplayPriority, setEditDisplayPriority] = useState<"" | "1" | "2" | "3">("");
 
@@ -88,6 +90,7 @@ export default function AdminOffers() {
           desktopImage: raw.desktopImage || raw.image || "",
           mobileImage: raw.mobileImage || raw.image || "",
           displayPriority: raw.displayPriority === 1 || raw.displayPriority === 2 || raw.displayPriority === 3 ? raw.displayPriority : null,
+          googleReviewLink: raw.googleReviewLink || "",
         };
       }) as Offer[];
 
@@ -133,6 +136,7 @@ export default function AdminOffers() {
     setEditDiscount(offer.discount || "");
     setEditCategory(offer.category || "");
     setEditDescription(offer.description || "");
+    setEditGoogleReviewLink(offer.googleReviewLink || "");
     setEditStatus(offer.status || "active");
     setEditDisplayPriority(offer.displayPriority ? String(offer.displayPriority) as "1" | "2" | "3" : "");
 
@@ -324,6 +328,7 @@ export default function AdminOffers() {
         discount,
         category,
         description,
+        googleReviewLink: editGoogleReviewLink.trim(),
         status,
         displayPriority,
         image: desktopImage,
@@ -337,6 +342,7 @@ export default function AdminOffers() {
         discount,
         category,
         description,
+        googleReviewLink: editGoogleReviewLink.trim(),
         status,
         displayPriority,
         image: desktopImage,
@@ -922,6 +928,22 @@ export default function AdminOffers() {
                             </option>
                           )}
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Google Review Link
+                      </label>
+                      <input
+                        type="url"
+                        value={editGoogleReviewLink}
+                        onChange={(e) => setEditGoogleReviewLink(e.target.value)}
+                        placeholder="https://g.page/.../review"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-semibold outline-none focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                      />
+                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                        Optional. Leave empty if the business does not have a Google Review link yet.
+                      </p>
                     </div>
 
                     <div>

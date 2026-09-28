@@ -34,8 +34,9 @@ export default function AddOffer() {
   const router = useRouter();
 
   const [category, setCategory] = useState("");
-  const [discount, setDiscount] = useState("");
   const [description, setDescription] = useState("");
+
+  const [googleReviewLink, setGoogleReviewLink] = useState("");
 
   const [desktopImageFile, setDesktopImageFile] =
     useState<File | null>(null);
@@ -189,48 +190,27 @@ export default function AddOffer() {
    * ==========================================================
    */
 
-  const optimizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      const objectUrl = URL.createObjectURL(file);
+  const handleImageChange = (
+    type: "desktop" | "mobile",
+    file: File | null
+  ) => {
+    if (!file) {
+      return;
+    }
 
-      image.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
-        const width = Math.max(1, Math.round(image.naturalWidth * scale));
-        const height = Math.max(1, Math.round(image.naturalHeight * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext("2d");
-        if (!context) return reject(new Error("Unable to process image."));
-        context.drawImage(image, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (!blob) return reject(new Error("Unable to optimize image."));
-          resolve(new File([blob], `${file.name.replace(/\.[^/.]+$/, "")}.webp`, { type: "image/webp", lastModified: Date.now() }));
-        }, "image/webp", 0.85);
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Unable to read image."));
-      };
-      image.src = objectUrl;
-    });
-  };
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image.");
+      return;
+    }
 
-  const handleImageChange = async (type: "desktop" | "mobile", file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("Please select a valid image."); return; }
-    try {
-      const optimized = type === "desktop"
-        ? await optimizeImage(file, 1920, 675)
-        : await optimizeImage(file, 675, 950);
-      const url = URL.createObjectURL(optimized);
-      if (type === "desktop") { setDesktopImageFile(optimized); setDesktopPreview(url); }
-      else { setMobileImageFile(optimized); setMobilePreview(url); }
-    } catch (error) {
-      console.error("Image optimization error:", error);
-      alert("Unable to process the selected image.");
+    const url = URL.createObjectURL(file);
+
+    if (type === "desktop") {
+      setDesktopImageFile(file);
+      setDesktopPreview(url);
+    } else {
+      setMobileImageFile(file);
+      setMobilePreview(url);
     }
   };
 
@@ -253,11 +233,6 @@ export default function AddOffer() {
    */
 
   const addOffer = async () => {
-    if (!discount.trim()) {
-      alert("Please enter the discount.");
-      return;
-    }
-
     if (!category) {
       alert("Please select a category.");
       return;
@@ -430,7 +405,7 @@ export default function AddOffer() {
         {
           title: "SBC Offer",
 
-          discount: discount.trim(),
+          discount: "",
 
           category,
 
@@ -449,6 +424,8 @@ export default function AddOffer() {
           businessMobile,
 
           businessAddress,
+
+          googleReviewLink: googleReviewLink.trim(),
 
           status: "active",
 
@@ -667,33 +644,6 @@ export default function AddOffer() {
 
             <div className="space-y-6 p-6 sm:p-8">
 
-              {/* OFFER TITLE */}
-              <div>
-                <label className="mb-2 block text-sm font-black text-slate-800">
-                  Offer Title
-                </label>
-                <input
-                  type="text"
-                  value="SBC Offer"
-                  readOnly
-                  className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-black text-slate-900 outline-none"
-                />
-              </div>
-
-              {/* DISCOUNT */}
-              <div>
-                <label className="mb-2 block text-sm font-black text-slate-800">
-                  Discount
-                </label>
-                <input
-                  type="text"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  placeholder="Example: 15% OFF or Branded Shirt @ ₹349/- only"
-                  className="w-full rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
-                />
-              </div>
-
               {/* CATEGORY */}
 
               <div>
@@ -750,6 +700,24 @@ export default function AddOffer() {
                   Add the important offer details students should know. No character limit.
                 </p>
 
+              </div>
+
+              {/* GOOGLE REVIEW LINK */}
+
+              <div>
+                <label className="mb-2 block text-sm font-black text-slate-800">
+                  Google Review Link
+                </label>
+                <input
+                  type="url"
+                  value={googleReviewLink}
+                  onChange={(e) => setGoogleReviewLink(e.target.value)}
+                  placeholder="https://g.page/.../review"
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Optional. Students will see the Google Review button only when this link is available.
+                </p>
               </div>
 
               {/* DESKTOP + MOBILE OFFER IMAGES */}

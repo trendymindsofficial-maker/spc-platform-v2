@@ -191,8 +191,15 @@ export default function StudentScanRedeem() {
     setScannerError("");
     setScannerOpen(true);
 
-    setTimeout(async () => {
+    window.setTimeout(async () => {
       try {
+        const reader = document.getElementById("sbc-dashboard-business-qr-reader");
+        if (!reader) {
+          setScannerError("❌ Scanner could not be opened. Please tap Scan & Redeem again.");
+          return;
+        }
+
+        reader.innerHTML = "";
         const scanner = new Html5Qrcode("sbc-dashboard-business-qr-reader");
 
         await scanner.start(
@@ -230,16 +237,21 @@ export default function StudentScanRedeem() {
       startScanner();
     };
 
-    window.addEventListener(
-      "sbc-open-scan",
-      handleOpenScan
-    );
+    window.addEventListener("sbc-open-scan", handleOpenScan);
+
+    // Fallback for Offers -> Dashboard?open=scan.
+    // The dashboard and this hidden component mount together, so the
+    // custom event can occasionally fire before this listener is ready.
+    const queryTimer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("open") === "scan") {
+        startScanner();
+      }
+    }, 500);
 
     return () => {
-      window.removeEventListener(
-        "sbc-open-scan",
-        handleOpenScan
-      );
+      window.clearTimeout(queryTimer);
+      window.removeEventListener("sbc-open-scan", handleOpenScan);
     };
   }, []);
 
