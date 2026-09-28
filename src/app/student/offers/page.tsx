@@ -2997,13 +2997,7 @@ export default function StudentOffers() {
               <button
                 type="button"
                 onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(
-                      "sbc_open_scan",
-                      "1"
-                    );
-                  }
-                  router.push("/student/dashboard");
+                  router.push("/student/scan-redeem?open=scan");
                 }}
                 className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >

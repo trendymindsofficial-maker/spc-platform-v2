@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import QRCode from "react-qr-code";
-import StudentScanRedeem from "@/components/StudentScanRedeem";
-
 import { auth, db } from "@/lib/firebase";
 import { enableStudentNotifications } from "@/lib/firebase-messaging";
 
@@ -80,7 +78,6 @@ export default function StudentDashboard() {
   const [totalPoints, setTotalPoints] = useState(0);
 
   const referralCode = student?.referralCode || "";
-  const scanRedeemRef = useRef<HTMLDivElement | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -1494,34 +1491,6 @@ export default function StudentDashboard() {
     membershipDateIsValid &&
     membershipExpiry!.getTime() <= Date.now();
 
-  /*
-   * ==========================================
-   * OPEN SCANNER FROM MOBILE NAV
-   * ==========================================
-   *
-   * When Offers → Scan & Redeem navigates here with
-   * ?open=scan, trigger the same StudentScanRedeem
-   * scanner through a window event.
-   */
-  useEffect(() => {
-    if (!student || !membershipIsActive) return;
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("open") !== "scan") return;
-
-    const timer = window.setTimeout(() => {
-      window.dispatchEvent(new Event("sbc-open-scan"));
-      window.history.replaceState(
-        {},
-        "",
-        `${window.location.pathname}${window.location.hash}`
-      );
-    }, 150);
-
-    return () => window.clearTimeout(timer);
-  }, [student?.uid, membershipIsActive]);
-
   const formatMembershipDate = (date: Date | null) => {
     if (!date || Number.isNaN(date.getTime())) {
       return "—";
@@ -2151,9 +2120,8 @@ export default function StudentDashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    window.dispatchEvent(new Event("sbc-open-scan"));
+                    window.dispatchEvent(new CustomEvent("sbc-open-scan"));
                   }}
-                  disabled={!membershipIsActive}
                   className={`group rounded-2xl border p-5 text-left transition ${
                     membershipIsActive
                       ? "border-[#d4af37]/30 bg-[#d4af37]/10 hover:border-[#d4af37]/60 hover:bg-[#d4af37]/15"
@@ -2606,13 +2574,10 @@ export default function StudentDashboard() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new Event("sbc-open-scan"))}
-                disabled={!membershipIsActive}
-                className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
-                  membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
-                }`}
+                onClick={() => router.push("/student/scan-redeem?open=scan")}
+                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
-                <span className={`flex h-7 w-7 items-center justify-center ${membershipIsActive ? "text-white" : "text-white/30"}`}>
+                <span className="flex h-7 w-7 items-center justify-center text-white">
                   <svg width="25" height="25" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M7 15V9C7 7.89543 7.89543 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M27 7H33C34.1046 7 35 7.89543 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -2643,11 +2608,6 @@ export default function StudentDashboard() {
             </div>
           </div>
         </nav>
-
-        {/* Hidden scan component: keeps the existing scan/redeem functionality without rendering its card on the dashboard. */}
-        <div ref={scanRedeemRef} className="fixed -left-[10000px] top-0 h-px w-px overflow-visible">
-          <StudentScanRedeem />
-        </div>
 
         {/* FOOTER */}
 
