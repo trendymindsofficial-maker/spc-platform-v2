@@ -36,13 +36,15 @@ export default function AdminAddOffer() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   const [businessId, setBusinessId] = useState("");
-  const [title, setTitle] = useState("");
+  const [title] = useState("SBC Offer");
   const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState("");
+  const [desktopImageFile, setDesktopImageFile] = useState<File | null>(null);
+  const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
+  const [desktopPreview, setDesktopPreview] = useState("");
+  const [mobilePreview, setMobilePreview] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,21 +122,103 @@ export default function AdminAddOffer() {
     }
   };
 
-  const handleImageChange = (file: File | null) => {
-    if (!file) return;
+  const optimizeImage = (
+    file: File,
+    maxWidth: number,
+    maxHeight: number
+  ): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
 
-    setImageFile(file);
-    setPreview(URL.createObjectURL(file));
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+
+        const scale = Math.min(
+          1,
+          maxWidth / image.naturalWidth,
+          maxHeight / image.naturalHeight
+        );
+
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Unable to process image."));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Unable to optimize image."));
+              return;
+            }
+
+            resolve(
+              new File(
+                [blob],
+                `${file.name.replace(/\.[^/.]+$/, "")}.webp`,
+                { type: "image/webp", lastModified: Date.now() }
+              )
+            );
+          },
+          "image/webp",
+          0.85
+        );
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Unable to read image."));
+      };
+
+      image.src = objectUrl;
+    });
+  };
+
+  const handleDesktopImageChange = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const optimized = await optimizeImage(file, 1920, 675);
+      setDesktopImageFile(optimized);
+      const previewUrl = URL.createObjectURL(optimized);
+      setDesktopPreview((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return previewUrl;
+      });
+    } catch (error) {
+      console.error("Desktop image optimization error:", error);
+      alert("Unable to process the desktop image.");
+    }
+  };
+
+  const handleMobileImageChange = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const optimized = await optimizeImage(file, 675, 950);
+      setMobileImageFile(optimized);
+      const previewUrl = URL.createObjectURL(optimized);
+      setMobilePreview((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return previewUrl;
+      });
+    } catch (error) {
+      console.error("Mobile image optimization error:", error);
+      alert("Unable to process the mobile image.");
+    }
   };
 
   const saveOffer = async () => {
     if (!businessId) {
       alert("Please select a business.");
-      return;
-    }
-
-    if (!title.trim()) {
-      alert("Please enter the offer title.");
       return;
     }
 
@@ -182,33 +266,36 @@ export default function AdminAddOffer() {
         return;
       }
 
-      let image = "";
-
-      if (imageFile) {
+      const uploadToCloudinary = async (file: File) => {
         const formData = new FormData();
-        formData.append("file", imageFile);
+        formData.append("file", file);
         formData.append("upload_preset", "spc_offers");
         formData.append("public_id", uuid());
 
         const upload = await fetch(
           "https://api.cloudinary.com/v1_1/vwyjcwb2/image/upload",
-          {
-            method: "POST",
-            body: formData,
-          }
+          { method: "POST", body: formData }
         );
 
-        if (!upload.ok) {
-          throw new Error("Cloudinary upload failed.");
-        }
+        if (!upload.ok) throw new Error("Cloudinary upload failed.");
 
         const uploaded = await upload.json();
+        if (!uploaded.secure_url) throw new Error("Image upload failed.");
 
-        if (!uploaded.secure_url) {
-          throw new Error("Image upload failed.");
-        }
+        return uploaded.secure_url as string;
+      };
 
-        image = uploaded.secure_url;
+      let image = "";
+      let desktopImage = "";
+      let mobileImage = "";
+
+      if (desktopImageFile) {
+        desktopImage = await uploadToCloudinary(desktopImageFile);
+        image = desktopImage;
+      }
+
+      if (mobileImageFile) {
+        mobileImage = await uploadToCloudinary(mobileImageFile);
       }
 
       await addDoc(collection(db, "offers"), {
@@ -217,6 +304,8 @@ export default function AdminAddOffer() {
         category,
         description: description.trim(),
         image,
+        desktopImage,
+        mobileImage,
         businessId: selectedBusiness.id,
         businessName: selectedBusiness.businessName,
         businessMobile: selectedBusiness.mobile || "",
@@ -335,10 +424,9 @@ export default function AdminAddOffer() {
 
                   <input
                     type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Example: 20% OFF on All Products"
-                    className="w-full rounded-xl border border-slate-200 bg-[#fbfaf6] px-4 py-3.5 text-sm font-semibold text-[#07111f] outline-none placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                    value="SBC Offer"
+                    readOnly
+                    className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-3.5 text-sm font-semibold text-[#07111f] outline-none"
                   />
                 </div>
 
@@ -393,57 +481,60 @@ export default function AdminAddOffer() {
                   />
                 </div>
 
-                {/* IMAGE */}
+                {/* IMAGES */}
                 <div className="sm:col-span-2">
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    Offer Image
-                    <span className="ml-2 font-semibold text-slate-400">
-                      (Optional)
-                    </span>
-                  </label>
+                  <div className="mb-3">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Offer Images
+                    </label>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      Desktop: max 1920×675 • Mobile: max 675×950 • WebP 85% quality
+                    </p>
+                  </div>
 
-                  <div className="rounded-2xl border border-dashed border-[#d4af37]/40 bg-[#fffdf5] p-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        handleImageChange(
-                          e.target.files?.[0] || null
-                        )
-                      }
-                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#07111f] file:px-4 file:py-2 file:font-bold file:text-white"
-                    />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Desktop Image
+                        <span className="ml-1 text-slate-400">(1920×675)</span>
+                      </label>
+
+                      {desktopPreview && (
+                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                          <img src={desktopPreview} alt="Desktop offer preview" className="h-32 w-full object-cover" />
+                        </div>
+                      )}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleDesktopImageChange(e.target.files?.[0] || null)}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#07111f] file:px-3 file:py-2 file:font-bold file:text-white"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        Mobile Image
+                        <span className="ml-1 text-slate-400">(675×950)</span>
+                      </label>
+
+                      {mobilePreview && (
+                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                          <img src={mobilePreview} alt="Mobile offer preview" className="mx-auto h-32 max-w-full object-contain" />
+                        </div>
+                      )}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleMobileImageChange(e.target.files?.[0] || null)}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#07111f] file:px-3 file:py-2 file:font-bold file:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* PREVIEW */}
-              {preview && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between bg-[#fbfaf6] px-4 py-3">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      Image Preview
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageFile(null);
-                        setPreview("");
-                      }}
-                      className="text-xs font-black text-red-500 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-
-                  <img
-                    src={preview}
-                    alt="Offer Preview"
-                    className="h-64 w-full object-cover"
-                  />
-                </div>
-              )}
 
               {/* ACTIONS */}
               <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row">
