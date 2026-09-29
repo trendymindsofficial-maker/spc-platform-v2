@@ -363,9 +363,14 @@ export default function StudentScanRedeem({
   // Bottom Nav -> Scan & Redeem is clicked.
   useEffect(() => {
     if (!openRequest) return;
-    if (!auth.currentUser) return;
 
-    startScanner();
+    // Do not block the scanner just because Firebase auth has not
+    // finished restoring the session at the exact moment of the click.
+    const timer = window.setTimeout(() => {
+      startScanner();
+    }, 100);
+
+    return () => window.clearTimeout(timer);
   }, [openRequest]);
 
 
@@ -560,7 +565,10 @@ export default function StudentScanRedeem({
           )}
         </div>
       )}
+    </section>
 
+
+    {/* FIXED MODALS: outside the desktop-only section so they also work on mobile. */}
       {scannerOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
@@ -754,7 +762,6 @@ export default function StudentScanRedeem({
           </div>
         </div>
       )}
-    </section>
 
       {/* MOBILE: keep scanned business + offers at the exact scan position.
           The dashboard page must never scroll down to the old inline section. */}
