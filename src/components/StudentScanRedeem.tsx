@@ -363,8 +363,9 @@ export default function StudentScanRedeem({
   // Bottom Nav -> Scan & Redeem is clicked.
   useEffect(() => {
     if (!openRequest) return;
-    if (!auth.currentUser) return;
 
+    // The dashboard is already authenticated. Do not block the
+    // scanner while Firebase auth is still hydrating.
     startScanner();
   }, [openRequest]);
 
