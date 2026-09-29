@@ -204,16 +204,35 @@ export default function StudentScanRedeem({
   }, [pendingRequestId, pendingOffer, business]);
 
   const extractBusinessId = (decodedText: string) => {
-    const value = decodedText.trim();
+    const value = String(decodedText || "").trim();
+    console.log("📷 SBC QR decoded text:", value);
 
+    // Current SBC Business QR format.
     try {
       const parsed = JSON.parse(value);
-      if (parsed?.type === "SBC_BUSINESS" && parsed?.businessId) {
-        return String(parsed.businessId).trim();
+      const type = String(parsed?.type || "").trim().toUpperCase();
+      const businessId = String(parsed?.businessId || "").trim();
+
+      if (type === "SBC_BUSINESS" && businessId) {
+        return businessId.toUpperCase();
+      }
+    } catch {
+      // Not JSON; continue with legacy/raw formats.
+    }
+
+    // Raw Business ID printed below older SBC QRs.
+    const rawMatch = value.match(/SBC-BIZ-\d+/i);
+    if (rawMatch?.[0]) return rawMatch[0].toUpperCase();
+
+    // Also accept a URL containing ?businessId=SBC-BIZ-xxxxx.
+    try {
+      const url = new URL(value);
+      const fromUrl = url.searchParams.get("businessId");
+      if (fromUrl?.toUpperCase().startsWith("SBC-BIZ-")) {
+        return fromUrl.trim().toUpperCase();
       }
     } catch {}
 
-    if (value.toUpperCase().startsWith("SBC-BIZ-")) return value;
     return "";
   };
 
@@ -239,12 +258,31 @@ export default function StudentScanRedeem({
       const data = businessDoc.data();
       const businessAuthUid = businessDoc.id;
 
-      const offerQuery = query(
-        collection(db, "offers"),
-        where("status", "==", "active"),
-        where("businessId", "==", businessAuthUid)
-      );
-      const offerSnap = await getDocs(offerQuery);
+      // Show the verified business immediately after the QR is accepted.
+      // This also makes Firestore offer/index errors visible instead of
+      // leaving the student on the dashboard with no feedback.
+      setBusiness({
+        businessId: businessAuthUid,
+        sbcBusinessId: String(data.businessId || publicBusinessId).trim(),
+        businessName: data.businessName || "SBC Partner Business",
+      });
+
+      let offerSnap;
+      try {
+        const offerQuery = query(
+          collection(db, "offers"),
+          where("status", "==", "active"),
+          where("businessId", "==", businessAuthUid)
+        );
+        offerSnap = await getDocs(offerQuery);
+      } catch (offerError) {
+        console.error("SBC active offers query failed:", offerError);
+        setOffers([]);
+        setScannerError(
+          "❌ Business found, but offers could not be loaded. Please refresh and try again."
+        );
+        return;
+      }
 
       const businessOffers = offerSnap.docs.map((item) => {
         const offer = item.data();
@@ -271,11 +309,6 @@ export default function StudentScanRedeem({
         };
       });
 
-      setBusiness({
-        businessId: businessAuthUid,
-        sbcBusinessId: String(data.businessId || publicBusinessId).trim(),
-        businessName: data.businessName || "SBC Partner Business",
-      });
       setOffers(businessOffers);
 
       if (auth.currentUser) {
@@ -327,10 +360,13 @@ export default function StudentScanRedeem({
 
             const businessId = extractBusinessId(decodedText);
             if (!businessId) {
-              setScannerError("❌ This is not a valid SBC Business QR.");
+              setScannerError(
+                "❌ This is not a valid SBC Business QR. Please scan the QR displayed in the SBC Business dashboard."
+              );
               return;
             }
 
+            console.log("✅ SBC Business ID detected:", businessId);
             await loadBusiness(businessId);
           },
           () => {}
@@ -765,6 +801,12 @@ export default function StudentScanRedeem({
 
       {/* MOBILE: keep scanned business + offers at the exact scan position.
           The dashboard page must never scroll down to the old inline section. */}
+      {scannerError && !business && (
+        <div className="fixed inset-x-4 bottom-24 z-[90] rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 shadow-xl md:hidden">
+          {scannerError}
+        </div>
+      )}
+
       {business && (
         <div className="fixed inset-0 z-[65] overflow-y-auto bg-[#f5f3ed] p-4 pb-28 md:hidden">
           <div className="mx-auto mt-3 w-full max-w-lg rounded-[2rem] border border-[#d4af37]/30 bg-white p-5 shadow-[0_20px_70px_rgba(15,23,42,0.15)]">
