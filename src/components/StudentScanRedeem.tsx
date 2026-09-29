@@ -317,24 +317,31 @@ export default function StudentScanRedeem({
 
       setOffers(businessOffers);
 
+      // Usage is optional for loading the business. If its Firestore rule
+      // blocks the read, the business and offers must still open normally.
       if (auth.currentUser) {
-        const usageRef = doc(
-          db,
-          "businessStudentUsage",
-          `${businessAuthUid}_${auth.currentUser.uid}`
-        );
-        const usageSnap = await getDoc(usageRef);
-        setUsageCount(
-          usageSnap.exists()
-            ? Math.min(Number(usageSnap.data().count || 0), MAX_REDEMPTIONS)
-            : 0
-        );
+        try {
+          const usageRef = doc(
+            db,
+            "businessStudentUsage",
+            `${businessAuthUid}_${auth.currentUser.uid}`
+          );
+          const usageSnap = await getDoc(usageRef);
+          setUsageCount(
+            usageSnap.exists()
+              ? Math.min(Number(usageSnap.data().count || 0), MAX_REDEMPTIONS)
+              : 0
+          );
+        } catch (usageError) {
+          console.error("SBC usage read failed (non-blocking):", usageError);
+          setUsageCount(0);
+        }
       }
     } catch (error) {
       console.error("Scan business loading error:", error);
-      setBusiness(null);
       setOffers([]);
-      setScannerError("❌ Unable to load this business. Please try again.");
+      const message = error instanceof Error ? error.message : String(error);
+      setScannerError(`❌ Unable to load this business. ${message}`);
     } finally {
       setLoading(false);
     }
