@@ -32,15 +32,12 @@ interface Offer {
   businessName?: string;
   businessMobile?: string;
   businessAddress?: string;
+  googleReviewLink?: string;
 }
 
 const MAX_REDEMPTIONS = 4;
 
-interface StudentScanRedeemProps {
-  openRequest?: number;
-}
-
-export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeemProps) {
+export default function StudentScanRedeem() {
   const router = useRouter();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -52,6 +49,8 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
   const [pendingOffer, setPendingOffer] = useState<Offer | null>(null);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [approvedOffer, setApprovedOffer] = useState<Offer | null>(null);
+  const [approvedPoints, setApprovedPoints] = useState(0);
+  const [approvedTotalPoints, setApprovedTotalPoints] = useState(0);
   const [rejectedOffer, setRejectedOffer] = useState<Offer | null>(null);
   const [redeemLoading, setRedeemLoading] = useState(false);
 
@@ -66,41 +65,137 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
     if (!pendingRequestId) return;
 
     const requestRef = doc(db, "redemptionRequests", pendingRequestId);
-    return onSnapshot(requestRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const data = snapshot.data();
-      const status = String(data.status || "pending");
 
-      if (status === "approved") {
-        const offer: Offer = pendingOffer || {
-          id: String(data.offerId || ""),
-          title: String(data.offerTitle || "SBC Offer"),
-          discount: String(data.offerDiscount || ""),
-          businessId: String(data.businessId || ""),
-          businessName: String(data.businessName || "SBC Partner Business"),
-        };
-        setApprovedOffer(offer);
-        setPendingOffer(null);
-        setPendingRequestId(null);
-        setUsageCount((current) => Math.min(current + 1, MAX_REDEMPTIONS));
-      }
+    return onSnapshot(
+      requestRef,
+      async (snapshot) => {
+        if (!snapshot.exists()) return;
 
-      if (status === "rejected") {
-        const offer: Offer = pendingOffer || {
-          id: String(data.offerId || ""),
-          title: String(data.offerTitle || "SBC Offer"),
-          discount: String(data.offerDiscount || ""),
-          businessId: String(data.businessId || ""),
-          businessName: String(data.businessName || "SBC Partner Business"),
-        };
-        setRejectedOffer(offer);
-        setPendingOffer(null);
-        setPendingRequestId(null);
+        const data = snapshot.data();
+        const status = String(data.status || "pending");
+
+        if (status === "approved") {
+          const businessId = String(
+            data.businessId || pendingOffer?.businessId || business?.businessId || ""
+          ).trim();
+
+          const offer: Offer = {
+            ...(pendingOffer || {}),
+            id: String(pendingOffer?.id || data.offerId || ""),
+            title: String(pendingOffer?.title || data.offerTitle || "SBC Offer"),
+            discount: String(pendingOffer?.discount || data.offerDiscount || ""),
+            businessId,
+            businessName: String(
+              data.businessName ||
+              pendingOffer?.businessName ||
+              business?.businessName ||
+              "SBC Partner Business"
+            ),
+            googleReviewLink: String(pendingOffer?.googleReviewLink || "").trim(),
+          };
+
+          // Read the Google Review link from both the offer and the business.
+          // Offers created/edited in the business portal store it on the offer.
+          try {
+            if (offer.id) {
+              const offerSnap = await getDoc(doc(db, "offers", offer.id));
+              if (offerSnap.exists()) {
+                const offerData = offerSnap.data();
+                offer.googleReviewLink = String(
+                  offerData.googleReviewLink ||
+                  offerData.googleReviewUrl ||
+                  offerData.googleReview ||
+                  offer.googleReviewLink ||
+                  ""
+                ).trim();
+              }
+            }
+
+            if (!offer.googleReviewLink && businessId) {
+              const businessSnap = await getDoc(doc(db, "businesses", businessId));
+              if (businessSnap.exists()) {
+                const businessData = businessSnap.data();
+                offer.googleReviewLink = String(
+                  businessData.googleReviewLink ||
+                  businessData.googleReviewUrl ||
+                  businessData.googleReview ||
+                  ""
+                ).trim();
+              }
+            }
+          } catch (error) {
+            console.error("Google review link load error:", error);
+          }
+
+          // Business approval writes the exact earned and cumulative points
+          // onto redemptionRequests and studentPoints.
+          let earnedPoints = Number(
+            data.pointsAwarded ||
+            data.lastPointsEarned ||
+            0
+          );
+
+          let totalPoints = Number(
+            data.studentPointsAfterRedemption ||
+            data.totalPoints ||
+            0
+          );
+
+          try {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              const pointsSnap = await getDoc(
+                doc(db, "studentPoints", currentUser.uid)
+              );
+
+              if (pointsSnap.exists()) {
+                const pointsData = pointsSnap.data();
+                earnedPoints = Math.max(
+                  earnedPoints,
+                  Number(
+                    pointsData.lastPointsEarned ||
+                    pointsData.pointsAwarded ||
+                    0
+                  )
+                );
+                totalPoints = Math.max(
+                  totalPoints,
+                  Number(pointsData.totalPoints || 0)
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Student points load error:", error);
+          }
+
+          setApprovedOffer(offer);
+          setApprovedPoints(earnedPoints);
+          setApprovedTotalPoints(totalPoints);
+          setPendingOffer(null);
+          setPendingRequestId(null);
+          setUsageCount((current) => Math.min(current + 1, MAX_REDEMPTIONS));
+          return;
+        }
+
+        if (status === "rejected") {
+          const offer: Offer = pendingOffer || {
+            id: String(data.offerId || ""),
+            title: String(data.offerTitle || "SBC Offer"),
+            discount: String(data.offerDiscount || ""),
+            businessId: String(data.businessId || ""),
+            businessName: String(data.businessName || "SBC Partner Business"),
+          };
+
+          setRejectedOffer(offer);
+          setPendingOffer(null);
+          setPendingRequestId(null);
+        }
+      },
+      (error) => {
+        console.error("Scan redemption listener error:", error);
       }
-    }, (error) => {
-      console.error("Scan redemption listener error:", error);
-    });
-  }, [pendingRequestId, pendingOffer]);
+    );
+  }, [pendingRequestId, pendingOffer, business]);
 
   const extractBusinessId = (decodedText: string) => {
     const value = decodedText.trim();
@@ -158,6 +253,15 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
           businessName: offer.businessName || data.businessName || "SBC Partner Business",
           businessMobile: offer.businessMobile || data.mobile || data.businessMobile || "",
           businessAddress: offer.businessAddress || offer.address || data.address || "",
+          googleReviewLink: String(
+            offer.googleReviewLink ||
+            offer.googleReviewUrl ||
+            offer.googleReview ||
+            data.googleReviewLink ||
+            data.googleReviewUrl ||
+            data.googleReview ||
+            ""
+          ).trim(),
         };
       });
 
@@ -234,14 +338,20 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
     }, 250);
   };
 
-  const closeScanner = () => setScannerOpen(false);
+  const shareGoogleReview = (offer: Offer | null) => {
+    const reviewLink = String(offer?.googleReviewLink || "").trim();
+    if (!reviewLink) return;
 
-  // Direct trigger from the dashboard Bottom Nav / Quick Action.
-  useEffect(() => {
-    if (!openRequest) return;
-    if (!auth.currentUser) return;
-    startScanner();
-  }, [openRequest]);
+    window.open(reviewLink, "_blank", "noopener,noreferrer");
+  };
+
+  const closeApproved = () => {
+    setApprovedOffer(null);
+    setApprovedPoints(0);
+    setApprovedTotalPoints(0);
+  };
+
+  const closeScanner = () => setScannerOpen(false);
 
   useEffect(() => {
     const handleOpenScan = () => {
@@ -324,19 +434,8 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
     }
   };
 
-  const mobileResultOpen = Boolean(business || scannerError || pendingOffer || selectedOffer || approvedOffer || rejectedOffer);
-
-  const resetScanResult = () => {
-    setBusiness(null);
-    setOffers([]);
-    setUsageCount(0);
-    setScannerError("");
-  };
-
   return (
-    <>
-    <section className="md:rounded-[2rem] md:border md:border-[#d4af37]/25 md:bg-white md:p-6 md:shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:p-8">
-      <div className="hidden md:block">
+    <section className="rounded-[2rem] border border-[#d4af37]/25 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">
@@ -444,91 +543,6 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
         </div>
       )}
 
-      </div>
-
-      {/* MOBILE SCAN RESULT — shown only after the bottom-nav scanner is used */}
-      {mobileResultOpen && !scannerOpen && (
-        <div className="fixed inset-0 z-[45] overflow-y-auto bg-[#f5f3ed] px-4 pb-28 pt-5 md:hidden">
-          <div className="mx-auto w-full max-w-lg">
-            <div className="mb-4 flex items-center justify-between rounded-2xl bg-[#07111f] px-4 py-4 text-white shadow-lg">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">SBC</p>
-                <h2 className="text-xl font-black">Scan & Redeem</h2>
-              </div>
-              <button
-                type="button"
-                onClick={resetScanResult}
-                className="rounded-full bg-white/10 px-4 py-2 text-sm font-black"
-              >
-                ✕
-              </button>
-            </div>
-
-            {scannerError && !business && (
-              <div className="rounded-2xl bg-red-50 p-5 text-sm font-black text-red-600">
-                {scannerError}
-                <button
-                  type="button"
-                  onClick={startScanner}
-                  className="mt-4 w-full rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-[#f1cf63]"
-                >
-                  📷 Scan Again
-                </button>
-              </div>
-            )}
-
-            {business && (
-              <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a680c]">Verified Business</p>
-                    <h3 className="mt-1 text-2xl font-black text-[#07111f]">{business.businessName}</h3>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{business.sbcBusinessId}</p>
-                  </div>
-                  <div className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
-                    {usageCount}/{MAX_REDEMPTIONS} Used
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="mt-6 rounded-2xl bg-slate-50 p-8 text-center font-bold">Loading offers...</div>
-                ) : offers.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-black/10 bg-slate-50 p-8 text-center">
-                    <p className="font-black text-[#07111f]">No active offers available.</p>
-                  </div>
-                ) : (
-                  <div className="mt-5 grid gap-4">
-                    {offers.map((offer) => (
-                      <div key={offer.id} className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm">
-                        {offer.image ? (
-                          <img src={offer.image} alt={offer.title || "SBC Offer"} className="h-44 w-full object-cover" />
-                        ) : (
-                          <div className="flex h-32 items-center justify-center bg-[#07111f] text-5xl">🎁</div>
-                        )}
-                        <div className="p-5">
-                          <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">Offer</p>
-                          <h4 className="mt-1 text-xl font-black text-[#07111f]">{offer.title || "SBC Offer"}</h4>
-                          {offer.discount && <p className="mt-2 text-2xl font-black text-[#b18a16]">{offer.discount}</p>}
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{offer.description || "Offer details available."}</p>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOffer(offer)}
-                            disabled={usageCount >= MAX_REDEMPTIONS}
-                            className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] disabled:bg-slate-300 disabled:text-slate-500"
-                          >
-                            {usageCount >= MAX_REDEMPTIONS ? "🚫 Limit Reached" : "🎁 Redeem Offer"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {scannerOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
@@ -625,24 +639,77 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
 
       {approvedOffer && (
         <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
+          <div className="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
+            <button
+              type="button"
+              onClick={closeApproved}
+              className="absolute right-4 top-4 rounded-full bg-slate-100 px-3 py-2 font-black text-slate-500"
+            >
+              ✕
+            </button>
+
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">
               ✅
             </div>
+
             <h3 className="mt-6 text-3xl font-black text-emerald-700">
               Redemption Approved
             </h3>
-            <p className="mt-3 text-lg font-black">{approvedOffer.businessName}</p>
-            <p className="mt-2 font-bold text-[#b18a16]">{approvedOffer.title}</p>
-            <p className="mt-4 text-sm leading-6 text-slate-500">
-              Show this approval screen to the business.
+
+            <p className="mt-3 text-lg font-black text-[#07111f]">
+              {approvedOffer.businessName}
             </p>
+
+            <div className="mt-4 rounded-2xl bg-emerald-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                Benefit Redeemed
+              </p>
+              <p className="mt-2 text-xl font-black text-emerald-700">
+                🎁 {approvedOffer.title}
+              </p>
+              {approvedOffer.discount && (
+                <p className="mt-1 text-sm font-black text-[#b18a16]">
+                  {approvedOffer.discount}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-purple-600">
+                ⭐ SBC Reward Points
+              </p>
+              <p className="mt-1 text-4xl font-black text-purple-700">
+                +{approvedPoints}
+              </p>
+              <p className="mt-1 text-xs font-bold text-purple-500">
+                Total Points: {approvedTotalPoints}
+              </p>
+            </div>
+
+            {approvedOffer.googleReviewLink ? (
+              <button
+                type="button"
+                onClick={() => shareGoogleReview(approvedOffer)}
+                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3.5 text-sm font-black text-white transition hover:bg-[#3367d6]"
+              >
+                ⭐ Give a Google Review
+              </button>
+            ) : (
+              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                Google Review link is not configured for this offer yet.
+              </p>
+            )}
+
+            <p className="mt-3 text-xs font-semibold text-slate-400">
+              Your reward points have been added to your SBC account.
+            </p>
+
             <button
               type="button"
-              onClick={() => setApprovedOffer(null)}
-              className="mt-6 w-full rounded-xl bg-[#07111f] py-3.5 font-black text-white"
+              onClick={closeApproved}
+              className="mt-4 w-full rounded-xl bg-[#07111f] py-3.5 font-black text-white"
             >
-              Done
+              ✓ Done
             </button>
           </div>
         </div>
@@ -670,6 +737,5 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
         </div>
       )}
     </section>
-    </>
   );
 }
