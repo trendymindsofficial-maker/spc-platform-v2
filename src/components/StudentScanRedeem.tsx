@@ -269,12 +269,18 @@ export default function StudentScanRedeem({
 
       let offerSnap;
       try {
+        // Query by businessId only so this works without requiring a
+        // Firestore composite index for (businessId + status).
         const offerQuery = query(
           collection(db, "offers"),
-          where("status", "==", "active"),
           where("businessId", "==", businessAuthUid)
         );
-        offerSnap = await getDocs(offerQuery);
+        const allOfferSnap = await getDocs(offerQuery);
+        offerSnap = {
+          docs: allOfferSnap.docs.filter(
+            (item) => String(item.data().status || "").toLowerCase() === "active"
+          ),
+        };
       } catch (offerError) {
         console.error("SBC active offers query failed:", offerError);
         setOffers([]);
