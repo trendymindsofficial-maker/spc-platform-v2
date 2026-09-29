@@ -404,6 +404,15 @@ export default function StudentScanRedeem({
     setApprovedOffer(null);
     setApprovedPoints(0);
     setApprovedTotalPoints(0);
+    setBusiness(null);
+    setOffers([]);
+    setSelectedOffer(null);
+    setPendingOffer(null);
+    setPendingRequestId(null);
+    setScannerError("");
+
+    // After a successful redemption, return the student to the dashboard.
+    router.replace("/student/dashboard");
   };
 
   const closeScanner = () => setScannerOpen(false);
