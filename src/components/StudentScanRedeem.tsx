@@ -397,7 +397,23 @@ export default function StudentScanRedeem({
     const reviewLink = String(offer?.googleReviewLink || "").trim();
     if (!reviewLink) return;
 
+    // Google does not provide a callback to return to SBC after a review.
+    // Open the review in a new tab and immediately return the SBC tab to
+    // the student dashboard. The student can review or simply close the
+    // Google tab; either way the SBC app is already back on the dashboard.
     window.open(reviewLink, "_blank", "noopener,noreferrer");
+
+    setApprovedOffer(null);
+    setApprovedPoints(0);
+    setApprovedTotalPoints(0);
+    setBusiness(null);
+    setOffers([]);
+    setSelectedOffer(null);
+    setPendingOffer(null);
+    setPendingRequestId(null);
+    setScannerError("");
+
+    router.replace("/student/dashboard");
   };
 
   const closeApproved = () => {
