@@ -2608,12 +2608,9 @@ export default function StudentDashboard() {
               <button
                 type="button"
                 onClick={() => setScanOpenRequest((current) => current + 1)}
-                disabled={!membershipIsActive}
-                className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
-                  membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
-                }`}
+                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
-                <span className={`flex h-7 w-7 items-center justify-center ${membershipIsActive ? "text-white" : "text-white/30"}`}>
+                <span className="flex h-7 w-7 items-center justify-center text-white">
                   <svg width="25" height="25" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M7 15V9C7 7.89543 7.89543 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M27 7H33C34.1046 7 35 7.89543 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
