@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+
+import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import {
   collection,
   doc,
@@ -13,13 +16,8 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { Html5Qrcode } from "html5-qrcode";
 
-interface Business {
-  businessId: string;
-  businessName: string;
-  sbcBusinessId: string;
-}
+import { Html5Qrcode } from "html5-qrcode";
 
 interface Offer {
   id: string;
@@ -28,14 +26,86 @@ interface Offer {
   description?: string;
   category?: string;
   image?: string;
+  desktopImage?: string;
+  mobileImage?: string;
+  displayPriority?: number | null;
+  googleReviewLink?: string;
+
   businessId?: string;
   businessName?: string;
   businessMobile?: string;
   businessAddress?: string;
-  googleReviewLink?: string;
+
+  status?: string;
+}
+
+interface BusinessInfo {
+  businessId: string;
+  businessName: string;
 }
 
 const MAX_REDEMPTIONS = 4;
+
+const OFFER_ORDER_SESSION_KEY = "sbc_offer_order_seed";
+
+const getOfferOrderSeed = () => {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  const existing =
+    window.sessionStorage.getItem(
+      OFFER_ORDER_SESSION_KEY
+    );
+
+  if (existing) {
+    const parsed = Number(existing);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  let seed = Date.now();
+
+  try {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    seed = values[0];
+  } catch {
+    seed = Date.now() + Math.floor(Math.random() * 1000000);
+  }
+
+  window.sessionStorage.setItem(
+    OFFER_ORDER_SESSION_KEY,
+    String(seed)
+  );
+
+  return seed;
+};
+
+const seededShuffle = <T,>(
+  input: T[],
+  seed: number
+): T[] => {
+  const result = [...input];
+  let state = seed >>> 0;
+
+  const random = () => {
+    state += 0x6D2B79F5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
+};
 
 interface StudentScanRedeemProps {
   openRequest?: number;
@@ -45,117 +115,314 @@ export default function StudentScanRedeem({
   openRequest = 0,
 }: StudentScanRedeemProps) {
   const router = useRouter();
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [scannerError, setScannerError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [usageCount, setUsageCount] = useState(0);
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [pendingOffer, setPendingOffer] = useState<Offer | null>(null);
-  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
-  const [approvedOffer, setApprovedOffer] = useState<Offer | null>(null);
-  const [approvedPoints, setApprovedPoints] = useState(0);
-  const [approvedTotalPoints, setApprovedTotalPoints] = useState(0);
-  const [rejectedOffer, setRejectedOffer] = useState<Offer | null>(null);
-  const [redeemLoading, setRedeemLoading] = useState(false);
+
+  const [offers, setOffers] =
+    useState<Offer[]>([]);
+
+  const [categories, setCategories] =
+    useState<string[]>([]);
+
+  const [usageCounts, setUsageCounts] =
+    useState<Record<string, number>>({});
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [category, setCategory] =
+    useState("All");
+
+
+  /*
+   * ==========================================
+   * REDEMPTION STATES
+   * ==========================================
+   */
+
+  const [selectedOffer, setSelectedOffer] =
+    useState<Offer | null>(null);
+
+  const [pendingOffer, setPendingOffer] =
+    useState<Offer | null>(null);
+
+  const [approvedOffer, setApprovedOffer] =
+    useState<Offer | null>(null);
+
+  const [approvedPoints, setApprovedPoints] =
+    useState(0);
+
+  const [approvedTotalPoints, setApprovedTotalPoints] =
+    useState(0);
+
+  const [rejectedOffer, setRejectedOffer] =
+    useState<Offer | null>(null);
+
+  /*
+   * ==========================================
+   * FULL OFFER DETAILS MODAL
+   * ==========================================
+   */
+
+  const [detailsOffer, setDetailsOffer] =
+    useState<Offer | null>(null);
+
+  const [pendingRequestId, setPendingRequestId] =
+    useState<string | null>(null);
+
+  const [redeemLoading, setRedeemLoading] =
+    useState(false);
+
+  /*
+   * ==========================================
+   * BUSINESS VERIFICATION
+   * ==========================================
+   */
+
+  const [showVerificationModal, setShowVerificationModal] =
+    useState(false);
+
+  const [scannerOpen, setScannerOpen] =
+    useState(false);
+
+  const [businessIdInput, setBusinessIdInput] =
+    useState("");
+
+  const [verifiedBusiness, setVerifiedBusiness] =
+    useState<BusinessInfo | null>(null);
+
+  const [verificationLoading, setVerificationLoading] =
+    useState(false);
+
+  const [verificationError, setVerificationError] =
+    useState("");
+
+  const [scannerError, setScannerError] =
+    useState("");
+
+  /*
+   * DIRECT SCAN FLOW
+   * Dashboard -> Scan & Redeem -> QR -> Business Offers
+   * This is separate from the existing offer-first verification flow.
+   */
+  const [directScannerOpen, setDirectScannerOpen] =
+    useState(false);
+
+  const [directScanBusiness, setDirectScanBusiness] =
+    useState<BusinessInfo | null>(null);
+
+  const [directScanOffers, setDirectScanOffers] =
+    useState<Offer[]>([]);
+
+  /*
+   * ==========================================
+   * AUTH + LOAD DATA
+   * ==========================================
+   */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) router.replace("/student/login");
-    });
-    return () => unsubscribe();
-  }, [router]);
+    const unsubscribe =
+      onAuthStateChanged(
+        auth,
+        async (user) => {
+          if (!user) {
+            router.replace(
+              "/student/login"
+            );
 
-  useEffect(() => {
-    if (!pendingRequestId) return;
-
-    const requestRef = doc(db, "redemptionRequests", pendingRequestId);
-
-    return onSnapshot(
-      requestRef,
-      async (snapshot) => {
-        if (!snapshot.exists()) return;
-
-        const data = snapshot.data();
-        const status = String(data.status || "pending");
-
-        if (status === "approved") {
-          const businessId = String(
-            data.businessId || pendingOffer?.businessId || business?.businessId || ""
-          ).trim();
-
-          const offer: Offer = {
-            ...(pendingOffer || {}),
-            id: String(pendingOffer?.id || data.offerId || ""),
-            title: String(pendingOffer?.title || data.offerTitle || "SBC Offer"),
-            discount: String(pendingOffer?.discount || data.offerDiscount || ""),
-            businessId,
-            businessName: String(
-              data.businessName ||
-              pendingOffer?.businessName ||
-              business?.businessName ||
-              "SBC Partner Business"
-            ),
-            googleReviewLink: String(pendingOffer?.googleReviewLink || "").trim(),
-          };
-
-          // Read the Google Review link from both the offer and the business.
-          // Offers created/edited in the business portal store it on the offer.
-          try {
-            if (offer.id) {
-              const offerSnap = await getDoc(doc(db, "offers", offer.id));
-              if (offerSnap.exists()) {
-                const offerData = offerSnap.data();
-                offer.googleReviewLink = String(
-                  offerData.googleReviewLink ||
-                  offerData.googleReviewUrl ||
-                  offerData.googleReview ||
-                  offer.googleReviewLink ||
-                  ""
-                ).trim();
-              }
-            }
-
-            if (!offer.googleReviewLink && businessId) {
-              const businessSnap = await getDoc(doc(db, "businesses", businessId));
-              if (businessSnap.exists()) {
-                const businessData = businessSnap.data();
-                offer.googleReviewLink = String(
-                  businessData.googleReviewLink ||
-                  businessData.googleReviewUrl ||
-                  businessData.googleReview ||
-                  ""
-                ).trim();
-              }
-            }
-          } catch (error) {
-            console.error("Google review link load error:", error);
+            return;
           }
 
-          // Business approval writes the exact earned and cumulative points
-          // onto redemptionRequests and studentPoints.
-          let earnedPoints = Number(
-            data.pointsAwarded ||
-            data.lastPointsEarned ||
-            0
-          );
-
-          let totalPoints = Number(
-            data.studentPointsAfterRedemption ||
-            data.totalPoints ||
-            0
-          );
-
           try {
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-              const pointsSnap = await getDoc(
-                doc(db, "studentPoints", currentUser.uid)
-              );
+            await Promise.all([
+              loadOffers(),
+              loadCategories(),
+            ]);
 
-              if (pointsSnap.exists()) {
+            await loadBusinessUsage(
+              user.uid
+            );
+          } catch (error) {
+            console.error(
+              "Student offers loading error:",
+              error
+            );
+          } finally {
+            setLoading(false);
+          }
+        }
+      );
+
+    return () =>
+      unsubscribe();
+  }, [router]);
+
+  /*
+   * ==========================================
+   * REAL-TIME REDEMPTION STATUS
+   * ==========================================
+   *
+   * When student creates a request:
+   *
+   * pendingRequestId = document ID
+   *
+   * Student listens to:
+   *
+   * redemptionRequests/{pendingRequestId}
+   *
+   * Business Approve:
+   *
+   * pending -> approved
+   *
+   * Student immediately sees Approved.
+   * ==========================================
+   */
+
+  useEffect(() => {
+    if (
+      !pendingRequestId
+    ) {
+      return;
+    }
+
+    const requestRef =
+      doc(
+        db,
+        "redemptionRequests",
+        pendingRequestId
+      );
+
+    const unsubscribe =
+      onSnapshot(
+        requestRef,
+        async (snapshot) => {
+          if (
+            !snapshot.exists()
+          ) {
+            return;
+          }
+
+          const data =
+            snapshot.data();
+
+          const status =
+            String(
+              data.status ||
+              "pending"
+            );
+
+          /*
+           * ======================================
+           * APPROVED
+           * ======================================
+           */
+
+          if (
+            status ===
+            "approved"
+          ) {
+
+            /*
+             * Business approval only stores the points earned
+             * on the redemption request. The cumulative points
+             * balance is maintained in studentPoints/{studentId}.
+             *
+             * Also load the Google Review link directly from the
+             * partner business so the button does not depend on
+             * an old offer object that was loaded before approval.
+             */
+            const approvedBusinessId = String(
+              data.businessId ||
+              pendingOffer?.businessId ||
+              ""
+            ).trim();
+
+            const approvedBusinessName =
+              data.businessName ||
+              pendingOffer?.businessName ||
+              "SBC Partner Business";
+
+            const approvedOfferData: Offer =
+              {
+                ...(pendingOffer || {}),
+                id:
+                  pendingOffer?.id ||
+                  data.offerId ||
+                  "",
+                title:
+                  pendingOffer?.title ||
+                  data.offerTitle ||
+                  "SBC Offer",
+                discount:
+                  pendingOffer?.discount ||
+                  data.offerDiscount ||
+                  "",
+                businessId:
+                  approvedBusinessId,
+                businessName:
+                  approvedBusinessName,
+                googleReviewLink:
+                  pendingOffer?.googleReviewLink ||
+                  "",
+              };
+
+            let earnedPoints = Number(
+              data.pointsAwarded ||
+              data.lastPointsEarned ||
+              0
+            );
+
+            let totalPoints = Math.max(
+              Number(data.totalPoints || 0),
+              Number(data.studentPointsAfterRedemption || 0)
+            );
+
+            try {
+              /* Load the partner business review link directly. */
+              if (approvedBusinessId) {
+                const businessSnap = await getDoc(
+                  doc(db, "businesses", approvedBusinessId)
+                );
+
+                if (businessSnap.exists()) {
+                  const businessData = businessSnap.data();
+
+                  approvedOfferData.googleReviewLink =
+                    String(
+                      businessData.googleReviewLink ||
+                      businessData.googleReviewUrl ||
+                      businessData.googleReview ||
+                      approvedOfferData.googleReviewLink ||
+                      ""
+                    ).trim();
+                }
+              }
+            } catch (error) {
+              console.error(
+                "Approved business review link load error:",
+                error
+              );
+            }
+
+            try {
+              /*
+               * Read the exact studentPoints document used by
+               * the business approval transaction.
+               */
+              const possibleStudentIds = auth.currentUser
+                ? await findStudentIds(auth.currentUser.uid)
+                : [];
+
+              for (const studentId of possibleStudentIds) {
+                const pointsSnap = await getDoc(
+                  doc(db, "studentPoints", studentId)
+                );
+
+                if (!pointsSnap.exists()) continue;
+
                 const pointsData = pointsSnap.data();
+
                 earnedPoints = Math.max(
                   earnedPoints,
                   Number(
@@ -164,701 +431,3150 @@ export default function StudentScanRedeem({
                     0
                   )
                 );
+
                 totalPoints = Math.max(
                   totalPoints,
                   Number(pointsData.totalPoints || 0)
                 );
               }
+            } catch (error) {
+              console.error(
+                "Approved student points load error:",
+                error
+              );
             }
-          } catch (error) {
-            console.error("Student points load error:", error);
+
+            setApprovedOffer(
+              approvedOfferData
+            );
+
+            setApprovedPoints(
+              earnedPoints
+            );
+
+            setApprovedTotalPoints(
+              totalPoints
+            );
+
+            setPendingOffer(
+              null
+            );
+
+            setPendingRequestId(
+              null
+            );
+
+            /*
+             * Reload usage.
+             *
+             * NOTE:
+             * Actual usage document creation
+             * will be handled in the next step.
+             */
+
+            if (
+              auth.currentUser
+            ) {
+              loadBusinessUsage(
+                auth.currentUser.uid
+              );
+            }
+
+            return;
           }
 
-          setApprovedOffer(offer);
-          setApprovedPoints(earnedPoints);
-          setApprovedTotalPoints(totalPoints);
-          setPendingOffer(null);
-          setPendingRequestId(null);
-          setUsageCount((current) => Math.min(current + 1, MAX_REDEMPTIONS));
-          return;
+          /*
+           * ======================================
+           * REJECTED
+           * ======================================
+           */
+
+          if (
+            status ===
+            "rejected"
+          ) {
+
+            const rejectedOfferData: Offer =
+              pendingOffer || {
+                id:
+                  data.offerId ||
+                  "",
+                title:
+                  data.offerTitle ||
+                  "SBC Offer",
+                discount:
+                  data.offerDiscount ||
+                  "",
+                businessId:
+                  data.businessId ||
+                  "",
+                businessName:
+                  data.businessName ||
+                  "SBC Partner Business",
+              };
+
+            setRejectedOffer(
+              rejectedOfferData
+            );
+
+            setPendingOffer(
+              null
+            );
+
+            setPendingRequestId(
+              null
+            );
+
+            return;
+          }
+        },
+        (error) => {
+          console.error(
+            "Redemption realtime listener error:",
+            error
+          );
         }
+      );
 
-        if (status === "rejected") {
-          const offer: Offer = pendingOffer || {
-            id: String(data.offerId || ""),
-            title: String(data.offerTitle || "SBC Offer"),
-            discount: String(data.offerDiscount || ""),
-            businessId: String(data.businessId || ""),
-            businessName: String(data.businessName || "SBC Partner Business"),
-          };
+    return () =>
+      unsubscribe();
+  }, [
+    pendingRequestId,
+    pendingOffer,
+  ]);
 
-          setRejectedOffer(offer);
-          setPendingOffer(null);
-          setPendingRequestId(null);
-        }
-      },
-      (error) => {
-        console.error("Scan redemption listener error:", error);
-      }
-    );
-  }, [pendingRequestId, pendingOffer, business]);
+  /*
+   * ==========================================
+   * LOAD OFFERS
+   * ==========================================
+   */
 
-  const extractBusinessId = (decodedText: string) => {
-    const value = decodedText.trim();
-
+  const loadOffers = async () => {
     try {
-      const parsed = JSON.parse(value);
-      if (parsed?.type === "SBC_BUSINESS" && parsed?.businessId) {
-        return String(parsed.businessId).trim();
-      }
-    } catch {}
+      const offerQuery =
+        query(
+          collection(
+            db,
+            "offers"
+          ),
+          where(
+            "status",
+            "==",
+            "active"
+          )
+        );
 
-    if (value.toUpperCase().startsWith("SBC-BIZ-")) return value;
-    return "";
+      const offerSnap =
+        await getDocs(
+          offerQuery
+        );
+
+      const businessSnap =
+        await getDocs(
+          collection(
+            db,
+            "businesses"
+          )
+        );
+
+      const businessMap =
+        new Map<
+          string,
+          {
+            name: string;
+            mobile: string;
+            address: string;
+            googleReviewLink: string;
+          }
+        >();
+
+      businessSnap.docs.forEach(
+        (businessDoc) => {
+          const data =
+            businessDoc.data();
+
+          businessMap.set(
+            businessDoc.id,
+            {
+              name:
+                data.businessName ||
+                "",
+
+              mobile:
+                data.mobile ||
+                data.phone ||
+                data.businessMobile ||
+                data.ownerMobile ||
+                "",
+
+              address:
+                data.address ||
+                data.businessAddress ||
+                data.location ||
+                data.fullAddress ||
+                "",
+
+              googleReviewLink:
+                data.googleReviewLink ||
+                data.googleReviewUrl ||
+                data.googleReview ||
+                "",
+            }
+          );
+        }
+      );
+
+      const data: Offer[] =
+        offerSnap.docs.map(
+          (item) => {
+            const offerData =
+              item.data();
+
+            const businessId =
+              String(
+                offerData.businessId ||
+                ""
+              );
+
+            const business =
+              businessMap.get(
+                businessId
+              );
+
+            return {
+              id:
+                item.id,
+
+              title:
+                offerData.title ||
+                "",
+
+              discount:
+                offerData.discount ||
+                "",
+
+              description:
+                offerData.description ||
+                "",
+
+              category:
+                offerData.category ||
+                "Other",
+
+              image:
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+              desktopImage:
+                offerData.desktopImage ||
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+              mobileImage:
+                offerData.mobileImage ||
+                offerData.image ||
+                offerData.imageUrl ||
+                "",
+
+              displayPriority:
+                [1, 2, 3].includes(
+                  Number(offerData.displayPriority)
+                )
+                  ? Number(offerData.displayPriority)
+                  : null,
+
+              googleReviewLink:
+                offerData.googleReviewLink ||
+                business?.googleReviewLink ||
+                "",
+
+              businessId,
+
+              businessName:
+                offerData.businessName ||
+                business?.name ||
+                "SBC Partner Business",
+
+              businessMobile:
+                offerData.businessMobile ||
+                business?.mobile ||
+                "",
+
+              businessAddress:
+                offerData.businessAddress ||
+                offerData.address ||
+                business?.address ||
+                "",
+
+              status:
+                offerData.status ||
+                "active",
+            };
+          }
+        );
+
+      setOffers(
+        data
+      );
+
+    } catch (error) {
+      console.error(
+        "Offer loading error:",
+        error
+      );
+
+      setOffers([]);
+    }
   };
 
-  const loadBusiness = async (publicBusinessId: string) => {
-    setLoading(true);
-    setScannerError("");
+  /*
+   * ==========================================
+   * FIND STUDENT IDS
+   * ==========================================
+   */
+
+  const findStudentIds =
+    async (
+      studentUid: string
+    ) => {
+
+      const studentIds =
+        new Set<string>();
+
+      studentIds.add(
+        studentUid
+      );
+
+      try {
+        const studentRef =
+          doc(
+            db,
+            "students",
+            studentUid
+          );
+
+        const studentSnap =
+          await getDoc(
+            studentRef
+          );
+
+        if (
+          studentSnap.exists()
+        ) {
+          studentIds.add(
+            studentSnap.id
+          );
+        }
+
+      } catch (error) {
+        console.error(
+          "Student document lookup error:",
+          error
+        );
+      }
+
+      try {
+        const studentQuery =
+          query(
+            collection(
+              db,
+              "students"
+            ),
+            where(
+              "uid",
+              "==",
+              studentUid
+            )
+          );
+
+        const studentSnap =
+          await getDocs(
+            studentQuery
+          );
+
+        studentSnap.docs.forEach(
+          (studentDoc) => {
+            studentIds.add(
+              studentDoc.id
+            );
+          }
+        );
+
+      } catch (error) {
+        console.error(
+          "Student UID query error:",
+          error
+        );
+      }
+
+      return Array.from(
+        studentIds
+      );
+    };
+
+  /*
+   * ==========================================
+   * LOAD BUSINESS USAGE
+   * ==========================================
+   */
+
+  const loadBusinessUsage =
+    async (
+      studentUid: string
+    ) => {
+
+      try {
+
+        const studentIds =
+          await findStudentIds(
+            studentUid
+          );
+
+        const offerQuery =
+          query(
+            collection(
+              db,
+              "offers"
+            ),
+            where(
+              "status",
+              "==",
+              "active"
+            )
+          );
+
+        const offerSnap =
+          await getDocs(
+            offerQuery
+          );
+
+        const businessIds =
+          new Set<string>();
+
+        offerSnap.docs.forEach(
+          (offerDoc) => {
+
+            const data =
+              offerDoc.data();
+
+            const businessId =
+              String(
+                data.businessId ||
+                ""
+              );
+
+            if (
+              businessId
+            ) {
+              businessIds.add(
+                businessId
+              );
+            }
+
+          }
+        );
+
+        const counts: Record<
+          string,
+          number
+        > = {};
+
+        for (
+          const businessId of businessIds
+        ) {
+
+          let highestCount =
+            0;
+
+          for (
+            const studentId of studentIds
+          ) {
+
+            try {
+
+              const usageRef =
+                doc(
+                  db,
+                  "businessStudentUsage",
+                  `${businessId}_${studentId}`
+                );
+
+              const usageSnap =
+                await getDoc(
+                  usageRef
+                );
+
+              if (
+                usageSnap.exists()
+              ) {
+
+                const data =
+                  usageSnap.data();
+
+                const count =
+                  Number(
+                    data.count ||
+                    0
+                  );
+
+                if (
+                  count >
+                  highestCount
+                ) {
+                  highestCount =
+                    count;
+                }
+
+              }
+
+            } catch (error) {
+
+              console.error(
+                "Business usage document error:",
+                {
+                  businessId,
+                  studentId,
+                  error,
+                }
+              );
+
+            }
+
+          }
+
+          if (
+            highestCount >
+            0
+          ) {
+
+            counts[
+              businessId
+            ] =
+              Math.min(
+                highestCount,
+                MAX_REDEMPTIONS
+              );
+
+          }
+
+        }
+
+        /*
+         * Legacy redemption fallback
+         */
+
+        const legacyCounts: Record<
+          string,
+          number
+        > = {};
+
+        const redemptionDocs =
+          new Map<
+            string,
+            any
+          >();
+
+        for (
+          const studentId of studentIds
+        ) {
+
+          try {
+
+            const redemptionQuery =
+              query(
+                collection(
+                  db,
+                  "redemptions"
+                ),
+                where(
+                  "studentId",
+                  "==",
+                  studentId
+                )
+              );
+
+            const redemptionSnap =
+              await getDocs(
+                redemptionQuery
+              );
+
+            redemptionSnap.docs.forEach(
+              (redemptionDoc) => {
+
+                redemptionDocs.set(
+                  redemptionDoc.id,
+                  redemptionDoc.data()
+                );
+
+              }
+            );
+
+          } catch (error) {
+
+            console.error(
+              "Legacy redemption query error:",
+              error
+            );
+
+          }
+
+        }
+
+        redemptionDocs.forEach(
+          (data) => {
+
+            const businessId =
+              String(
+                data.businessId ||
+                ""
+              );
+
+            if (
+              !businessId
+            ) {
+              return;
+            }
+
+            legacyCounts[
+              businessId
+            ] =
+              (
+                legacyCounts[
+                  businessId
+                ] ||
+                0
+              ) + 1;
+
+          }
+        );
+
+        Object.keys(
+          legacyCounts
+        ).forEach(
+          (businessId) => {
+
+            if (
+              counts[
+                businessId
+              ] === undefined
+            ) {
+
+              counts[
+                businessId
+              ] =
+                Math.min(
+                  legacyCounts[
+                    businessId
+                  ],
+                  MAX_REDEMPTIONS
+                );
+
+            }
+
+          }
+        );
+
+        setUsageCounts(
+          counts
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Business usage loading error:",
+          error
+        );
+
+        setUsageCounts(
+          {}
+        );
+
+      }
+
+    };
+
+  /*
+   * ==========================================
+   * LOAD CATEGORIES
+   * ==========================================
+   */
+
+  const loadCategories =
+    async () => {
+
+      try {
+
+        const snap =
+          await getDocs(
+            collection(
+              db,
+              "categories"
+            )
+          );
+
+        const data =
+          snap.docs
+            .map(
+              (item) =>
+                item.data()
+            )
+            .filter(
+              (item: any) =>
+                item.status !==
+                "inactive"
+            )
+            .map(
+              (item: any) =>
+                item.name
+            )
+            .filter(Boolean);
+
+        setCategories(
+          Array.from(
+            new Set(data)
+          ) as string[]
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Category loading error:",
+          error
+        );
+
+      }
+
+    };
+
+  /*
+   * ==========================================
+   * FILTER OFFERS
+   * ==========================================
+   */
+
+  const filteredOffers =
+    useMemo(() => {
+
+      let list =
+        [...offers];
+
+      if (
+        category !==
+        "All"
+      ) {
+
+        list =
+          list.filter(
+            (offer) =>
+              offer.category ===
+              category
+          );
+
+      }
+
+      const searchText =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (
+        searchText
+      ) {
+
+        list =
+          list.filter(
+            (offer) =>
+              offer.title
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.businessName
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                ) ||
+
+              offer.category
+                ?.toLowerCase()
+                .includes(
+                  searchText
+                )
+          );
+
+      }
+
+      /*
+       * DISPLAY ORDER
+       *
+       * If no priority (1/2/3) is configured in Admin,
+       * every offer is randomized.
+       *
+       * If Admin has configured priorities, those offers
+       * always occupy the first 3 positions in priority
+       * order. Every other offer is randomized after them.
+       *
+       * This is applied AFTER category/search filtering, so
+       * category pages follow the exact same rule.
+       */
+      const prioritized = list
+        .filter((offer) =>
+          [1, 2, 3].includes(
+            Number(offer.displayPriority)
+          )
+        )
+        .sort(
+          (a, b) =>
+            Number(a.displayPriority) -
+            Number(b.displayPriority)
+        );
+
+      const randomOffers = list.filter(
+        (offer) =>
+          ![1, 2, 3].includes(
+            Number(offer.displayPriority)
+          )
+      );
+
+      const seed = getOfferOrderSeed();
+      const randomized = seededShuffle(
+        randomOffers,
+        seed
+      );
+
+      return [
+        ...prioritized,
+        ...randomized,
+      ];
+
+    }, [
+      offers,
+      search,
+      category,
+    ]);
+
+  /*
+   * ==========================================
+   * CALL BUSINESS
+   * ==========================================
+   */
+
+  const openOfferDetails =
+    (offer: Offer) => {
+      setDetailsOffer(offer);
+    };
+
+  const closeOfferDetails =
+    () => {
+      setDetailsOffer(null);
+    };
+
+  const callBusiness =
+    (
+      offer: Offer
+    ) => {
+
+      const phone =
+        offer.businessMobile ||
+        "";
+
+      if (!phone) {
+
+        alert(
+          "📞 Business phone number is not available."
+        );
+
+        return;
+      }
+
+      window.location.href =
+        `tel:${phone}`;
+
+    };
+
+  /*
+   * ==========================================
+   * GET USAGE
+   * ==========================================
+   */
+
+  const getUsageCount =
+    (
+      businessId?: string
+    ) => {
+
+      if (
+        !businessId
+      ) {
+        return 0;
+      }
+
+      return usageCounts[
+        businessId
+      ] || 0;
+
+    };
+
+  /*
+   * ==========================================
+   * OPEN REDEEM
+   * ==========================================
+   */
+
+  const openRedeemVerification =
+    (
+      offer: Offer
+    ) => {
+
+      if (
+        !offer.businessId
+      ) {
+
+        alert(
+          "❌ Business information is missing for this offer."
+        );
+
+        return;
+      }
+
+      const usedCount =
+        getUsageCount(
+          offer.businessId
+        );
+
+      // SBC RULE:
+      // One student can redeem from one business a maximum
+      // of 4 times in total, regardless of which offer is selected.
+      if (usedCount >= MAX_REDEMPTIONS) {
+        alert(
+          `🚫 Redemption limit reached. You can redeem from "${offer.businessName || "this business"}" only 4 times in total.`
+        );
+        return;
+      }
+
+      setSelectedOffer(
+        offer
+      );
+
+      setVerifiedBusiness(
+        null
+      );
+
+      setBusinessIdInput(
+        ""
+      );
+
+      setVerificationError(
+        ""
+      );
+
+      setScannerError(
+        ""
+      );
+
+      setShowVerificationModal(
+        true
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * DIRECT SCAN & REDEEM FLOW
+   * ==========================================
+   *
+   * This flow scans the Business QR first.
+   * It does NOT require a selected offer.
+   * After scanning, only that business's active
+   * offers are shown.
+   */
+  const loadDirectBusinessOffers = async (
+    publicBusinessId: string
+  ) => {
+    const cleanBusinessId = publicBusinessId.trim();
+
+    if (!cleanBusinessId) {
+      setScannerError("❌ Business ID is empty.");
+      return;
+    }
 
     try {
+      setScannerError("");
+
       const businessQuery = query(
         collection(db, "businesses"),
-        where("businessId", "==", publicBusinessId.trim().toUpperCase())
+        where("businessId", "==", cleanBusinessId)
       );
+
       const businessSnap = await getDocs(businessQuery);
 
       if (businessSnap.empty) {
-        setBusiness(null);
-        setOffers([]);
-        setScannerError("❌ Invalid SBC Business QR.");
+        setDirectScanBusiness(null);
+        setDirectScanOffers([]);
+        setScannerError(
+          "❌ Invalid SBC Business QR. Business not found."
+        );
         return;
       }
 
       const businessDoc = businessSnap.docs[0];
-      const data = businessDoc.data();
-      const businessAuthUid = businessDoc.id;
+      const businessData = businessDoc.data();
+      const firestoreBusinessId = businessDoc.id;
 
+      /*
+       * Load this business's active offers directly from Firestore.
+       * This avoids using an old/stale offers state captured by the
+       * dashboard navigation event listener.
+       */
       const offerQuery = query(
         collection(db, "offers"),
         where("status", "==", "active"),
-        where("businessId", "==", businessAuthUid)
+        where("businessId", "==", firestoreBusinessId)
       );
+
       const offerSnap = await getDocs(offerQuery);
 
-      const businessOffers = offerSnap.docs.map((item) => {
-        const offer = item.data();
-        return {
-          id: item.id,
-          title: offer.title || "",
-          discount: offer.discount || "",
-          description: offer.description || "",
-          category: offer.category || "Other",
-          image: offer.image || offer.imageUrl || "",
-          businessId: businessAuthUid,
-          businessName: offer.businessName || data.businessName || "SBC Partner Business",
-          businessMobile: offer.businessMobile || data.mobile || data.businessMobile || "",
-          businessAddress: offer.businessAddress || offer.address || data.address || "",
-          googleReviewLink: String(
-            offer.googleReviewLink ||
-            offer.googleReviewUrl ||
-            offer.googleReview ||
-            data.googleReviewLink ||
-            data.googleReviewUrl ||
-            data.googleReview ||
-            ""
-          ).trim(),
-        };
+      const businessOffers: Offer[] = offerSnap.docs.map(
+        (offerDoc) => {
+          const offerData = offerDoc.data();
+
+          return {
+            id: offerDoc.id,
+            title: offerData.title || "",
+            discount: offerData.discount || "",
+            description: offerData.description || "",
+            category: offerData.category || "Other",
+            image:
+              offerData.image ||
+              offerData.imageUrl ||
+              "",
+            desktopImage:
+              offerData.desktopImage ||
+              offerData.image ||
+              offerData.imageUrl ||
+              "",
+            mobileImage:
+              offerData.mobileImage ||
+              offerData.image ||
+              offerData.imageUrl ||
+              "",
+            displayPriority:
+              [1, 2, 3].includes(
+                Number(offerData.displayPriority)
+              )
+                ? Number(offerData.displayPriority)
+                : null,
+            googleReviewLink:
+              offerData.googleReviewLink ||
+              businessData.googleReviewLink ||
+              businessData.googleReviewUrl ||
+              businessData.googleReview ||
+              "",
+            businessId: firestoreBusinessId,
+            businessName:
+              offerData.businessName ||
+              businessData.businessName ||
+              "SBC Partner Business",
+            businessMobile:
+              offerData.businessMobile ||
+              businessData.mobile ||
+              businessData.phone ||
+              businessData.businessMobile ||
+              businessData.ownerMobile ||
+              "",
+            businessAddress:
+              offerData.businessAddress ||
+              offerData.address ||
+              businessData.address ||
+              businessData.businessAddress ||
+              businessData.location ||
+              businessData.fullAddress ||
+              "",
+            status: "active",
+          };
+        }
+      );
+
+      setDirectScanBusiness({
+        businessId: firestoreBusinessId,
+        businessName:
+          businessData.businessName ||
+          businessOffers[0]?.businessName ||
+          "SBC Partner Business",
       });
 
-      setBusiness({
-        businessId: businessAuthUid,
-        sbcBusinessId: String(data.businessId || publicBusinessId).trim(),
-        businessName: data.businessName || "SBC Partner Business",
-      });
-      setOffers(businessOffers);
+      setDirectScanOffers(businessOffers);
+      setDirectScannerOpen(true);
 
-      if (auth.currentUser) {
-        const usageRef = doc(
-          db,
-          "businessStudentUsage",
-          `${businessAuthUid}_${auth.currentUser.uid}`
-        );
-        const usageSnap = await getDoc(usageRef);
-        setUsageCount(
-          usageSnap.exists()
-            ? Math.min(Number(usageSnap.data().count || 0), MAX_REDEMPTIONS)
-            : 0
+      if (businessOffers.length === 0) {
+        setScannerError(
+          "ℹ️ This business does not have any active SBC offers."
         );
       }
     } catch (error) {
-      console.error("Scan business loading error:", error);
-      setBusiness(null);
-      setOffers([]);
-      setScannerError("❌ Unable to load this business. Please try again.");
-    } finally {
-      setLoading(false);
+      console.error(
+        "Direct business offers loading error:",
+        error
+      );
+
+      setDirectScanBusiness(null);
+      setDirectScanOffers([]);
+      setScannerError(
+        "❌ Unable to load this business's offers. Please try again."
+      );
     }
   };
 
-  const startScanner = async () => {
+  const startDirectScanner = async () => {
     setScannerError("");
-    setScannerOpen(true);
+    setDirectScanBusiness(null);
+    setDirectScanOffers([]);
+    setDirectScannerOpen(true);
 
     window.setTimeout(async () => {
       try {
-        const reader = document.getElementById("sbc-dashboard-business-qr-reader");
+        const reader = document.getElementById(
+          "sbc-direct-business-qr-reader"
+        );
+
         if (!reader) {
-          setScannerError("❌ Scanner could not be opened. Please tap Scan & Redeem again.");
+          setDirectScannerOpen(false);
+          setScannerError(
+            "❌ Scanner could not be opened. Please try again."
+          );
           return;
         }
 
-        reader.innerHTML = "";
-        const scanner = new Html5Qrcode("sbc-dashboard-business-qr-reader");
+        const scanner = new Html5Qrcode(
+          "sbc-direct-business-qr-reader"
+        );
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1,
+          },
           async (decodedText) => {
-            try { await scanner.stop(); } catch {}
-            try { scanner.clear(); } catch {}
+            try {
+              await scanner.stop();
+            } catch {}
 
-            setScannerOpen(false);
+            try {
+              scanner.clear();
+            } catch {}
 
-            const businessId = extractBusinessId(decodedText);
+            setDirectScannerOpen(false);
+
+            const businessId =
+              extractBusinessIdFromQr(decodedText);
+
             if (!businessId) {
-              setScannerError("❌ This is not a valid SBC Business QR.");
+              setScannerError(
+                "❌ This is not a valid SBC Business QR."
+              );
+              setDirectScannerOpen(true);
               return;
             }
 
-            await loadBusiness(businessId);
+            await loadDirectBusinessOffers(businessId);
           },
           () => {}
         );
       } catch (error) {
-        console.error("Dashboard QR scanner error:", error);
+        console.error(
+          "Direct QR scanner error:",
+          error
+        );
+
+        setDirectScannerOpen(false);
         setScannerError(
-          "❌ Camera could not be opened. Please allow camera permission."
+          "❌ Camera could not be opened. Please allow camera permission and try again."
         );
       }
     }, 250);
   };
 
-  const shareGoogleReview = (offer: Offer | null) => {
-    const reviewLink = String(offer?.googleReviewLink || "").trim();
-    if (!reviewLink) return;
-
-    window.open(reviewLink, "_blank", "noopener,noreferrer");
+  const closeDirectScanner = () => {
+    setDirectScannerOpen(false);
+    setDirectScanBusiness(null);
+    setDirectScanOffers([]);
+    setScannerError("");
   };
 
-  const closeApproved = () => {
-    setApprovedOffer(null);
-    setApprovedPoints(0);
-    setApprovedTotalPoints(0);
-  };
-
-  const closeScanner = () => setScannerOpen(false);
-
-  // Dashboard passes an incrementing openRequest value when
-  // Bottom Nav -> Scan & Redeem is clicked.
+  /* Automatically open direct scanner from dashboard bottom navigation. */
   useEffect(() => {
-    if (!openRequest) return;
+    if (!openRequest) {
+      return;
+    }
 
-    // The dashboard is already authenticated. Do not block the
-    // scanner while Firebase auth is still hydrating.
-    startScanner();
+    const timer = window.setTimeout(() => {
+      startDirectScanner();
+    }, 200);
+
+    return () => window.clearTimeout(timer);
   }, [openRequest]);
 
+  /* Also support /student/scan-redeem?open=scan directly. */
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
 
+    const params = new URLSearchParams(
+      window.location.search
+    );
 
+    if (params.get("open") !== "scan") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      startDirectScanner();
+
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${window.location.hash}`
+      );
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  /*
+   * ==========================================
+   * EXTRACT BUSINESS ID FROM QR
+   * ==========================================
+   */
+
+  const extractBusinessIdFromQr =
+    (
+      decodedText: string
+    ) => {
+
+      const value =
+        decodedText.trim();
+
+      try {
+
+        const parsed =
+          JSON.parse(
+            value
+          );
+
+        if (
+          parsed?.type ===
+            "SBC_BUSINESS" &&
+          parsed?.businessId
+        ) {
+
+          return String(
+            parsed.businessId
+          ).trim();
+
+        }
+
+      } catch {
+        /*
+         * Plain text QR fallback.
+         */
+      }
+
+      if (
+        value
+          .toUpperCase()
+          .startsWith(
+            "SBC-BIZ-"
+          )
+      ) {
+        return value;
+      }
+
+      return "";
+
+    };
+
+  /*
+   * ==========================================
+   * VERIFY BUSINESS ID
+   * ==========================================
+   */
+
+  const verifyBusinessId =
+    async (
+      enteredBusinessId: string
+    ) => {
+
+      if (
+        !selectedOffer
+      ) {
+        return;
+      }
+
+      const cleanBusinessId =
+        enteredBusinessId
+          .trim();
+
+      if (
+        !cleanBusinessId
+      ) {
+
+        setVerificationError(
+          "Please enter a Business ID."
+        );
+
+        return;
+      }
+
+      if (
+        !selectedOffer.businessId
+      ) {
+
+        setVerificationError(
+          "Offer business information is missing."
+        );
+
+        return;
+      }
+
+      try {
+
+        setVerificationLoading(
+          true
+        );
+
+        setVerificationError(
+          ""
+        );
+
+        const businessQuery =
+          query(
+            collection(
+              db,
+              "businesses"
+            ),
+            where(
+              "businessId",
+              "==",
+              cleanBusinessId
+            )
+          );
+
+        const businessSnap =
+          await getDocs(
+            businessQuery
+          );
+
+        if (
+          businessSnap.empty
+        ) {
+
+          setVerifiedBusiness(
+            null
+          );
+
+          setVerificationError(
+            "❌ Invalid Business ID. Please check the ID and try again."
+          );
+
+          return;
+        }
+
+        const businessDoc =
+          businessSnap.docs[0];
+
+        const businessData =
+          businessDoc.data();
+
+        const actualBusinessId =
+          businessDoc.id;
+
+        if (
+          actualBusinessId !==
+          selectedOffer.businessId
+        ) {
+
+          setVerifiedBusiness(
+            null
+          );
+
+          setVerificationError(
+            `❌ This Business QR/ID belongs to "${businessData.businessName || "another business"}", not "${selectedOffer.businessName || "this offer's business"}".`
+          );
+
+          return;
+        }
+
+        setVerifiedBusiness({
+          businessId:
+            actualBusinessId,
+
+          businessName:
+            businessData.businessName ||
+            selectedOffer.businessName ||
+            "SBC Partner Business",
+        });
+
+      } catch (error) {
+
+        console.error(
+          "Business verification error:",
+          error
+        );
+
+        setVerificationError(
+          "❌ Unable to verify business. Please try again."
+        );
+
+      } finally {
+
+        setVerificationLoading(
+          false
+        );
+
+      }
+
+    };
+
+  /*
+   * ==========================================
+   * START QR SCANNER
+   * ==========================================
+   */
+
+  const startScanner =
+    async () => {
+
+      setScannerError(
+        ""
+      );
+
+      setScannerOpen(
+        true
+      );
+
+      setTimeout(
+        async () => {
+
+          try {
+
+            const scanner =
+              new Html5Qrcode(
+                "sbc-business-qr-reader"
+              );
+
+            await scanner.start(
+              {
+                facingMode:
+                  "environment",
+              },
+              {
+                fps: 10,
+                qrbox: {
+                  width: 250,
+                  height: 250,
+                },
+                aspectRatio: 1,
+              },
+              async (
+                decodedText
+              ) => {
+
+                try {
+
+                  await scanner.stop();
+
+                } catch {}
+
+                try {
+
+                  scanner.clear();
+
+                } catch {}
+
+                setScannerOpen(
+                  false
+                );
+
+                const businessId =
+                  extractBusinessIdFromQr(
+                    decodedText
+                  );
+
+                if (
+                  !businessId
+                ) {
+
+                  setScannerError(
+                    "❌ This is not a valid SBC Business QR."
+                  );
+
+                  return;
+                }
+
+                await verifyBusinessId(
+                  businessId
+                );
+
+              },
+              () => {}
+            );
+
+          } catch (error) {
+
+            console.error(
+              "QR scanner error:",
+              error
+            );
+
+            setScannerError(
+              "❌ Camera could not be opened. Please allow camera permission or use Business ID."
+            );
+
+          }
+
+        },
+        300
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE SCANNER
+   * ==========================================
+   */
+
+  const closeScanner =
+    () => {
+      setScannerOpen(
+        false
+      );
+    };
+
+  /* Open the scanner directly from dashboard bottom navigation. */
   useEffect(() => {
     const handleOpenScan = () => {
-      startScanner();
+      startDirectScanner();
     };
 
     window.addEventListener("sbc-open-scan", handleOpenScan);
 
-    // Fallback for Offers -> Dashboard?open=scan.
-    // The dashboard and this hidden component mount together, so the
-    // custom event can occasionally fire before this listener is ready.
-    const queryTimer = window.setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("open") === "scan") {
-        startScanner();
-      }
-    }, 500);
-
     return () => {
-      window.clearTimeout(queryTimer);
       window.removeEventListener("sbc-open-scan", handleOpenScan);
     };
   }, []);
 
-  const redeemOffer = async (offer: Offer) => {
-    if (!auth.currentUser || !business) {
-      alert("Please login again.");
+  /*
+   * ==========================================
+   * REDEEM MY BENEFIT
+   * ==========================================
+   */
+
+  const redeemMyBenefit =
+    async () => {
+
+      if (
+        !auth.currentUser
+      ) {
+
+        alert(
+          "Please login again."
+        );
+
+        router.replace(
+          "/student/login"
+        );
+
+        return;
+      }
+
+      if (
+        !selectedOffer
+      ) {
+        return;
+      }
+
+      if (
+        !verifiedBusiness
+      ) {
+
+        alert(
+          "Please verify the business first."
+        );
+
+        return;
+      }
+
+      if (
+        verifiedBusiness.businessId !==
+        selectedOffer.businessId
+      ) {
+
+        alert(
+          "❌ Business verification does not match this offer."
+        );
+
+        return;
+      }
+
+      const usedCount =
+        getUsageCount(
+          selectedOffer.businessId
+        );
+
+      // Re-check immediately before creating the request.
+      // This prevents an old/open modal from bypassing the 4-use limit.
+      if (usedCount >= MAX_REDEMPTIONS) {
+        alert(
+          `🚫 Redemption limit reached. You can redeem from "${selectedOffer.businessName || "this business"}" only 4 times in total.`
+        );
+
+        setShowVerificationModal(false);
+        setSelectedOffer(null);
+        setVerifiedBusiness(null);
+
+        if (auth.currentUser) {
+          await loadBusinessUsage(
+            auth.currentUser.uid
+          );
+        }
+
+        return;
+      }
+
+      try {
+
+        setRedeemLoading(
+          true
+        );
+
+        const studentUid =
+          auth.currentUser.uid;
+
+        /*
+         * LOAD STUDENT
+         */
+
+        let studentName =
+          "SBC Student";
+
+        let studentCardNumber =
+          "";
+
+        try {
+
+          const studentRef =
+            doc(
+              db,
+              "students",
+              studentUid
+            );
+
+          const studentSnap =
+            await getDoc(
+              studentRef
+            );
+
+          if (
+            studentSnap.exists()
+          ) {
+
+            const studentData =
+              studentSnap.data();
+
+            studentName =
+              studentData.name ||
+              studentData.fullName ||
+              studentData.studentName ||
+              "SBC Student";
+
+            studentCardNumber =
+              studentData.cardNumber ||
+              studentData.studentCardNumber ||
+              "";
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Student profile loading error:",
+            error
+          );
+
+        }
+
+        /*
+         * ========================================
+         * CREATE PENDING REQUEST
+         * ========================================
+         *
+         * IMPORTANT:
+         *
+         * The secure server API returns the request ID.
+         *
+         * We save it in pendingRequestId
+         * so Student can listen in real-time.
+         * ========================================
+         */
+
+        const idToken =
+          await auth.currentUser.getIdToken();
+
+        const response = await fetch(
+          "/api/redemption/create",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              businessId:
+                selectedOffer.businessId,
+              businessName:
+                verifiedBusiness.businessName,
+              businessVerificationId:
+                verifiedBusiness.businessId,
+              offerId:
+                selectedOffer.id,
+              offerTitle:
+                selectedOffer.title ||
+                "SBC Offer",
+              offerDiscount:
+                selectedOffer.discount ||
+                "",
+            }),
+          }
+        );
+
+        const result =
+          await response.json().catch(() => ({}));
+
+        if (!response.ok || !result?.success) {
+          throw new Error(
+            result?.error ||
+              "Unable to send redemption request."
+          );
+        }
+
+        /*
+         * Save request ID BEFORE
+         * closing the verification modal.
+         */
+
+        setPendingRequestId(
+          String(result.requestId)
+        );
+
+        /*
+         * Save offer for waiting screen.
+         */
+
+        setPendingOffer(
+          selectedOffer
+        );
+
+        /*
+         * Close verification.
+         */
+
+        setShowVerificationModal(
+          false
+        );
+
+        setSelectedOffer(
+          null
+        );
+
+        setVerifiedBusiness(
+          null
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Create redemption request error:",
+          error
+        );
+
+        alert(
+          "❌ Unable to send redemption request. Please try again."
+        );
+
+      } finally {
+
+        setRedeemLoading(
+          false
+        );
+
+      }
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE APPROVED
+   * ==========================================
+   */
+
+  const shareGoogleReview = (offer: Offer | null) => {
+    const reviewLink = String(
+      offer?.googleReviewLink || ""
+    ).trim();
+
+    if (!reviewLink) {
       return;
     }
 
-    if (usageCount >= MAX_REDEMPTIONS) {
-      alert(
-        `🚫 Redemption limit reached. You can redeem from "${business.businessName}" only 4 times in total.`
+    window.open(
+      reviewLink,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  const closeApproved =
+    () => {
+
+      setApprovedOffer(
+        null
       );
-      return;
-    }
 
+      setApprovedPoints(0);
+
+      setApprovedTotalPoints(0);
+
+    };
+
+  /*
+   * ==========================================
+   * CLOSE REJECTED
+   * ==========================================
+   */
+
+  const closeRejected =
+    () => {
+
+      setRejectedOffer(
+        null
+      );
+
+    };
+
+  /*
+   * ==========================================
+   * RESPONSIVE OFFER IMAGE
+   * ==========================================
+   *
+   * Desktop uses desktopImage.
+   * Mobile uses mobileImage.
+   * Old offers fall back to image.
+   */
+
+  const getOfferDesktopImage = (offer: Offer) =>
+    offer.desktopImage ||
+    offer.image ||
+    "";
+
+  const getOfferMobileImage = (offer: Offer) =>
+    offer.mobileImage ||
+    offer.desktopImage ||
+    offer.image ||
+    "";
+
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
+
+  const shareReferralLink = async () => {
     try {
-      setRedeemLoading(true);
+      const user = auth.currentUser;
+
+      if (!user) {
+        router.replace("/student/login");
+        return;
+      }
 
       const studentSnap = await getDoc(
-        doc(db, "students", auth.currentUser.uid)
+        doc(db, "students", user.uid)
       );
-      const studentData = studentSnap.exists() ? studentSnap.data() : {};
 
-      const idToken = await auth.currentUser.getIdToken();
+      if (!studentSnap.exists()) {
+        alert("Referral link is not available.");
+        return;
+      }
 
-      const response = await fetch("/api/redemption/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          businessId: business.businessId,
-          businessName: business.businessName,
-          businessVerificationId: business.sbcBusinessId,
-          offerId: offer.id,
-          offerTitle: offer.title || "SBC Offer",
-          offerDiscount: offer.discount || "",
-        }),
-      });
+      const referralCode = String(
+        studentSnap.data()?.referralCode || ""
+      ).trim();
 
-      const result = await response.json().catch(() => ({}));
+      if (!referralCode) {
+        alert("Referral link is not available.");
+        return;
+      }
 
-      if (!response.ok || !result?.success || !result?.requestId) {
-        throw new Error(
-          result?.error || "Unable to send redemption request."
+      const link =
+        `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`;
+
+      const shareText =
+        `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Student Benefit Card - SBC",
+          text: "Join Student Benefit Card using my referral link.",
+          url: link,
+        });
+        return;
+      }
+
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (error) {
+      if ((error as DOMException)?.name === "AbortError") return;
+      console.error("Referral sharing failed:", error);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(
+          OFFER_ORDER_SESSION_KEY
         );
       }
 
-      setPendingRequestId(String(result.requestId));
-      setPendingOffer(offer);
-      setSelectedOffer(null);
+      await signOut(auth);
+      router.replace("/student/login");
     } catch (error) {
-      console.error("Create scan redemption request error:", error);
-      alert("❌ Unable to send redemption request. Please try again.");
-    } finally {
-      setRedeemLoading(false);
+      console.error("Logout error:", error);
     }
   };
 
   return (
-    <>
-    <section className="hidden rounded-[2rem] border border-[#d4af37]/25 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 md:block">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">
-            Scan at Business
-          </p>
-          <h2 className="mt-2 text-3xl font-black text-[#07111f]">
-            📷 Scan & Redeem
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-500">
-            Scan the SBC Business QR, view that business&apos;s active offers,
-            choose an offer and send the redemption request directly to the business.
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#f5f3ed] text-slate-900 py-8">
 
-        <button
-          type="button"
-          onClick={startScanner}
-          className="rounded-2xl bg-[#07111f] px-7 py-4 font-black text-[#f1cf63] shadow-lg transition hover:bg-[#101d2e]"
-        >
-          📷 Scan Business QR
-        </button>
-      </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-      {scannerError && (
-        <div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600">
-          {scannerError}
-        </div>
-      )}
+        {/* HEADER */}
 
-      {business && (
-        <div className="mt-7 rounded-[1.5rem] border border-[#d4af37]/30 bg-[#fffdf5] p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a680c]">
-                Verified Business
-              </p>
-              <h3 className="mt-1 text-2xl font-black text-[#07111f]">
-                {business.businessName}
-              </h3>
-              <p className="mt-1 text-xs font-bold text-slate-500">
-                {business.sbcBusinessId}
-              </p>
+        <header className="sticky top-0 z-30 -mx-4 mb-8 border-b border-black/10 bg-[#07111f]/95 text-white backdrop-blur-xl sm:-mx-6">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d4af37]/50 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63] shadow-[0_0_30px_rgba(212,175,55,0.12)]">
+                SBC
+              </div>
+
+              <div>
+                <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
+                  Student Benefit Card
+                </p>
+
+                <p className="text-xs font-medium text-white/70 sm:text-sm">
+                  Premium Student Dashboard
+                </p>
+              </div>
             </div>
-            <div className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
-              {usageCount}/{MAX_REDEMPTIONS} Used
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push("/student/dashboard")}
+                className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+              >
+                <span aria-hidden="true">⌂</span>
+                Home
+              </button>
+
+              <button
+                onClick={logout}
+                className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#d4af37]/10 hover:text-[#f1cf63]"
+              >
+                Logout
+              </button>
             </div>
           </div>
+        </header>
 
-          {loading ? (
-            <div className="mt-6 rounded-2xl bg-white p-8 text-center">
-              Loading offers...
-            </div>
-          ) : offers.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-black/10 bg-white p-8 text-center">
-              <p className="font-black text-[#07111f]">No active offers available.</p>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {offers.map((offer) => (
-                <div
-                  key={offer.id}
-                  className="overflow-hidden rounded-2xl border border-black/5 bg-white"
+        <div>
+          <div className="mb-8">
+            <h1 className="text-4xl font-black tracking-tight text-[#07111f] sm:text-5xl">
+              🎁 Student Offers
+            </h1>
+
+            <p className="mt-2 text-slate-500">
+              Exclusive Benefits for SBC Students
+            </p>
+          </div>
+
+        {/* FILTERS */}
+
+        <div className="mb-10 grid gap-5 md:grid-cols-2">
+
+          <input
+            type="text"
+            placeholder="🔍 Search Offers..."
+            value={search}
+            onChange={(e) =>
+              setSearch(
+                e.target.value
+              )
+            }
+            className="w-full rounded-2xl border border-black/10 bg-white p-4 font-medium text-slate-800 shadow-[0_10px_35px_rgba(15,23,42,0.06)] outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/15"
+          />
+
+          <select
+            value={category}
+            onChange={(e) =>
+              setCategory(
+                e.target.value
+              )
+            }
+            className="w-full rounded-2xl border border-black/10 bg-white p-4 font-medium text-slate-800 shadow-[0_10px_35px_rgba(15,23,42,0.06)] outline-none transition focus:border-[#d4af37] focus:ring-2 focus:ring-[#d4af37]/15"
+          >
+
+            <option value="All">
+              All Categories
+            </option>
+
+            {categories.map(
+              (item) => (
+                <option
+                  key={item}
+                  value={item}
                 >
-                  {offer.image ? (
-                    <img
-                      src={offer.image}
-                      alt={offer.title || "SBC Offer"}
-                      className="h-44 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-44 items-center justify-center bg-[#07111f] text-5xl">
-                      🎁
+                  {item}
+                </option>
+              )
+            )}
+
+          </select>
+
+        </div>
+
+        {/* OFFERS */}
+        {loading ? (
+          <div className="rounded-[2rem] border border-black/5 bg-white p-12 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#1557d6]" />
+            <h2 className="text-2xl font-bold">Loading Offers...</h2>
+          </div>
+        ) : filteredOffers.length === 0 ? (
+          <div className="rounded-[2rem] border border-black/5 bg-white p-12 text-center shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+            <div className="text-6xl">🎁</div>
+            <h2 className="mt-4 text-3xl font-bold text-[#1557d6]">
+              No Offers Found
+            </h2>
+            <p className="mt-3 text-gray-500">
+              No active offers match your search or category.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredOffers.map((offer) => {
+              const usedCount = getUsageCount(offer.businessId);
+
+              return (
+                <article
+                  key={offer.id}
+                  className="group overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white shadow-[0_10px_32px_rgba(15,23,42,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_16px_42px_rgba(21,87,214,0.10)]"
+                >
+                  <div className="grid min-h-[150px] grid-cols-[42%_58%] sm:grid-cols-[34%_66%] lg:grid-cols-[38%_62%]">
+                    {/* OFFER IMAGE */}
+                    <div className="relative min-h-[150px] overflow-hidden bg-slate-100">
+                      {(getOfferDesktopImage(offer) || getOfferMobileImage(offer)) ? (
+                        <picture>
+                          <source
+                            media="(max-width: 639px)"
+                            srcSet={getOfferMobileImage(offer)}
+                          />
+                          <img
+                            src={getOfferDesktopImage(offer)}
+                            alt={offer.title || "SBC Offer"}
+                            loading="lazy"
+                            className="h-full w-full object-contain transition duration-500"
+                          />
+                        </picture>
+                      ) : (
+                        <div className="flex h-full min-h-[150px] items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-5xl">
+                          🎁
+                        </div>
+                      )}
+
                     </div>
-                  )}
-                  <div className="p-5">
-                    <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
-                      Offer
-                    </p>
-                    <h4 className="mt-1 text-xl font-black text-[#07111f]">
-                      {offer.title || "SBC Offer"}
-                    </h4>
-                    {offer.discount && (
-                      <p className="mt-2 text-2xl font-black text-[#b18a16]">
-                        {offer.discount}
-                      </p>
-                    )}
-                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
-                      {offer.description || "Offer details available."}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedOffer(offer)}
-                      disabled={usageCount >= MAX_REDEMPTIONS}
-                      className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-                    >
-                      {usageCount >= MAX_REDEMPTIONS
-                        ? "🚫 Limit Reached"
-                        : "🎁 Redeem Offer"}
-                    </button>
+
+                    {/* OFFER INFO */}
+                    <div className="flex min-w-0 flex-col justify-between p-3 sm:p-4 lg:p-5">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-slate-400 sm:text-[10px]">
+                              🏢 {offer.businessName || "SBC Partner Business"}
+                            </p>
+
+                            <h2 className="mt-1.5 line-clamp-2 text-sm font-black leading-tight text-[#07111f] sm:text-base lg:text-lg">
+                              {offer.title || "SBC Offer"}
+                            </h2>
+                          </div>
+
+                          <span className="hidden shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700 sm:inline-flex">
+                            ✓ Verified
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-black text-[#1557d6] sm:text-[9px]">
+                            {offer.category || "Other"}
+                          </span>
+
+                          {offer.discount && (
+                            <span className="rounded-full bg-[#fff7dc] px-2 py-1 text-[9px] font-black text-[#9a7100] sm:text-[10px]">
+                              🎁 {offer.discount}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-2 line-clamp-2 text-[9px] leading-4 text-slate-500 sm:text-[10px] sm:leading-5">
+                          {offer.description || "Exclusive benefits available for SBC students."}
+                        </p>
+
+                        {offer.businessAddress && (
+                          <p className="mt-1.5 line-clamp-1 text-[8px] font-semibold text-slate-400 sm:text-[9px]">
+                            📍 {offer.businessAddress}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-2.5 flex items-end justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-black text-slate-400 sm:text-[9px]">
+                            USED AT BUSINESS
+                          </p>
+                          <p className="mt-0.5 text-[9px] font-black text-slate-700 sm:text-[10px]">
+                            {usedCount}/{MAX_REDEMPTIONS} redemptions
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => openOfferDetails(offer)}
+                          className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2 text-[9px] font-black text-white shadow-sm transition hover:bg-[#0e47b6] sm:px-4 sm:py-2.5 sm:text-[10px]"
+                        >
+                          View Offer →
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TOTAL */}
+
+        {!loading && (
+
+          <div className="mt-12 overflow-hidden rounded-[2rem] bg-[#07111f] p-8 text-white shadow-[0_25px_70px_rgba(7,17,31,0.16)]">
+
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+
+                <h2 className="text-3xl font-black text-white">
+                  🎉 Total Active Offers
+                </h2>
+
+                <p className="mt-2 text-white/55">
+                  Discover amazing benefits from SBC Partner Businesses.
+                </p>
+
+              </div>
+
+              <div className="rounded-3xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-10 py-6">
+
+                <span className="block text-center text-5xl font-black text-[#f1cf63]">
+                  {filteredOffers.length}
+                </span>
+
+                <p className="text-center text-sm font-bold uppercase text-white">
+                  Offers
+                </p>
+
+              </div>
+
             </div>
-          )}
+
+          </div>
+
+        )}
+
+      </div>
+
+      </div>
+
+      {/* ==========================================
+          FULL OFFER DETAILS MODAL
+      =========================================== */}
+
+      {detailsOffer && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm"
+          onClick={closeOfferDetails}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            {/* IMAGE */}
+
+            <div className="relative h-56 overflow-hidden bg-[#07111f] sm:h-64">
+
+              {(getOfferDesktopImage(detailsOffer) || getOfferMobileImage(detailsOffer)) ? (
+
+                <picture>
+                  <source
+                    media="(max-width: 639px)"
+                    srcSet={getOfferMobileImage(detailsOffer)}
+                  />
+                  <img
+                    src={getOfferDesktopImage(detailsOffer)}
+                    alt={detailsOffer.title || "Offer"}
+                    className="h-full w-full object-contain"
+                  />
+                </picture>
+
+              ) : (
+
+                <div className="flex h-full items-center justify-center text-7xl text-[#f1cf63]">
+                  🎁
+                </div>
+
+              )}
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                aria-label="Close full details"
+                className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white backdrop-blur transition hover:bg-black/80"
+              >
+                ✕
+              </button>
+
+              <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
+
+                <span className="rounded-full bg-[#07111f] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                  {detailsOffer.category || "Other"}
+                </span>
+
+                <span className="rounded-full border border-[#d4af37]/50 bg-[#fff8df] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-[#8a680c]">
+                  🔥 SBC Exclusive
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* FULL DETAILS */}
+
+            <div className="p-6 sm:p-7">
+
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+                🏢 Business
+              </p>
+
+              <h2 className="mt-1 text-lg font-black text-[#07111f]">
+                {detailsOffer.businessName || "SBC Partner Business"}
+              </h2>
+
+              {/* ADDRESS */}
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  📍 Full Business Address
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm font-semibold leading-6 text-slate-700">
+                  {detailsOffer.businessAddress || "Address not available"}
+                </p>
+
+              </div>
+
+              {/* OFFER */}
+
+              <div className="mt-5">
+
+                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  🎁 Offer
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black leading-tight text-[#b18a16]">
+                  {detailsOffer.title || "SBC Offer"}
+                </h3>
+
+                {detailsOffer.discount && (
+                  <p className="mt-2 text-3xl font-black text-[#b18a16]">
+                    {detailsOffer.discount}
+                  </p>
+                )}
+
+              </div>
+
+              {/* DESCRIPTION */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fffdf5] p-4">
+
+                <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                  📝 Offer Full Details
+                </p>
+
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-700">
+                  {detailsOffer.description || "No additional offer details available."}
+                </p>
+
+              </div>
+
+              {/* USAGE */}
+
+              <div className="mt-5 rounded-2xl border border-[#d4af37]/20 bg-[#fbfaf6] p-4">
+
+                <div className="flex items-center justify-between gap-4">
+
+                  <div>
+
+                    <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
+                      🎟️ Your Usage at this Business
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-[#07111f]">
+                      {getUsageCount(detailsOffer.businessId)} / {MAX_REDEMPTIONS} Redemptions Used
+                    </p>
+
+                  </div>
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-[#8a680c]">
+                    {getUsageCount(detailsOffer.businessId)}/{MAX_REDEMPTIONS}
+                  </div>
+
+                </div>
+
+                <p className="mt-2 text-xs font-semibold text-[#8a680c]">
+                  {getUsageCount(detailsOffer.businessId) >= MAX_REDEMPTIONS
+                    ? "You have reached the maximum 4 redemptions for this business."
+                    : `${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId)} redemption${MAX_REDEMPTIONS - getUsageCount(detailsOffer.businessId) === 1 ? "" : "s"} remaining for this business.`}
+                </p>
+
+              </div>
+
+              {/* CONTACT */}
+
+              {detailsOffer.businessMobile && (
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    📞 Business Contact
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-[#07111f]">
+                    {detailsOffer.businessMobile}
+                  </p>
+
+                </div>
+
+              )}
+
+              {/* ACTIONS */}
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    callBusiness(detailsOffer)
+                  }
+                  className="rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-white transition hover:bg-[#101d2e]"
+                >
+                  📞 Call Us
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeOfferDetails();
+                    openRedeemVerification(detailsOffer);
+                  }}
+                  disabled={
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                  }
+                  className={`rounded-xl py-3.5 text-sm font-black transition ${
+                    getUsageCount(detailsOffer.businessId) >=
+                    MAX_REDEMPTIONS
+                      ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                      : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                  }`}
+                >
+                  {getUsageCount(detailsOffer.businessId) >=
+                  MAX_REDEMPTIONS
+                    ? "🚫 Limit Reached"
+                    : "🎁 Redeem Offer"}
+                </button>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closeOfferDetails}
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
         </div>
       )}
 
-      {scannerOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
-            <div className="flex items-center justify-between">
+      {/* ==========================================
+          DIRECT SCAN & REDEEM MODAL
+      =========================================== */}
+      {(directScannerOpen || directScanBusiness) && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center justify-between border-b p-5">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider text-[#b18a16]">
-                  SBC Business
+                <h2 className="text-2xl font-black text-[#07111f]">
+                  📷 Scan & Redeem
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Scan the SBC Business QR to see its offers.
                 </p>
-                <h3 className="text-2xl font-black text-[#07111f]">
-                  Scan QR Code
-                </h3>
               </div>
+
               <button
                 type="button"
-                onClick={closeScanner}
-                className="rounded-full bg-slate-100 px-4 py-2 font-black"
+                onClick={closeDirectScanner}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700"
               >
                 ✕
               </button>
             </div>
-            <div
-              id="sbc-dashboard-business-qr-reader"
-              className="mt-5 overflow-hidden rounded-2xl border-2 border-[#d4af37]/40"
-            />
-            <button
-              type="button"
-              onClick={closeScanner}
-              className="mt-4 w-full rounded-xl bg-[#07111f] py-3.5 font-black text-white"
-            >
-              Close Scanner
-            </button>
-          </div>
-        </div>
-      )}
 
-      {selectedOffer && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-7 shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
-            <p className="text-xs font-black uppercase tracking-wider text-[#b18a16]">
-              Confirm Redemption
-            </p>
-            <h3 className="mt-2 text-2xl font-black text-[#07111f]">
-              {selectedOffer.title || "SBC Offer"}
-            </h3>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
-              {business?.businessName}
-            </p>
-            {selectedOffer.discount && (
-              <p className="mt-4 text-3xl font-black text-[#b18a16]">
-                {selectedOffer.discount}
-              </p>
-            )}
-            <p className="mt-4 rounded-2xl bg-[#fffaf0] p-4 text-sm font-semibold leading-6 text-slate-600">
-              Your redemption request will be sent to the business for approval.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedOffer(null)}
-                className="rounded-xl border border-slate-200 bg-slate-50 py-3.5 font-black text-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => redeemOffer(selectedOffer)}
-                disabled={redeemLoading}
-                className="rounded-xl bg-[#d4af37] py-3.5 font-black text-[#07111f] disabled:bg-slate-300"
-              >
-                {redeemLoading ? "Sending..." : "Redeem & Send"}
-              </button>
+            <div className="space-y-4 p-5">
+              {directScannerOpen && !directScanBusiness && (
+                <div>
+                  <div
+                    id="sbc-direct-business-qr-reader"
+                    className="min-h-[320px] overflow-hidden rounded-2xl border-2 border-blue-300 bg-black"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={closeDirectScanner}
+                    className="mt-3 w-full rounded-xl bg-slate-800 py-3 font-black text-white"
+                  >
+                    ✕ Close Scanner
+                  </button>
+                </div>
+              )}
+
+              {scannerError && (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600">
+                  {scannerError}
+                </div>
+              )}
+
+              {directScanBusiness && (
+                <>
+                  <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+                    <p className="text-xs font-black uppercase tracking-wider text-emerald-600">
+                      Business Found
+                    </p>
+                    <h3 className="mt-1 text-2xl font-black text-emerald-800">
+                      {directScanBusiness.businessName}
+                    </h3>
+                  </div>
+
+                  {directScanOffers.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
+                      <p className="font-bold text-slate-600">
+                        No active offers available for this business.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={startDirectScanner}
+                        className="mt-4 rounded-xl bg-[#07111f] px-5 py-3 font-black text-white"
+                      >
+                        📷 Scan Another Business
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm font-black uppercase tracking-wider text-slate-500">
+                        Available Offers
+                      </p>
+
+                      {directScanOffers.map((offer) => {
+                        const usedCount = getUsageCount(
+                          offer.businessId
+                        );
+
+                        const limitReached =
+                          usedCount >= MAX_REDEMPTIONS;
+
+                        return (
+                          <div
+                            key={offer.id}
+                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                          >
+                            <p className="text-xs font-black uppercase text-slate-400">
+                              {offer.category || "Other"}
+                            </p>
+
+                            <h3 className="mt-1 text-lg font-black text-[#07111f]">
+                              {offer.title || "SBC Offer"}
+                            </h3>
+
+                            {offer.discount && (
+                              <p className="mt-1 text-xl font-black text-[#b18a16]">
+                                {offer.discount}
+                              </p>
+                            )}
+
+                            <p className="mt-2 text-xs font-semibold text-slate-500">
+                              {usedCount}/{MAX_REDEMPTIONS} redemptions used
+                            </p>
+
+                            <button
+                              type="button"
+                              disabled={limitReached}
+                              onClick={() => {
+                                closeDirectScanner();
+                                openRedeemVerification(offer);
+                              }}
+                              className={`mt-3 w-full rounded-xl py-3.5 font-black ${
+                                limitReached
+                                  ? "cursor-not-allowed bg-slate-300 text-slate-500"
+                                  : "bg-[#d4af37] text-[#07111f] hover:bg-[#f1cf63]"
+                              }`}
+                            >
+                              {limitReached
+                                ? "🚫 Limit Reached"
+                                : "🎁 Redeem This Offer"}
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={startDirectScanner}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 font-bold text-slate-700"
+                      >
+                        📷 Scan Another Business
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
+      {/* ==========================================
+          BUSINESS VERIFICATION MODAL
+      =========================================== */}
+
+      {showVerificationModal &&
+        selectedOffer && (
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm">
+
+            <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
+              <div className="border-b p-6">
+
+                <div className="flex items-center justify-between">
+
+                  <div>
+
+                    <h2 className="text-2xl font-extrabold text-green-700">
+                      🎁 Redeem Benefit
+                    </h2>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Verify the business first
+                    </p>
+
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowVerificationModal(
+                        false
+                      );
+
+                      setSelectedOffer(
+                        null
+                      );
+
+                      setVerifiedBusiness(
+                        null
+                      );
+
+                      setScannerOpen(
+                        false
+                      );
+                    }}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    ✕
+                  </button>
+
+                </div>
+
+              </div>
+
+              <div className="space-y-5 p-6">
+
+                {/* SELECTED OFFER */}
+
+                <div className="rounded-2xl bg-slate-100 p-5">
+
+                  <p className="text-xs font-bold uppercase text-gray-500">
+                    Selected Offer
+                  </p>
+
+                  <h3 className="mt-2 text-xl font-extrabold text-green-700">
+                    {selectedOffer.title}
+                  </h3>
+
+                  <p className="mt-1 font-bold text-yellow-500">
+                    {selectedOffer.discount}
+                  </p>
+
+                  <p className="mt-2 text-sm text-gray-600">
+                    🏢{" "}
+                    {selectedOffer.businessName}
+                  </p>
+
+                </div>
+
+                {verifiedBusiness ? (
+
+                  <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+
+                    <p className="text-sm font-bold text-green-700">
+                      ✅ Business Verified
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-extrabold text-green-800">
+                      {verifiedBusiness.businessName}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-green-700">
+                      Business ID:{" "}
+                      {verifiedBusiness.businessId}
+                    </p>
+
+                  </div>
+
+                ) : (
+
+                  <>
+
+                    {/* QR */}
+
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+
+                      <h3 className="text-lg font-extrabold text-gray-800">
+                        📷 Scan Business QR
+                      </h3>
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Scan the SBC Business QR displayed at the business counter.
+                      </p>
+
+                      {!scannerOpen && (
+
+                        <button
+                          onClick={
+                            startScanner
+                          }
+                          className="mt-4 w-full rounded-xl bg-blue-600 py-4 font-bold text-white hover:bg-blue-700"
+                        >
+                          📷 Open QR Scanner
+                        </button>
+
+                      )}
+
+                      {scannerOpen && (
+
+                        <div className="mt-4">
+
+                          <div
+                            id="sbc-business-qr-reader"
+                            className="overflow-hidden rounded-2xl border-2 border-blue-300"
+                          />
+
+                          <button
+                            onClick={
+                              closeScanner
+                            }
+                            className="mt-3 w-full rounded-xl bg-slate-800 py-3 font-black text-white transition hover:bg-slate-700"
+                          >
+                            ✕ Close Scanner
+                          </button>
+
+                        </div>
+
+                      )}
+
+                      {scannerError && (
+
+                        <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600">
+                          {scannerError}
+                        </p>
+
+                      )}
+
+                    </div>
+
+                    {/* OR */}
+
+                    <div className="flex items-center gap-3">
+
+                      <div className="h-px flex-1 bg-gray-200" />
+
+                      <span className="text-sm font-bold text-gray-400">
+                        OR
+                      </span>
+
+                      <div className="h-px flex-1 bg-gray-200" />
+
+                    </div>
+
+                    {/* BUSINESS ID */}
+
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+
+                      <h3 className="text-lg font-extrabold text-gray-800">
+                        🔢 Enter Business ID
+                      </h3>
+
+                      <p className="mt-2 text-sm text-gray-500">
+                        Use the Business ID printed below the QR.
+                      </p>
+
+                      <input
+                        type="text"
+                        value={
+                          businessIdInput
+                        }
+                        onChange={(e) =>
+                          setBusinessIdInput(
+                            e.target.value
+                          )
+                        }
+                        onKeyDown={(e) => {
+
+                          if (
+                            e.key ===
+                            "Enter"
+                          ) {
+
+                            verifyBusinessId(
+                              businessIdInput
+                            );
+
+                          }
+
+                        }}
+                        placeholder="Example: SBC-BIZ-10482"
+                        className="mt-4 w-full rounded-xl border border-gray-300 p-4 font-bold uppercase outline-none focus:border-green-600"
+                      />
+
+                      <button
+                        onClick={() =>
+                          verifyBusinessId(
+                            businessIdInput
+                          )
+                        }
+                        disabled={
+                          verificationLoading
+                        }
+                        className="mt-3 w-full rounded-xl bg-[#07111f] py-4 font-black text-white transition hover:bg-[#101d2e] disabled:cursor-not-allowed disabled:bg-gray-400"
+                      >
+                        {verificationLoading
+                          ? "⏳ Verifying..."
+                          : "✓ Verify Business"}
+                      </button>
+
+                    </div>
+
+                  </>
+
+                )}
+
+                {/* ERROR */}
+
+                {verificationError && (
+
+                  <div className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600">
+                    {verificationError}
+                  </div>
+
+                )}
+
+                {/* REDEEM */}
+
+                {verifiedBusiness && (
+
+                  <div className="rounded-2xl border border-[#d4af37]/30 bg-[#fffaf0] p-5">
+
+                    <p className="text-sm font-bold text-yellow-700">
+                      ⚠️ Ready to Redeem
+                    </p>
+
+                    <p className="mt-2 text-sm text-gray-700">
+                      Your request will be sent to the business for approval.
+                    </p>
+
+                    <button
+                      onClick={
+                        redeemMyBenefit
+                      }
+                      disabled={
+                        redeemLoading
+                      }
+                      className="mt-4 w-full rounded-2xl bg-[#d4af37] py-5 text-lg font-black text-[#07111f] shadow-lg transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:bg-gray-400"
+                    >
+                      {redeemLoading
+                        ? "⏳ Sending Request..."
+                        : "🎁 REDEEM MY BENEFIT"}
+                    </button>
+
+                  </div>
+
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
+      {/* ==========================================
+          WAITING MODAL
+      =========================================== */}
+
       {pendingOffer && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm">
+
+          <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 text-4xl">
               ⏳
             </div>
-            <h3 className="mt-6 text-3xl font-black text-[#07111f]">
+
+            <h2 className="mt-6 text-3xl font-extrabold text-green-700">
               Waiting for Approval
-            </h3>
-            <p className="mt-3 text-lg font-black">{pendingOffer.businessName}</p>
-            <p className="mt-2 font-bold text-[#b18a16]">{pendingOffer.title}</p>
-            <p className="mt-4 text-sm leading-6 text-slate-500">
-              Your redemption request has been sent to the business. Please wait for approval.
+            </h2>
+
+            <p className="mt-3 text-lg font-bold text-gray-700">
+              {pendingOffer.businessName}
             </p>
+
+            <p className="mt-4 text-gray-600">
+              Your redemption request has been sent to the business.
+            </p>
+
+            <p className="mt-3 font-bold text-yellow-600">
+              🎁 Your rewards are also waiting!
+            </p>
+
+            <div className="mt-6 rounded-2xl bg-slate-100 p-4">
+
+              <p className="text-sm text-gray-500">
+                Offer
+              </p>
+
+              <p className="mt-1 text-lg font-extrabold text-green-700">
+                {pendingOffer.title}
+              </p>
+
+            </div>
+
+            <p className="mt-6 text-sm text-gray-500">
+              Please wait while the business confirms your redemption.
+            </p>
+
           </div>
+
         </div>
+
       )}
 
+      {/* ==========================================
+          APPROVED MODAL
+      =========================================== */}
+
       {approvedOffer && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
-            <button
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+
+          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
+                        {approvedOffer?.googleReviewLink ? (
+              <button
+                type="button"
+                onClick={() => shareGoogleReview(approvedOffer)}
+                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
+              >
+                ⭐ Share your experience on Google
+              </button>
+            ) : null}
+
+<button
               type="button"
               onClick={closeApproved}
-              className="absolute right-4 top-4 rounded-full bg-slate-100 px-3 py-2 font-black text-slate-500"
+              aria-label="Close"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
             >
               ✕
             </button>
 
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">
-              ✅
-            </div>
+            <div className="p-6 text-center">
 
-            <h3 className="mt-6 text-3xl font-black text-emerald-700">
-              Redemption Approved
-            </h3>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl font-black text-green-600">
+                ✓
+              </div>
 
-            <p className="mt-3 text-lg font-black text-[#07111f]">
-              {approvedOffer.businessName}
-            </p>
+              <h2 className="mt-3 text-2xl font-black text-green-700">
+                Approved Successfully!
+              </h2>
 
-            <div className="mt-4 rounded-2xl bg-emerald-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                Benefit Redeemed
+              <p className="mt-1 text-sm font-extrabold text-gray-800">
+                {approvedOffer.businessName}
               </p>
-              <p className="mt-2 text-xl font-black text-emerald-700">
-                🎁 {approvedOffer.title}
-              </p>
-              {approvedOffer.discount && (
-                <p className="mt-1 text-sm font-black text-[#b18a16]">
-                  {approvedOffer.discount}
+
+              <div className="mt-4 rounded-xl bg-emerald-50 p-4">
+
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                  Benefit Redeemed
                 </p>
-              )}
-            </div>
 
-            <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50 p-5">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-purple-600">
-                ⭐ SBC Reward Points
-              </p>
-              <p className="mt-1 text-4xl font-black text-purple-700">
-                +{approvedPoints}
-              </p>
-              <p className="mt-1 text-xs font-bold text-purple-500">
-                Total Points: {approvedTotalPoints}
-              </p>
-            </div>
+                <p className="mt-1 text-base font-extrabold leading-5 text-green-700">
+                  🎁 {approvedOffer.title}
+                </p>
 
-            {approvedOffer.googleReviewLink ? (
+                {approvedOffer.discount && (
+                  <p className="mt-1 text-sm font-black text-yellow-600">
+                    {approvedOffer.discount}
+                  </p>
+                )}
+
+              </div>
+
+              <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-4">
+
+                <p className="text-xs font-black uppercase tracking-wide text-purple-600">
+                  ⭐ SBC Reward Points
+                </p>
+
+                <p className="mt-1 text-3xl font-black text-purple-700">
+                  +{approvedPoints}
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-purple-500">
+                  Total Points: {approvedTotalPoints}
+                </p>
+
+              </div>
+
+              <p className="mt-3 text-xs font-semibold text-gray-400">
+                Redemption successful.
+              </p>
+
               <button
                 type="button"
-                onClick={() => shareGoogleReview(approvedOffer)}
-                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3.5 text-sm font-black text-white transition hover:bg-[#3367d6]"
+                onClick={closeApproved}
+                className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
               >
-                ⭐ Give a Google Review
+                ✓ Done
               </button>
-            ) : (
-              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-500">
-                Google Review link is not configured for this offer yet.
-              </p>
-            )}
 
-            <p className="mt-3 text-xs font-semibold text-slate-400">
-              Your reward points have been added to your SBC account.
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ==========================================
+          REJECTED MODAL
+      =========================================== */}
+
+      {rejectedOffer && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+
+          <div className="w-full max-w-md rounded-[2rem] border border-black/5 bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-4xl">
+              ✕
+            </div>
+
+            <h2 className="mt-6 text-3xl font-extrabold text-red-600">
+              Request Rejected
+            </h2>
+
+            <p className="mt-3 text-lg font-bold text-gray-800">
+              {rejectedOffer.businessName}
+            </p>
+
+            <div className="mt-5 rounded-2xl bg-red-50 p-5">
+
+              <p className="text-sm text-gray-500">
+                Offer
+              </p>
+
+              <p className="mt-2 text-xl font-extrabold text-red-700">
+                {rejectedOffer.title}
+              </p>
+
+            </div>
+
+            <p className="mt-5 text-sm text-gray-600">
+              The business did not approve this redemption request.
             </p>
 
             <button
-              type="button"
-              onClick={closeApproved}
-              className="mt-4 w-full rounded-xl bg-[#07111f] py-3.5 font-black text-white"
-            >
-              ✓ Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {rejectedOffer && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#020811]/85 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-4xl">
-              ❌
-            </div>
-            <h3 className="mt-6 text-3xl font-black text-red-700">
-              Redemption Rejected
-            </h3>
-            <p className="mt-3 text-lg font-black">{rejectedOffer.businessName}</p>
-            <p className="mt-2 font-bold">{rejectedOffer.title}</p>
-            <button
-              type="button"
-              onClick={() => setRejectedOffer(null)}
-              className="mt-6 w-full rounded-xl bg-[#07111f] py-3.5 font-black text-white"
+              onClick={
+                closeRejected
+              }
+              className="mt-6 w-full rounded-2xl bg-gray-700 py-4 font-bold text-white hover:bg-gray-800"
             >
               Close
             </button>
+
           </div>
+
         </div>
+
       )}
-    </section>
 
-      {/* MOBILE: keep scanned business + offers at the exact scan position.
-          The dashboard page must never scroll down to the old inline section. */}
-      {business && (
-        <div className="fixed inset-0 z-[65] overflow-y-auto bg-[#f5f3ed] p-4 pb-28 md:hidden">
-          <div className="mx-auto mt-3 w-full max-w-lg rounded-[2rem] border border-[#d4af37]/30 bg-white p-5 shadow-[0_20px_70px_rgba(15,23,42,0.15)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a680c]">
-                  Verified Business
-                </p>
-                <h3 className="mt-1 text-2xl font-black text-[#07111f]">
-                  {business.businessName}
-                </h3>
-                <p className="mt-1 text-xs font-bold text-slate-500">
-                  {business.sbcBusinessId}
-                </p>
-              </div>
 
+        {/* MOBILE BOTTOM NAV — SAME DESIGN AS STUDENT DASHBOARD */}
+        <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+6px)] md:hidden">
+          <div className="mx-auto max-w-lg rounded-[1.35rem] border border-[#24364d] bg-[#020d19]/95 p-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
+            <div className="grid grid-cols-4 items-center gap-1">
+
+              {/* HOME — NORMAL */}
               <button
                 type="button"
-                onClick={() => {
-                  setBusiness(null);
-                  setOffers([]);
-                  setSelectedOffer(null);
-                  setScannerError("");
-                }}
-                className="shrink-0 rounded-full bg-slate-100 px-3 py-2 font-black text-slate-500"
+                onClick={() => router.push("/student/dashboard")}
+                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
               >
-                ✕
+                <span className="flex h-7 w-7 items-center justify-center text-white">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V10.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M9 21V14H15V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span className="text-[10px] font-bold leading-4">Home</span>
               </button>
-            </div>
 
-            <div className="mt-4 rounded-full bg-emerald-50 px-4 py-2 text-center text-xs font-black text-emerald-700">
-              {usageCount}/{MAX_REDEMPTIONS} Used
-            </div>
+              {/* OFFERS — SELECTED */}
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="relative flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] border border-[#d4af37] bg-[#d4af37]/10 px-1 py-1.5 text-[#f1cf63] transition active:scale-[0.97]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#d4af37] text-[#07111f]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M20.59 13.41L13.41 20.59C12.63 21.37 11.37 21.37 10.59 20.59L3.41 13.41C2.63 12.63 2.63 11.37 3.41 10.59L10.59 3.41C11.37 2.63 12.63 2.63 13.41 3.41L20.59 10.59C21.37 11.37 21.37 12.63 20.59 13.41Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className="text-[10px] font-black leading-4">Offers</span>
+                <span className="absolute bottom-0 h-1 w-16 max-w-[72%] rounded-full bg-[#f1cf63]" />
+              </button>
 
-            {loading ? (
-              <div className="mt-5 rounded-2xl bg-slate-50 p-8 text-center font-bold text-slate-500">
-                Loading offers...
-              </div>
-            ) : offers.length === 0 ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-black/10 bg-slate-50 p-8 text-center">
-                <p className="font-black text-[#07111f]">
-                  No active offers available.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-5 grid gap-4">
-                {offers.map((offer) => (
-                  <div
-                    key={offer.id}
-                    className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm"
+              {/* SCAN & REDEEM — NORMAL */}
+              <button
+                type="button"
+                onClick={() => router.push("/student/dashboard?open=scan")}
+                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center text-white">
+                  <svg width="25" height="25" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M7 15V9C7 7.89543 7.89543 7 9 7H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M27 7H33C34.1046 7 35 7.89543 35 9V15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 27V33C7 34.1046 7.89543 35 9 35H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M27 35H33C34.1046 35 35 34.1046 35 33V27" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M11 21H31" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
+              </button>
+
+              {/* REFER A FRIEND — DIRECT SHARE */}
+              <button
+                type="button"
+                onClick={shareReferralLink}
+                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center text-white">
+                  <svg
+                    width="25"
+                    height="25"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
                   >
-                    {offer.image ? (
-                      <img
-                        src={offer.image}
-                        alt={offer.title || "SBC Offer"}
-                        className="h-48 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-40 items-center justify-center bg-[#07111f] text-5xl">
-                        🎁
-                      </div>
-                    )}
+                    <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+                    <path
+                      d="M3.5 19C4.2 15.8 6 14 9 14C12 14 13.8 15.8 14.5 19"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M16 8V14M13 11H19"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <span className="text-[10px] font-bold leading-4 text-center">
+                  Refer a Friend
+                </span>
+              </button>
 
-                    <div className="p-5">
-                      <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">
-                        Offer
-                      </p>
-                      <h4 className="mt-1 text-xl font-black text-[#07111f]">
-                        {offer.title || "SBC Offer"}
-                      </h4>
-
-                      {offer.discount && (
-                        <p className="mt-2 text-2xl font-black text-[#b18a16]">
-                          {offer.discount}
-                        </p>
-                      )}
-
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {offer.description || "Offer details available."}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOffer(offer)}
-                        disabled={usageCount >= MAX_REDEMPTIONS}
-                        className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-                      >
-                        {usageCount >= MAX_REDEMPTIONS
-                          ? "🚫 Limit Reached"
-                          : "🎁 Redeem Offer"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        </nav>
 
-  </>
+    </main>
   );
 }
