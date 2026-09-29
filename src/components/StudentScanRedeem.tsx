@@ -324,8 +324,19 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
     }
   };
 
+  const mobileResultOpen = Boolean(business || scannerError || pendingOffer || selectedOffer || approvedOffer || rejectedOffer);
+
+  const resetScanResult = () => {
+    setBusiness(null);
+    setOffers([]);
+    setUsageCount(0);
+    setScannerError("");
+  };
+
   return (
-    <section className="rounded-[2rem] border border-[#d4af37]/25 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+    <>
+    <section className="md:rounded-[2rem] md:border md:border-[#d4af37]/25 md:bg-white md:p-6 md:shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:p-8">
+      <div className="hidden md:block">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b18a16]">
@@ -430,6 +441,91 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      </div>
+
+      {/* MOBILE SCAN RESULT — shown only after the bottom-nav scanner is used */}
+      {mobileResultOpen && !scannerOpen && (
+        <div className="fixed inset-0 z-[45] overflow-y-auto bg-[#f5f3ed] px-4 pb-28 pt-5 md:hidden">
+          <div className="mx-auto w-full max-w-lg">
+            <div className="mb-4 flex items-center justify-between rounded-2xl bg-[#07111f] px-4 py-4 text-white shadow-lg">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#f1cf63]">SBC</p>
+                <h2 className="text-xl font-black">Scan & Redeem</h2>
+              </div>
+              <button
+                type="button"
+                onClick={resetScanResult}
+                className="rounded-full bg-white/10 px-4 py-2 text-sm font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            {scannerError && !business && (
+              <div className="rounded-2xl bg-red-50 p-5 text-sm font-black text-red-600">
+                {scannerError}
+                <button
+                  type="button"
+                  onClick={startScanner}
+                  className="mt-4 w-full rounded-xl bg-[#07111f] py-3.5 text-sm font-black text-[#f1cf63]"
+                >
+                  📷 Scan Again
+                </button>
+              </div>
+            )}
+
+            {business && (
+              <div className="rounded-[1.5rem] border border-[#d4af37]/30 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8a680c]">Verified Business</p>
+                    <h3 className="mt-1 text-2xl font-black text-[#07111f]">{business.businessName}</h3>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{business.sbcBusinessId}</p>
+                  </div>
+                  <div className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+                    {usageCount}/{MAX_REDEMPTIONS} Used
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="mt-6 rounded-2xl bg-slate-50 p-8 text-center font-bold">Loading offers...</div>
+                ) : offers.length === 0 ? (
+                  <div className="mt-6 rounded-2xl border border-dashed border-black/10 bg-slate-50 p-8 text-center">
+                    <p className="font-black text-[#07111f]">No active offers available.</p>
+                  </div>
+                ) : (
+                  <div className="mt-5 grid gap-4">
+                    {offers.map((offer) => (
+                      <div key={offer.id} className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm">
+                        {offer.image ? (
+                          <img src={offer.image} alt={offer.title || "SBC Offer"} className="h-44 w-full object-cover" />
+                        ) : (
+                          <div className="flex h-32 items-center justify-center bg-[#07111f] text-5xl">🎁</div>
+                        )}
+                        <div className="p-5">
+                          <p className="text-xs font-black uppercase tracking-wider text-[#8a680c]">Offer</p>
+                          <h4 className="mt-1 text-xl font-black text-[#07111f]">{offer.title || "SBC Offer"}</h4>
+                          {offer.discount && <p className="mt-2 text-2xl font-black text-[#b18a16]">{offer.discount}</p>}
+                          <p className="mt-2 text-sm leading-6 text-slate-600">{offer.description || "Offer details available."}</p>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOffer(offer)}
+                            disabled={usageCount >= MAX_REDEMPTIONS}
+                            className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] disabled:bg-slate-300 disabled:text-slate-500"
+                          >
+                            {usageCount >= MAX_REDEMPTIONS ? "🚫 Limit Reached" : "🎁 Redeem Offer"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -574,5 +670,6 @@ export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeem
         </div>
       )}
     </section>
+    </>
   );
 }
