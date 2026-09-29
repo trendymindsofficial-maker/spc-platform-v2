@@ -81,6 +81,7 @@ export default function StudentDashboard() {
 
   const referralCode = student?.referralCode || "";
   const scanRedeemRef = useRef<HTMLDivElement | null>(null);
+  const [scanOpenRequest, setScanOpenRequest] = useState(0);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -2606,7 +2607,7 @@ export default function StudentDashboard() {
               {/* SCAN & REDEEM — NORMAL */}
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new Event("sbc-open-scan"))}
+                onClick={() => setScanOpenRequest((current) => current + 1)}
                 disabled={!membershipIsActive}
                 className={`flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${
                   membershipIsActive ? "text-white" : "cursor-not-allowed text-white/30"
@@ -2646,7 +2647,7 @@ export default function StudentDashboard() {
 
         {/* Scan & Redeem lives on the dashboard so scanned business offers remain visible here. */}
         <div className="mt-6 pb-4">
-          <StudentScanRedeem />
+          <StudentScanRedeem openRequest={scanOpenRequest} />
         </div>
 
         {/* FOOTER */}

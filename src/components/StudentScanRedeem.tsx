@@ -36,7 +36,11 @@ interface Offer {
 
 const MAX_REDEMPTIONS = 4;
 
-export default function StudentScanRedeem() {
+interface StudentScanRedeemProps {
+  openRequest?: number;
+}
+
+export default function StudentScanRedeem({ openRequest = 0 }: StudentScanRedeemProps) {
   const router = useRouter();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -231,6 +235,13 @@ export default function StudentScanRedeem() {
   };
 
   const closeScanner = () => setScannerOpen(false);
+
+  // Direct trigger from the dashboard Bottom Nav / Quick Action.
+  useEffect(() => {
+    if (!openRequest) return;
+    if (!auth.currentUser) return;
+    startScanner();
+  }, [openRequest]);
 
   useEffect(() => {
     const handleOpenScan = () => {
