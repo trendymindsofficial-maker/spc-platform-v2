@@ -37,7 +37,13 @@ interface Offer {
 
 const MAX_REDEMPTIONS = 4;
 
-export default function StudentScanRedeem() {
+interface StudentScanRedeemProps {
+  openRequest?: number;
+}
+
+export default function StudentScanRedeem({
+  openRequest = 0,
+}: StudentScanRedeemProps) {
   const router = useRouter();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
@@ -352,6 +358,17 @@ export default function StudentScanRedeem() {
   };
 
   const closeScanner = () => setScannerOpen(false);
+
+  // Dashboard passes an incrementing openRequest value when
+  // Bottom Nav -> Scan & Redeem is clicked.
+  useEffect(() => {
+    if (!openRequest) return;
+    if (!auth.currentUser) return;
+
+    startScanner();
+  }, [openRequest]);
+
+
 
   useEffect(() => {
     const handleOpenScan = () => {
