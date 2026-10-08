@@ -1,0 +1,68 @@
+# ============================================================
+# Render blueprint for the SBC backend
+# ============================================================
+#
+# Using this file:
+#   Render Dashboard -> New -> Blueprint -> point at this repo.
+#
+# Creating the service manually instead:
+#   Root Directory  : backend
+#   Build Command   : npm ci && npm run build
+#   Start Command   : npm start
+#   Health Check    : /health
+#
+# Secrets are marked `sync: false`, so Render prompts for them rather
+# than reading them from this committed file. Never put the Firebase
+# private key or the Razorpay secret in here.
+# ============================================================
+
+services:
+  - type: web
+    name: sbc-backend
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render sets PORT itself; the app reads whatever it provides.
+
+      - key: FRONTEND_ORIGIN
+        value: https://www.studentbenefitcard.com
+
+      - key: APP_PUBLIC_URL
+        value: https://www.studentbenefitcard.com
+
+      - key: NOTIFICATION_ICON_URL
+        value: https://www.studentbenefitcard.com/sbc-notification-icon.png
+
+      - key: FIREBASE_ADMIN_PROJECT_ID
+        sync: false
+
+      - key: FIREBASE_ADMIN_CLIENT_EMAIL
+        sync: false
+
+      - key: FIREBASE_ADMIN_PRIVATE_KEY_BASE64
+        sync: false
+
+      # Hosted Razorpay Payment Button id (data-payment_button_id).
+      - key: RAZORPAY_PAYMENT_BUTTON_ID
+        sync: false
+
+      # REQUIRED. Must match the secret set on the Razorpay webhook whose
+      # URL is https://<this-service>.onrender.com/api/payment/webhook
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+
+      # Optional: only needed to re-enable the legacy Orders API checkout.
+      - key: RAZORPAY_KEY_ID
+        sync: false
+
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
