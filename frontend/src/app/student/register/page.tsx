@@ -77,6 +77,12 @@ export default function StudentRegister() {
   const recaptchaRef =
     useRef<RecaptchaVerifier | null>(null);
 
+  /*
+   * Memoised create-and-render, so the widget is only ever built once.
+   */
+  const recaptchaPromiseRef =
+    useRef<Promise<RecaptchaVerifier> | null>(null);
+
   const confirmationResultRef =
     useRef<ConfirmationResult | null>(null);
 
@@ -193,65 +199,111 @@ export default function StudentRegister() {
    * triggered by a user gesture for a token — which Firebase rejects as
    * auth/invalid-app-credential.
    */
-  const getRecaptchaVerifier = () => {
+  /*
+   * Returns a verifier that is guaranteed to be rendered exactly once.
+   *
+   * grecaptcha throws "reCAPTCHA has already been rendered in this
+   * element" if a widget is built twice in the same container. That is
+   * easy to trigger by accident here, because both the warm-up on mount
+   * and the Send OTP click want a ready verifier, and a client component
+   * can mount more than once.
+   *
+   * The whole create-and-render sequence is therefore memoised in a ref:
+   * every caller awaits the same promise, so there is only ever one
+   * widget. resetRecaptcha() clears the memo when a token is spent or
+   * expired.
+   */
+  const ensureRecaptcha = (): Promise<RecaptchaVerifier> => {
     if (typeof window === "undefined") {
-      return null;
-    }
-
-    if (recaptchaRef.current) {
-      return recaptchaRef.current;
-    }
-
-    const container =
-      document.getElementById(
-        RECAPTCHA_CONTAINER_ID
-      );
-
-    if (!container) {
-      throw new Error(
-        "Security verification is not ready yet. Please try again."
+      return Promise.reject(
+        new Error("Security verification is unavailable.")
       );
     }
 
-    const verifier =
-      new RecaptchaVerifier(
-        auth,
-        RECAPTCHA_CONTAINER_ID,
-        {
-          size: "invisible",
+    if (recaptchaPromiseRef.current) {
+      return recaptchaPromiseRef.current;
+    }
 
-          callback: () => {
-            console.log(
-              "Firebase reCAPTCHA verified"
-            );
-          },
+    const promise = (async () => {
+      const container =
+        document.getElementById(
+          RECAPTCHA_CONTAINER_ID
+        );
 
-          "expired-callback": () => {
-            console.log(
-              "Firebase reCAPTCHA expired"
-            );
+      if (!container) {
+        throw new Error(
+          "Security verification is not ready yet. Please try again."
+        );
+      }
 
-            /*
-             * An expired token can never be used again, so drop the
-             * verifier and let the next attempt build a fresh one.
-             */
-            resetRecaptcha();
-          },
+      /*
+       * Start from an empty container. A widget left behind by a
+       * previous mount is exactly what causes the "already rendered"
+       * error.
+       */
+      container.innerHTML = "";
 
-          "error-callback": () => {
-            console.log(
-              "Firebase reCAPTCHA error"
-            );
+      const verifier =
+        new RecaptchaVerifier(
+          auth,
+          RECAPTCHA_CONTAINER_ID,
+          {
+            size: "invisible",
 
-            resetRecaptcha();
-          },
-        }
-      );
+            callback: () => {
+              console.log(
+                "Firebase reCAPTCHA verified"
+              );
+            },
 
-    recaptchaRef.current =
-      verifier;
+            "expired-callback": () => {
+              console.log(
+                "Firebase reCAPTCHA expired"
+              );
 
-    return verifier;
+              /*
+               * An expired token can never be reused, so drop the memo
+               * and let the next attempt build a fresh widget.
+               */
+              resetRecaptcha();
+            },
+
+            "error-callback": () => {
+              console.log(
+                "Firebase reCAPTCHA error"
+              );
+
+              resetRecaptcha();
+            },
+          }
+        );
+
+      recaptchaRef.current = verifier;
+
+      /*
+       * Bypass mode has no widget to build, and waiting on render()
+       * would only add latency.
+       */
+      if (!AUTH_RECAPTCHA_BYPASSED) {
+        await verifier.render();
+      }
+
+      return verifier;
+    })();
+
+    recaptchaPromiseRef.current = promise;
+
+    /*
+     * A failed attempt must not be cached, or the page would be stuck
+     * with a permanently broken verifier.
+     */
+    promise.catch(() => {
+      if (recaptchaPromiseRef.current === promise) {
+        recaptchaPromiseRef.current = null;
+      }
+    });
+
+    return promise;
   };
 
   /*
@@ -292,23 +344,17 @@ export default function StudentRegister() {
           }
         }
 
-        const verifier = getRecaptchaVerifier();
+        await ensureRecaptcha();
 
-        if (!verifier || cancelled) return;
+        if (cancelled) return;
 
-        if (!AUTH_RECAPTCHA_BYPASSED) {
-          await verifier.render();
-        }
+        setRecaptchaReady(true);
 
-        if (!cancelled) {
-          setRecaptchaReady(true);
-
-          console.log(
-            AUTH_RECAPTCHA_BYPASSED
-              ? "reCAPTCHA bypassed (local testing)"
-              : "reCAPTCHA ready"
-          );
-        }
+        console.log(
+          AUTH_RECAPTCHA_BYPASSED
+            ? "reCAPTCHA bypassed (local testing)"
+            : "reCAPTCHA ready"
+        );
       } catch (error) {
         console.warn(
           "reCAPTCHA warm-up skipped:",
@@ -321,6 +367,12 @@ export default function StudentRegister() {
 
     return () => {
       cancelled = true;
+
+      /*
+       * Tear the widget down on unmount. Leaving it behind is what makes
+       * a remount fail with "already rendered".
+       */
+      resetRecaptcha();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -337,6 +389,12 @@ export default function StudentRegister() {
     } catch {}
 
     recaptchaRef.current = null;
+
+    /*
+     * Drop the memo too, otherwise the next caller would await a promise
+     * for a verifier that has just been destroyed.
+     */
+    recaptchaPromiseRef.current = null;
 
     /*
      * clear() does not always empty the host element, and a leftover
@@ -500,26 +558,7 @@ export default function StudentRegister() {
        * case this resolves instantly.
        */
 
-      const verifierPromise = (async () => {
-        const verifier = getRecaptchaVerifier();
-
-        if (!verifier) {
-          throw new Error(
-            "Unable to initialize security verification."
-          );
-        }
-
-        /*
-         * When reCAPTCHA is bypassed for local testing there is no
-         * widget to render, and waiting on render() would only add
-         * latency to the thing we are trying to speed up.
-         */
-        if (!AUTH_RECAPTCHA_BYPASSED) {
-          await verifier.render();
-        }
-
-        return verifier;
-      })();
+      const verifierPromise = ensureRecaptcha();
 
       /*
        * Avoid an unhandled rejection if the duplicate check wins the
@@ -557,6 +596,17 @@ export default function StudentRegister() {
       setOtpSent(true);
       setOtpVerified(false);
       setOtp("");
+
+      /*
+       * The reCAPTCHA token is single use. Tear the spent widget down
+       * and start building a fresh one straight away, so "Resend OTP"
+       * neither fails on a used token nor waits for a cold widget.
+       */
+      resetRecaptcha();
+
+      void ensureRecaptcha()
+        .then(() => setRecaptchaReady(true))
+        .catch(() => {});
 
       alert(
         `📱 OTP sent successfully to ${phoneNumber}`
