@@ -2,8 +2,16 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    /*
+     * nodenext is the resolution mode TypeScript keeps supported. The
+     * older "node" (node10) mode was removed in TypeScript 7, which
+     * breaks the build the moment a newer compiler is picked up.
+     *
+     * package.json has no "type": "module", so nodenext still emits
+     * CommonJS — which is what node dist/server.js expects.
+     */
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
