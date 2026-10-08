@@ -146,7 +146,7 @@ In the Razorpay dashboard:
    `RAZORPAY_PAYMENT_BUTTON_ID`. Test-mode and live-mode buttons are
    different ids; a test button will not work in live mode.
 2. **Settings → Webhooks → Add New Webhook**
-   - URL: `https://<your-render-service>.onrender.com/api/payment/webhook`
+   - URL: `https://spc-platform-v2.onrender.com/api/payment/webhook`
    - Secret: any value you choose — put the same value in
      `RAZORPAY_WEBHOOK_SECRET`
    - Active event: `payment.captured`
@@ -240,6 +240,7 @@ curl http://localhost:8080/health
 Deploy the backend first, because the frontend build needs its URL:
 
 1. Render: deploy backend, copy the service URL.
+   Current deployment: `https://spc-platform-v2.onrender.com`
 2. Vercel: set `NEXT_PUBLIC_API_BASE_URL` to that URL, deploy frontend.
 3. Render: add the final Vercel domain to `FRONTEND_ORIGIN`, redeploy.
 

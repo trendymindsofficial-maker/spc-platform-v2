@@ -34,7 +34,7 @@ services:
       # Render sets PORT itself; the app reads whatever it provides.
 
       - key: FRONTEND_ORIGIN
-        value: https://www.studentbenefitcard.com
+        value: https://www.studentbenefitcard.com,https://studentbenefitcard.com
 
       - key: APP_PUBLIC_URL
         value: https://www.studentbenefitcard.com
@@ -55,8 +55,9 @@ services:
       - key: RAZORPAY_PAYMENT_BUTTON_ID
         sync: false
 
-      # REQUIRED. Must match the secret set on the Razorpay webhook whose
-      # URL is https://<this-service>.onrender.com/api/payment/webhook
+      # REQUIRED — the service will refuse to boot without it.
+      # Must match the secret on the Razorpay webhook pointing at
+      # https://spc-platform-v2.onrender.com/api/payment/webhook
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
 
