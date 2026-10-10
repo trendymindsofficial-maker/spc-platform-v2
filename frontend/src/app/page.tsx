@@ -530,7 +530,6 @@ export default function Home() {
           <p className="text-[10px] text-slate-400">© 2026 SBC. All rights reserved.</p>
         </div>
       </footer>
-      ```tsx
       <section className="border-t border-slate-200 bg-slate-50 px-5 py-8 text-center text-xs leading-6 text-slate-600">
         <h2 className="mb-3 text-sm font-bold text-slate-900">
           Business & Contact Information
@@ -554,7 +553,6 @@ export default function Home() {
           <a href="/contact" className="underline">Contact Us</a>
         </div>
       </section>
-```
 
       {/* MOBILE APP NAV — SAME FLOATING STYLE AS STUDENT DASHBOARD / OFFERS */}
       <div className="fixed bottom-3 left-1/2 z-50 w-[calc(100%-18px)] max-w-md -translate-x-1/2 rounded-[1.5rem] border border-white/15 bg-[#07111f]/95 px-2 py-2 shadow-[0_20px_55px_rgba(7,17,31,.35)] backdrop-blur-xl sm:hidden">
