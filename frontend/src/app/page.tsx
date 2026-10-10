@@ -506,93 +506,88 @@ export default function Home() {
         </div>
       </section>
 
-      {/* BUSINESS INFORMATION — RESPONSIVE */}
-      <section className="border-t border-slate-200 bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-6 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">
-              Student Benefit Card
-            </p>
-            <h2 className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
-              Business & Contact Information
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-              SBC is operated by TrendyMinds. Find our business details and policies below.
+      {/* BUSINESS INFORMATION */}
+      <section className="border-t border-slate-200 bg-slate-50 px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="bg-[#0b1729] px-4 py-5 text-white sm:px-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-sm font-black text-[#0b1729]">
+                SBC
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold tracking-wide">
+                  STUDENT BENEFIT CARD
+                </h2>
+                <p className="text-xs text-slate-300">More Benefits. More Savings.</p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Save more at your favourite restaurants, shops and local businesses with SBC membership.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <h3 className="mb-4 text-base font-bold text-slate-900">
-                Business Details
-              </h3>
-              <dl className="space-y-3 break-words text-sm">
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Brand</dt>
-                  <dd className="mt-1 font-semibold text-slate-800">Student Benefit Card (SBC)</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Legal Name</dt>
-                  <dd className="mt-1 font-semibold text-slate-800">TIMIRI MALLISWARI</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Trade Name</dt>
-                  <dd className="mt-1 font-semibold text-slate-800">TRENDYMINDS</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Business Type</dt>
-                  <dd className="mt-1 text-slate-700">Proprietorship</dd>
-                </div>
-              </dl>
-            </div>
+          <div className="bg-slate-50 p-4 sm:p-6">
+            <h3 className="mb-4 text-lg font-bold text-slate-900">
+              Business Information
+            </h3>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <h3 className="mb-4 text-base font-bold text-slate-900">
-                Contact Us
-              </h3>
-              <dl className="space-y-4 break-words text-sm">
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Business Address</dt>
-                  <dd className="mt-1 leading-6 text-slate-700">
-                    D.No. 26/3-A/599, Main Road, Nellore, Andhra Pradesh - 524004
-                  </dd>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="mb-2 h-5 w-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01M16 13v.01M16 16v.01M16 19v.01"/>
+                </svg>
+                <h4 className="font-semibold text-slate-900">Business Details</h4>
+                <div className="mt-1 space-y-1 break-words text-xs leading-5 text-slate-600 sm:text-sm">
+                  <p>Legal name: TIMIRI MALLISWARI</p>
+                  <p>Trade name: TRENDYMINDS</p>
+                  <p>Proprietorship</p>
                 </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Email</dt>
-                  <dd className="mt-1">
-                    <a className="font-semibold text-blue-700 underline underline-offset-4" href="mailto:trendymindsofficial@gmail.com">
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="mb-2 h-5 w-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="4" y="3" width="16" height="18" rx="2"/>
+                  <circle cx="12" cy="9" r="3"/>
+                  <path d="M8 17c1-3 7-3 8 0M9 3V1M15 3V1"/>
+                </svg>
+                <h4 className="font-semibold text-slate-900">Contact Us</h4>
+                <div className="mt-1 space-y-1 break-words text-xs leading-5 text-slate-600 sm:text-sm">
+                  <p>
+                    <a className="hover:text-blue-700" href="mailto:trendymindsofficial@gmail.com">
                       trendymindsofficial@gmail.com
                     </a>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-slate-500">Phone</dt>
-                  <dd className="mt-1">
-                    <a className="font-semibold text-blue-700 underline underline-offset-4" href="tel:7989197127">
+                  </p>
+                  <p>
+                    <a className="hover:text-blue-700" href="tel:7989197127">
                       7989197127
                     </a>
-                  </dd>
+                  </p>
+                  <p>D.No. 26/3-A/599, Main Road, Nellore, Andhra Pradesh - 524004</p>
                 </div>
-              </dl>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-slate-300 pt-5">
+              <h4 className="font-bold text-slate-900">Legal & Policies</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href="/terms" className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-blue-700 hover:border-blue-300 hover:bg-blue-50">
+                  Terms & Conditions
+                </a>
+                <a href="/privacy" className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-blue-700 hover:border-blue-300 hover:bg-blue-50">
+                  Privacy Policy
+                </a>
+                <a href="/refund-policy" className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-blue-700 hover:border-blue-300 hover:bg-blue-50">
+                  Refund Policy
+                </a>
+                <a href="/contact" className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-blue-700 hover:border-blue-300 hover:bg-blue-50">
+                  Contact Us
+                </a>
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-6">
-            <h3 className="text-sm font-bold text-slate-900">Legal & Policies</h3>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-              <a href="/terms" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                Terms & Conditions
-              </a>
-              <a href="/privacy" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                Privacy Policy
-              </a>
-              <a href="/refund-policy" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                Refund Policy
-              </a>
-              <a href="/contact" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
-                Contact Us
-              </a>
-            </div>
+          <div className="bg-slate-200 px-4 py-3 text-center text-xs leading-5 text-slate-600">
+            © 2026 Student Benefit Card (SBC). All rights reserved.
           </div>
         </div>
       </section>
