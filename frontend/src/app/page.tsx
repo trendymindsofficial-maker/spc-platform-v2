@@ -506,6 +506,97 @@ export default function Home() {
         </div>
       </section>
 
+      {/* BUSINESS INFORMATION — RESPONSIVE */}
+      <section className="border-t border-slate-200 bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-6 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">
+              Student Benefit Card
+            </p>
+            <h2 className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
+              Business & Contact Information
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+              SBC is operated by TrendyMinds. Find our business details and policies below.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <h3 className="mb-4 text-base font-bold text-slate-900">
+                Business Details
+              </h3>
+              <dl className="space-y-3 break-words text-sm">
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Brand</dt>
+                  <dd className="mt-1 font-semibold text-slate-800">Student Benefit Card (SBC)</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Legal Name</dt>
+                  <dd className="mt-1 font-semibold text-slate-800">TIMIRI MALLISWARI</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Trade Name</dt>
+                  <dd className="mt-1 font-semibold text-slate-800">TRENDYMINDS</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Business Type</dt>
+                  <dd className="mt-1 text-slate-700">Proprietorship</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <h3 className="mb-4 text-base font-bold text-slate-900">
+                Contact Us
+              </h3>
+              <dl className="space-y-4 break-words text-sm">
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Business Address</dt>
+                  <dd className="mt-1 leading-6 text-slate-700">
+                    D.No. 26/3-A/599, Main Road, Nellore, Andhra Pradesh - 524004
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Email</dt>
+                  <dd className="mt-1">
+                    <a className="font-semibold text-blue-700 underline underline-offset-4" href="mailto:trendymindsofficial@gmail.com">
+                      trendymindsofficial@gmail.com
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-slate-500">Phone</dt>
+                  <dd className="mt-1">
+                    <a className="font-semibold text-blue-700 underline underline-offset-4" href="tel:7989197127">
+                      7989197127
+                    </a>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-6">
+            <h3 className="text-sm font-bold text-slate-900">Legal & Policies</h3>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <a href="/terms" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                Terms & Conditions
+              </a>
+              <a href="/privacy" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                Privacy Policy
+              </a>
+              <a href="/refund-policy" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                Refund Policy
+              </a>
+              <a href="/contact" className="rounded-full border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700">
+                Contact Us
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
       <footer className="border-t border-black/[.06] px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 sm:flex-row">
@@ -530,29 +621,7 @@ export default function Home() {
           <p className="text-[10px] text-slate-400">© 2026 SBC. All rights reserved.</p>
         </div>
       </footer>
-      <section className="border-t border-slate-200 bg-slate-50 px-5 py-8 text-center text-xs leading-6 text-slate-600">
-        <h2 className="mb-3 text-sm font-bold text-slate-900">
-          Business & Contact Information
-        </h2>
 
-        <p><strong>Brand:</strong> Student Benefit Card (SBC)</p>
-        <p><strong>Legal Name:</strong> TIMIRI MALLISWARI</p>
-        <p><strong>Trade Name:</strong> TRENDYMINDS</p>
-        <p><strong>Business Type:</strong> Proprietorship</p>
-        <p>
-          <strong>Address:</strong> D.No. 26/3-A/599, Main Road,
-          Nellore, Andhra Pradesh - 524004
-        </p>
-        <p><strong>Email:</strong> trendymindsofficial@gmail.com</p>
-        <p><strong>Phone:</strong> 7989197127</p>
-
-        <div className="mt-4 flex flex-wrap justify-center gap-4 font-semibold">
-          <a href="/terms" className="underline">Terms & Conditions</a>
-          <a href="/privacy" className="underline">Privacy Policy</a>
-          <a href="/refund-policy" className="underline">Refund Policy</a>
-          <a href="/contact" className="underline">Contact Us</a>
-        </div>
-      </section>
 
       {/* MOBILE APP NAV — SAME FLOATING STYLE AS STUDENT DASHBOARD / OFFERS */}
       <div className="fixed bottom-3 left-1/2 z-50 w-[calc(100%-18px)] max-w-md -translate-x-1/2 rounded-[1.5rem] border border-white/15 bg-[#07111f]/95 px-2 py-2 shadow-[0_20px_55px_rgba(7,17,31,.35)] backdrop-blur-xl sm:hidden">
