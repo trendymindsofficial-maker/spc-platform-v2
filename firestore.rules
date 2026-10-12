@@ -216,7 +216,16 @@ service cloud.firestore {
 
       allow update, delete: if isAdmin();
     }
+    // =========================
+    // REDEEM APPROVAL ADMINS
+    // =========================
+    match /redeemApprovalAdmins/{approvalAdminId} {
+      allow read: if signedIn()
+        && request.auth.uid == approvalAdminId;
 
+      // Role documents cannot be modified by the client.
+      allow write: if false;
+    }
     // =========================
     // BLOCK EVERYTHING ELSE
     // =========================
