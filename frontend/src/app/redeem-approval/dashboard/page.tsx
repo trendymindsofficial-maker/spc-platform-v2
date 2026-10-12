@@ -71,7 +71,7 @@ export default function RedeemApprovalDashboard() {
     setError("");
 
     try {
-      const response = await apiFetch("/redeem-approval/requests");
+      const response = await apiFetch("/api/redeem-approval/requests");
       const data = await response.json();
 
       if (!response.ok || !data.success) {
