@@ -122,12 +122,12 @@ export default function RedeemApprovalLoginPage() {
         </form>
 
         <button
-          type="button"
-          onClick={() => router.push("/admin/login")}
-          className="mt-6 w-full text-center text-sm font-semibold text-slate-500 hover:text-[#9a7a10]"
-        >
-          Back to Admin Login
-        </button>
+  type="button"
+  onClick={() => router.push("/")}
+  className="mt-6 w-full text-center text-sm font-semibold text-slate-500 hover:text-[#9a7a10]"
+>
+  Back to Home
+</button>
       </section>
     </main>
   );
