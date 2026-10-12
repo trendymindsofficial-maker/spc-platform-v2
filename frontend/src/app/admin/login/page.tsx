@@ -1,6 +1,5 @@
+
 "use client";
-
-
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,10 +12,7 @@ import {
   signOut,
 } from "firebase/auth";
 
-import {
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -36,31 +32,29 @@ export default function AdminLoginPage() {
     try {
       setLoading(true);
 
-      const credential =
-        await signInWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
 
       const uid = credential.user.uid;
-
       const adminRef = doc(db, "admins", uid);
       const adminSnap = await getDoc(adminRef);
 
       if (!adminSnap.exists()) {
         await signOut(auth);
-
         alert("Unauthorized Admin");
-
         return;
       }
 
       router.replace("/admin/dashboard");
     } catch (error: any) {
-      if (error?.code === "auth/invalid-credential" ||
-          error?.code === "auth/wrong-password" ||
-          error?.code === "auth/user-not-found") {
+      if (
+        error?.code === "auth/invalid-credential" ||
+        error?.code === "auth/wrong-password" ||
+        error?.code === "auth/user-not-found"
+      ) {
         alert("Invalid Email or Password");
       } else {
         alert(error?.message || "Login failed");
@@ -81,10 +75,6 @@ export default function AdminLoginPage() {
     try {
       setResetLoading(true);
 
-      /*
-       * Check that this Firebase Auth account is actually an
-       * authorized SBC admin before sending the reset email.
-       */
       const methodsResponse = await apiFetch("/api/admin/check-email", {
         method: "POST",
         headers: {
@@ -98,7 +88,9 @@ export default function AdminLoginPage() {
       const data = await methodsResponse.json().catch(() => ({}));
 
       if (!methodsResponse.ok || !data.exists) {
-        alert("❌ No authorized admin account is registered with this email.");
+        alert(
+          "❌ No authorized admin account is registered with this email."
+        );
         return;
       }
 
@@ -124,12 +116,10 @@ export default function AdminLoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f3ed] px-4 py-8 text-[#07111f]">
-
       <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-[#d4af37]/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-[#07111f]/10 blur-3xl" />
 
       <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-black/5 bg-white shadow-[0_25px_80px_rgba(7,17,31,0.14)]">
-
         <div className="bg-[#07111f] px-8 py-7 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-xl font-black text-[#f1cf63]">
             SBC
@@ -145,7 +135,6 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="p-7 sm:p-8">
-
           <button
             type="button"
             onClick={() => router.push("/")}
@@ -165,7 +154,6 @@ export default function AdminLoginPage() {
           </div>
 
           <div className="space-y-5">
-
             <div>
               <label className="mb-2 block text-sm font-bold text-[#07111f]">
                 Email
@@ -197,14 +185,22 @@ export default function AdminLoginPage() {
               />
             </div>
 
-            <div className="text-right -mt-2">
+            <div className="-mt-2 space-y-3 text-right">
               <button
                 type="button"
                 onClick={forgotPassword}
                 disabled={resetLoading}
-                className="text-sm font-bold text-[#9a7a10] transition hover:text-[#07111f] disabled:cursor-not-allowed disabled:opacity-50"
+                className="block w-full text-right text-sm font-bold text-[#9a7a10] transition hover:text-[#07111f] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {resetLoading ? "Sending reset link..." : "Forgot Password?"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/redeem-approval/login")}
+                className="block w-full text-right text-sm font-bold text-[#9a7a10] transition hover:text-[#07111f]"
+              >
+                Redeem Approval Login →
               </button>
             </div>
 
@@ -216,7 +212,6 @@ export default function AdminLoginPage() {
             >
               {loading ? "⏳ Logging In..." : "🔐 Login"}
             </button>
-
           </div>
 
           <div className="mt-7 border-t border-slate-100 pt-5 text-center">
@@ -228,7 +223,6 @@ export default function AdminLoginPage() {
               SBC • Student Benefit Card
             </p>
           </div>
-
         </div>
       </div>
     </main>

@@ -5,6 +5,7 @@ import { businessRouter } from "./business.routes";
 import { paymentRouter } from "./payment.routes";
 import { payoutRouter } from "./payout.routes";
 import { redemptionRouter } from "./redemption.routes";
+import { redeemApprovalRouter } from "./redeemApproval.routes";
 import { referralRouter } from "./referral.routes";
 import { studentRouter } from "./student.routes";
 
@@ -40,5 +41,6 @@ apiRouter.use("/business", businessRouter);
 apiRouter.use("/payment", paymentRouter);
 apiRouter.use("/payout", payoutRouter);
 apiRouter.use("/redemption", redemptionRouter);
+apiRouter.use("/redeem-approval", redeemApprovalRouter);
 apiRouter.use("/referral", referralRouter);
 apiRouter.use("/student", studentRouter);
