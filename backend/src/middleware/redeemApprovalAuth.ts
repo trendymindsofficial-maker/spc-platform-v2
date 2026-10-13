@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from "express";
 
+import { Request, Response, NextFunction } from "express";
+import { FIREBASE_ADMIN_PROJECT_ID } from "../config/env";
 import { getDb } from "../lib/firebase-admin";
 import {
   asyncHandler,
@@ -16,10 +17,18 @@ export const requireRedeemApproval = asyncHandler(
       .doc(decoded.uid);
 
     const approvalSnap = await approvalRef.get();
+    const approvalData = approvalSnap.data();
+
+    console.info("[RedeemApprovalAuth] Access check", {
+      uid: decoded.uid,
+      projectId: FIREBASE_ADMIN_PROJECT_ID,
+      documentExists: approvalSnap.exists,
+      active: approvalData?.active === true,
+    });
 
     if (
       !approvalSnap.exists ||
-      approvalSnap.data()?.active !== true
+      approvalData?.active !== true
     ) {
       throw forbidden("Redeem Approval access denied.");
     }
