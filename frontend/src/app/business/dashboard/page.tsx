@@ -19,39 +19,6 @@ import {
 } from "firebase/firestore";
 import QRCode from "qrcode";
 
-interface PendingRedemption {
-  id: string;
-  studentId?: string;
-  studentName?: string;
-  studentCardNumber?: string;
-  studentMobile?: string;
-  offerId?: string;
-  offerTitle?: string;
-  discount?: string;
-  businessId?: string;
-  businessName?: string;
-  status?: string;
-  createdAt?: any;
-}
-
-const MAX_REDEMPTIONS = 4;
-
-/*
- * SBC POINTS RULE PER BUSINESS
- *
- * 1st approved redemption  = 20 points
- * 2nd approved redemption  = 10 points
- * 3rd approved redemption  = 5 points
- * 4th approved redemption  = 5 points
- *
- * The redemption count is business-wise:
- * studentId + businessId
- */
-const getPointsForUsage = (usageNumber: number) => {
-  if (usageNumber === 1) return 20;
-  if (usageNumber === 2) return 10;
-  return 5;
-};
 
 export default function BusinessDashboard() {
   const router = useRouter();
@@ -62,9 +29,6 @@ export default function BusinessDashboard() {
   const [totalOffers, setTotalOffers] = useState(0);
   const [totalScans, setTotalScans] = useState(0);
   const [totalRedeemed, setTotalRedeemed] = useState(0);
-  const [pendingRedemptions, setPendingRedemptions] = useState<PendingRedemption[]>([]);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [showPendingPopup, setShowPendingPopup] = useState(false);
   const [showBusinessQr, setShowBusinessQr] = useState(false);
   const [loadingBusinessQr, setLoadingBusinessQr] = useState(true);
 
@@ -187,12 +151,9 @@ export default function BusinessDashboard() {
   };
 
   useEffect(() => {
-    let unsubscribeRedemptions: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        unsubscribeRedemptions?.();
-        unsubscribeRedemptions = null;
         return;
       }
 
@@ -218,43 +179,6 @@ export default function BusinessDashboard() {
         setTotalScans(redeemSnap.size);
         setTotalRedeemed(redeemSnap.size);
 
-        const pendingQuery = query(
-          collection(db, "redemptionRequests"),
-          where("businessId", "==", user.uid),
-          where("status", "==", "pending")
-        );
-
-        unsubscribeRedemptions?.();
-
-        unsubscribeRedemptions = onSnapshot(
-          pendingQuery,
-          (snapshot) => {
-            const requests: PendingRedemption[] = snapshot.docs.map((requestDoc) => {
-              const data = requestDoc.data();
-
-              return {
-                id: requestDoc.id,
-                studentId: data.studentId,
-                studentName: data.studentName || "SBC Student",
-                studentCardNumber: data.studentCardNumber || "",
-                studentMobile: data.studentMobile || "",
-                offerId: data.offerId,
-                offerTitle: data.offerTitle || "SBC Offer",
-                discount: data.discount || "",
-                businessId: data.businessId,
-                businessName: data.businessName || currentBusinessName,
-                status: data.status || "pending",
-                createdAt: data.createdAt,
-              };
-            });
-
-            setPendingRedemptions(requests);
-            setShowPendingPopup(requests.length > 0);
-          },
-          (error) => {
-            console.error("Pending redemption listener error:", error);
-          }
-        );
       } catch (error) {
         console.error("Business dashboard loading error:", error);
       }
@@ -262,285 +186,8 @@ export default function BusinessDashboard() {
 
     return () => {
       unsubscribeAuth();
-      unsubscribeRedemptions?.();
     };
   }, []);
-
-  const approveRedemption = async (request: PendingRedemption) => {
-    if (processingId) return;
-
-    const businessUser = auth.currentUser;
-
-    if (!businessUser) {
-      alert("❌ Business login required.");
-      return;
-    }
-
-    if (!request.studentId || !request.offerId) {
-      alert("❌ Invalid redemption request. Student or offer information is missing.");
-      return;
-    }
-
-    if (request.businessId && request.businessId !== businessUser.uid) {
-      alert("❌ This redemption request belongs to another business.");
-      return;
-    }
-
-    try {
-      setProcessingId(request.id);
-
-      const requestRef = doc(db, "redemptionRequests", request.id);
-      const usageRef = doc(
-        db,
-        "businessStudentUsage",
-        `${businessUser.uid}_${request.studentId}`
-      );
-      const offerRef = doc(db, "offers", request.offerId);
-      const studentRef = doc(db, "students", request.studentId);
-      const redemptionRef = doc(collection(db, "redemptions"));
-
-      /*
-       * Legacy redemptions are checked before the transaction.
-       * businessStudentUsage is the primary counter.
-       */
-      const existingRedemptionSnap = await getDocs(
-        query(
-          collection(db, "redemptions"),
-          where("studentId", "==", request.studentId),
-          where("businessId", "==", businessUser.uid)
-        )
-      );
-
-      const existingRedemptionCount = existingRedemptionSnap.size;
-      let finalUsageCount = 0;
-      let awardedPoints = 0;
-
-      await runTransaction(db, async (transaction) => {
-        /*
-         * ALL READS FIRST
-         */
-        const requestSnap = await transaction.get(requestRef);
-        const usageSnap = await transaction.get(usageRef);
-        const offerSnap = await transaction.get(offerRef);
-        const studentSnap = await transaction.get(studentRef);
-
-        if (!requestSnap.exists()) throw new Error("REQUEST_NOT_FOUND");
-
-        const requestData = requestSnap.data();
-
-        if (requestData.businessId !== businessUser.uid) {
-          throw new Error("INVALID_BUSINESS");
-        }
-
-        if (requestData.status !== "pending") {
-          throw new Error("REQUEST_ALREADY_PROCESSED");
-        }
-
-        if (!offerSnap.exists()) throw new Error("OFFER_NOT_FOUND");
-
-        const offerData = offerSnap.data();
-
-        if (offerData.businessId !== businessUser.uid) {
-          throw new Error("INVALID_OFFER_BUSINESS");
-        }
-
-        if (offerData.status && offerData.status !== "active") {
-          throw new Error("OFFER_NOT_ACTIVE");
-        }
-
-        if (!studentSnap.exists()) {
-          throw new Error("STUDENT_NOT_FOUND");
-        }
-
-        const storedUsageCount = usageSnap.exists()
-          ? Number(usageSnap.data().count || 0)
-          : 0;
-
-        const currentUsageCount = Math.max(
-          storedUsageCount,
-          existingRedemptionCount
-        );
-
-        if (currentUsageCount >= MAX_REDEMPTIONS) {
-          throw new Error("LIMIT_REACHED");
-        }
-
-        finalUsageCount = currentUsageCount + 1;
-
-        /*
-         * POINTS:
-         * 1st = 20
-         * 2nd = 10
-         * 3rd = 5
-         * 4th = 5
-         */
-        awardedPoints = getPointsForUsage(finalUsageCount);
-
-        /*
-         * Update business-wise usage counter.
-         */
-        transaction.set(
-          usageRef,
-          {
-            studentId: request.studentId,
-            businessId: businessUser.uid,
-            count: finalUsageCount,
-            maxAllowed: MAX_REDEMPTIONS,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        /*
-         * Add points directly to the student's points balance.
-         *
-         * If points does not exist, it starts from 0.
-         */
-        const currentPoints = Number(studentSnap.data().points || 0);
-        const newPoints = currentPoints + awardedPoints;
-
-        transaction.update(studentRef, {
-          points: newPoints,
-          pointsUpdatedAt: serverTimestamp(),
-          lastPointsAwarded: awardedPoints,
-          lastPointsBusinessId: businessUser.uid,
-          lastPointsRedemptionId: redemptionRef.id,
-        });
-
-        /*
-         * Create actual redemption record.
-         */
-        transaction.set(redemptionRef, {
-          studentId: request.studentId,
-          studentName: requestData.studentName || "",
-          studentMobile: requestData.studentMobile || "",
-          studentCardNumber: requestData.studentCardNumber || "",
-          businessId: businessUser.uid,
-          businessName: requestData.businessName || businessName,
-          offerId: request.offerId,
-          offerTitle: requestData.offerTitle || offerData.title || "",
-          discount: requestData.discount || offerData.discount || "",
-          requestId: request.id,
-          pointsAwarded: awardedPoints,
-          usageNumber: finalUsageCount,
-          redeemedAt: serverTimestamp(),
-          status: "redeemed",
-        });
-
-        /*
-         * Mark student request as approved.
-         */
-        transaction.update(requestRef, {
-          status: "approved",
-          approvedAt: serverTimestamp(),
-          approvedBy: businessUser.uid,
-          redemptionId: redemptionRef.id,
-          usageCount: finalUsageCount,
-          pointsAwarded: awardedPoints,
-        });
-      });
-
-      setTotalRedeemed((current) => current + 1);
-      setTotalScans((current) => current + 1);
-
-      if (finalUsageCount === 1) {
-        alert(
-          `🌟 First Time Use\n\nRedemption approved successfully!\n\n+${awardedPoints} SBC Points added.\n\nUsed: 1/4`
-        );
-      } else if (finalUsageCount === MAX_REDEMPTIONS) {
-        alert(
-          `🏆 Final Use (4/4)\n\nRedemption approved successfully!\n\n+${awardedPoints} SBC Points added.\n\nThis student has reached the maximum 4 uses at this business.`
-        );
-      } else {
-        alert(
-          `✅ Redemption Approved!\n\nUsed: ${finalUsageCount}/4\nRemaining: ${
-            MAX_REDEMPTIONS - finalUsageCount
-          }\n\n+${awardedPoints} SBC Points added.`
-        );
-      }
-    } catch (error: any) {
-      console.error("Approve redemption error:", error);
-
-      if (error?.message === "LIMIT_REACHED") {
-        alert(
-          "❌ Limit Reached\n\nThis student has already used the SBC benefit 4/4 times at this business."
-        );
-      } else if (error?.message === "REQUEST_ALREADY_PROCESSED") {
-        alert("ℹ️ This redemption request has already been processed.");
-      } else if (error?.message === "REQUEST_NOT_FOUND") {
-        alert("❌ Redemption request no longer exists.");
-      } else if (error?.message === "OFFER_NOT_FOUND") {
-        alert("❌ The selected offer no longer exists.");
-      } else if (error?.message === "OFFER_NOT_ACTIVE") {
-        alert("❌ This offer is no longer active.");
-      } else if (error?.message === "STUDENT_NOT_FOUND") {
-        alert("❌ Student record not found.");
-      } else if (error?.message === "INVALID_BUSINESS") {
-        alert("❌ Business verification failed.");
-      } else if (error?.message === "INVALID_OFFER_BUSINESS") {
-        alert("❌ This offer does not belong to your business.");
-      } else {
-        alert("❌ Unable to approve redemption. Please try again.");
-      }
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const rejectRedemption = async (request: PendingRedemption) => {
-    if (processingId) return;
-
-    const businessUser = auth.currentUser;
-
-    if (!businessUser) {
-      alert("❌ Business login required.");
-      return;
-    }
-
-    try {
-      setProcessingId(request.id);
-
-      const requestRef = doc(db, "redemptionRequests", request.id);
-
-      await runTransaction(db, async (transaction) => {
-        const requestSnap = await transaction.get(requestRef);
-
-        if (!requestSnap.exists()) {
-          throw new Error("REQUEST_NOT_FOUND");
-        }
-
-        const requestData = requestSnap.data();
-
-        if (requestData.businessId !== businessUser.uid) {
-          throw new Error("INVALID_BUSINESS");
-        }
-
-        if (requestData.status !== "pending") {
-          throw new Error("REQUEST_ALREADY_PROCESSED");
-        }
-
-        transaction.update(requestRef, {
-          status: "rejected",
-          rejectedAt: serverTimestamp(),
-          rejectedBy: businessUser.uid,
-        });
-      });
-    } catch (error: any) {
-      console.error("Reject redemption error:", error);
-
-      if (error?.message === "REQUEST_ALREADY_PROCESSED") {
-        alert("ℹ️ This redemption request has already been processed.");
-      } else if (error?.message === "REQUEST_NOT_FOUND") {
-        alert("❌ Redemption request no longer exists.");
-      } else if (error?.message === "INVALID_BUSINESS") {
-        alert("❌ Business verification failed.");
-      } else {
-        alert("❌ Unable to reject redemption. Please try again.");
-      }
-    } finally {
-      setProcessingId(null);
-    }
-  };
 
   return (
     <BusinessProtected>
@@ -635,31 +282,6 @@ export default function BusinessDashboard() {
             </div>
           </div>
 
-          {pendingRedemptions.length > 0 && (
-            <div className="mb-8 rounded-3xl border-2 border-yellow-300 bg-yellow-50 p-6 shadow-lg">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-yellow-800">
-                    🔔 Pending SBC Redemptions
-                  </h2>
-                  <p className="mt-2 text-yellow-700">
-                    You have{" "}
-                    <span className="font-extrabold">{pendingRedemptions.length}</span>{" "}
-                    student redemption request
-                    {pendingRedemptions.length === 1 ? "" : "s"} waiting for approval.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setShowPendingPopup(true)}
-                  className="rounded-xl bg-yellow-500 px-6 py-3 font-bold text-white hover:bg-yellow-600"
-                >
-                  🔔 View Requests
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className="grid gap-6 md:grid-cols-3">
             <div className="rounded-3xl bg-white p-8 shadow-xl">
               <p className="text-gray-500">🎁 Total Offers</p>
@@ -747,89 +369,6 @@ export default function BusinessDashboard() {
         </div>
       )}
 
-      {showPendingPopup && pendingRedemptions.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <div className="sticky top-0 border-b bg-white p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-green-700">🔔 New SBC Redemption</h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Student requests waiting for approval
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setShowPendingPopup(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-bold hover:bg-gray-200"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-5 p-6">
-              {pendingRedemptions.map((request) => {
-                const isProcessing = processingId === request.id;
-
-                return (
-                  <div
-                    key={request.id}
-                    className="rounded-2xl border-2 border-yellow-200 bg-yellow-50 p-5"
-                  >
-                    <div className="mb-4">
-                      <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Student</p>
-                      <h3 className="mt-1 text-xl font-extrabold text-gray-800">
-                        👤 {request.studentName || "SBC Student"}
-                      </h3>
-
-                      {request.studentCardNumber && (
-                        <p className="mt-1 text-sm font-semibold text-gray-500">
-                          Card No: {request.studentCardNumber}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="rounded-xl bg-white p-4">
-                      <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Offer</p>
-                      <p className="mt-1 text-lg font-extrabold text-green-700">
-                        🎁 {request.offerTitle || "SBC Offer"}
-                      </p>
-                      {request.discount && (
-                        <p className="mt-1 text-sm font-bold text-blue-600">{request.discount}</p>
-                      )}
-                    </div>
-
-                    <div className="mt-4 rounded-xl bg-yellow-100 p-3 text-center">
-                      <p className="text-sm font-bold text-yellow-800">
-                        ⏳ Waiting for Business Approval
-                      </p>
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => rejectRedemption(request)}
-                        disabled={isProcessing}
-                        className="rounded-xl bg-red-600 py-4 font-bold text-white hover:bg-red-700 disabled:bg-gray-400"
-                      >
-                        {isProcessing ? "Please wait..." : "✕ Reject"}
-                      </button>
-
-                      <button
-                        onClick={() => approveRedemption(request)}
-                        disabled={isProcessing}
-                        className="rounded-xl bg-green-600 py-4 font-bold text-white hover:bg-green-700 disabled:bg-gray-400"
-                      >
-                        {isProcessing ? "Please wait..." : "✓ Approve"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </BusinessProtected>
   );
 }
