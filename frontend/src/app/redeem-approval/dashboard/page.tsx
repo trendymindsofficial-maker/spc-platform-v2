@@ -147,10 +147,10 @@ export default function RedeemApprovalDashboard() {
 
       if (!intervalId) {
         void refreshRequests(true);
-
-        intervalId = setInterval(() => {
-          void refreshRequests(false);
-        }, 5000);
+intervalId = setInterval(() => {
+  console.log("[Redeem Approval] Auto-refresh timer fired");
+  void refreshRequests(false);
+}, 5000);
       }
     });
 
