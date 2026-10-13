@@ -19,12 +19,9 @@ export const requireRedeemApproval = asyncHandler(
     const approvalSnap = await approvalRef.get();
     const approvalData = approvalSnap.data();
 
-    console.info("[RedeemApprovalAuth] Access check", {
-      uid: decoded.uid,
-      projectId: FIREBASE_ADMIN_PROJECT_ID,
-      documentExists: approvalSnap.exists,
-      active: approvalData?.active === true,
-    });
+    console.info(
+  `[RedeemApprovalAuth] uid=${decoded.uid} projectId=${FIREBASE_ADMIN_PROJECT_ID} documentExists=${approvalSnap.exists} active=${approvalData?.active === true}`
+);
 
     if (
       !approvalSnap.exists ||
