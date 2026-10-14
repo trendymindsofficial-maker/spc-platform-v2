@@ -84,6 +84,246 @@ function serializeRequest(id: string, data: Record<string, unknown>) {
   };
 }
 
+
+// GET /api/redeem-approval/businesses
+redeemApprovalRouter.get(
+  "/businesses",
+  asyncHandler(async (req, res) => {
+    await verifyApprovalAccess(currentUser(req).uid);
+
+    const db = getDb();
+    const [businessesSnap, redemptionsSnap] = await Promise.all([
+      db.collection("businesses").get(),
+      db.collection("redemptions")
+        .where("status", "==", "redeemed")
+        .get(),
+    ]);
+
+    const counts = new Map<string, number>();
+
+    for (const doc of redemptionsSnap.docs) {
+      const id = String(doc.data().businessId || "");
+      if (id) counts.set(id, (counts.get(id) || 0) + 1);
+    }
+
+    const businesses = businessesSnap.docs.map((doc) => ({
+      id: doc.id,
+      name: String(
+        doc.data().businessName || doc.data().name || "Unnamed Business"
+      ),
+      successfulRedemptions: counts.get(doc.id) || 0,
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({ success: true, businesses });
+  })
+);
+
+// GET /api/redeem-approval/history
+redeemApprovalRouter.get(
+  "/history",
+  asyncHandler(async (req, res) => {
+    await verifyApprovalAccess(currentUser(req).uid);
+
+    const businessId = String(req.query.businessId || "").trim();
+    const from = String(req.query.from || "").trim();
+    const to = String(req.query.to || "").trim();
+
+    const validDate = (value: string) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+
+    if ((from && !validDate(from)) || (to && !validDate(to))) {
+      throw badRequest("Dates must use YYYY-MM-DD format.");
+    }
+
+    if (from && to && from > to) {
+      throw badRequest("Start date must not be after end date.");
+    }
+
+    const snapshot = await getDb()
+      .collection("redemptions")
+      .where("status", "==", "redeemed")
+      .get();
+
+    const history = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        businessId: String(data.businessId || ""),
+        businessName: String(data.businessName || ""),
+        studentName: String(data.studentName || ""),
+        studentCardNumber: String(data.studentCardNumber || ""),
+        offerTitle: String(data.offerTitle || ""),
+        discount: String(data.discount || ""),
+        pointsAwarded: Number(data.pointsAwarded || 0),
+        status: String(data.status || ""),
+        redeemedAt: serializeTimestamp(data.redeemedAt),
+      };
+    }).filter((item) => {
+      if (businessId && item.businessId !== businessId) return false;
+      if (!item.redeemedAt) return !from && !to;
+
+      // Interpret date filters in India Standard Time.
+      const date = new Date(item.redeemedAt);
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+
+      if (from && localDate < from) return false;
+      if (to && localDate > to) return false;
+      return true;
+    }).sort((a, b) =>
+      (b.redeemedAt || "").localeCompare(a.redeemedAt || "")
+    );
+
+    res.json({ success: true, total: history.length, history });
+  })
+);
+
+
+function csvCell(value: unknown): string {
+  let text = String(value ?? "");
+  // Prevent spreadsheet formula injection in exported CSV files.
+  if (/^[\s]*[=+\-@]/.test(text)) text = "'" + text;
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+
+async function sendRedemptionCsv(
+  res: import("express").Response,
+  businessId: string,
+  from: string,
+  to: string,
+  filename: string
+) {
+  const snapshot = await getDb()
+    .collection("redemptions")
+    .where("status", "==", "redeemed")
+    .get();
+
+  const rows = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      businessId: String(data.businessId || ""),
+      businessName: String(data.businessName || ""),
+      studentName: String(data.studentName || ""),
+      studentCardNumber: String(data.studentCardNumber || ""),
+      offerTitle: String(data.offerTitle || ""),
+      discount: String(data.discount || ""),
+      pointsAwarded: Number(data.pointsAwarded || 0),
+      status: String(data.status || ""),
+      redeemedAt: serializeTimestamp(data.redeemedAt),
+    };
+  }).filter((item) => {
+    if (businessId && item.businessId !== businessId) return false;
+    if (!from && !to) return true;
+    if (!item.redeemedAt) return false;
+
+    const localDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(item.redeemedAt));
+
+    return (!from || localDate >= from) && (!to || localDate <= to);
+  }).sort((a, b) =>
+    (b.redeemedAt || "").localeCompare(a.redeemedAt || "")
+  );
+
+  const headers = [
+    "Business Name",
+    "Student Name",
+    "Card Number",
+    "Offer",
+    "Discount",
+    "Points Awarded",
+    "Redeemed At (UTC)",
+    "Status",
+  ];
+
+  const lines = [
+    headers,
+    ...rows.map((item) => [
+      item.businessName,
+      item.studentName,
+      item.studentCardNumber,
+      item.offerTitle,
+      item.discount,
+      item.pointsAwarded,
+      item.redeemedAt || "",
+      item.status,
+    ]),
+  ];
+
+  const csv = "\uFEFF" + lines
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n");
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${filename}"`
+  );
+  res.send(csv);
+}
+
+// GET /api/redeem-approval/history/export
+redeemApprovalRouter.get(
+  "/history/export",
+  asyncHandler(async (req, res) => {
+    await verifyApprovalAccess(currentUser(req).uid);
+    const businessId = String(req.query.businessId || "").trim();
+    const from = String(req.query.from || "").trim();
+    const to = String(req.query.to || "").trim();
+
+    const validDate = (value: string) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+
+    if ((from && !validDate(from)) || (to && !validDate(to))) {
+      throw badRequest("Dates must use YYYY-MM-DD format.");
+    }
+    if (from && to && from > to) {
+      throw badRequest("Start date must not be after end date.");
+    }
+    if (!businessId) {
+      throw badRequest("Business ID is required.");
+    }
+
+    await sendRedemptionCsv(
+      res, businessId, from, to, "business-redemption-history.csv"
+    );
+  })
+);
+
+// GET /api/redeem-approval/history/export-all
+redeemApprovalRouter.get(
+  "/history/export-all",
+  asyncHandler(async (req, res) => {
+    await verifyApprovalAccess(currentUser(req).uid);
+    const from = String(req.query.from || "").trim();
+    const to = String(req.query.to || "").trim();
+
+    const validDate = (value: string) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+
+    if ((from && !validDate(from)) || (to && !validDate(to))) {
+      throw badRequest("Dates must use YYYY-MM-DD format.");
+    }
+    if (from && to && from > to) {
+      throw badRequest("Start date must not be after end date.");
+    }
+
+    await sendRedemptionCsv(
+      res, "", from, to, "all-redemptions.csv"
+    );
+  })
+);
+
 // GET /api/redeem-approval/requests
 redeemApprovalRouter.get(
   "/requests",
