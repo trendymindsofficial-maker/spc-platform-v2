@@ -2836,7 +2836,11 @@ export default function StudentDashboard() {
                   <p className="mt-2 text-sm text-slate-400">Redeem an offer to see your latest coupon here.</p>
                 </div>
               ) : (() => {
-                const coupon = [...redemptionCoupons].sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime())[0];
+                const coupon = [...redemptionCoupons].sort((a, b) => {
+                  const timeA = Date.parse(a.requestedAt || "") || 0;
+                  const timeB = Date.parse(b.requestedAt || "") || 0;
+                  return timeB - timeA;
+                })[0];
                 const status = String(coupon.status || "pending").toLowerCase();
                 const statusText = status === "approved" || status === "redeemed" ? "Approved" : status === "rejected" ? "Rejected" : "Waiting for Approval";
                 return (
