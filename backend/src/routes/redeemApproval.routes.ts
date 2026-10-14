@@ -119,6 +119,7 @@ redeemApprovalRouter.get(
 );
 
 // GET /api/redeem-approval/history
+// Cursor-based pagination for large redemption histories.
 redeemApprovalRouter.get(
   "/history",
   asyncHandler(async (req, res) => {
@@ -127,25 +128,74 @@ redeemApprovalRouter.get(
     const businessId = String(req.query.businessId || "").trim();
     const from = String(req.query.from || "").trim();
     const to = String(req.query.to || "").trim();
+    const cursor = String(req.query.cursor || "").trim();
 
-    const validDate = (value: string) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-      !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+    const requestedSize = Number(req.query.limit || 25);
+    const pageSize = Number.isFinite(requestedSize)
+      ? Math.min(100, Math.max(1, Math.floor(requestedSize)))
+      : 25;
+
+    const validDate = (value: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(`${value}T00:00:00Z`);
+      return !Number.isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === value;
+    };
 
     if ((from && !validDate(from)) || (to && !validDate(to))) {
       throw badRequest("Dates must use YYYY-MM-DD format.");
     }
-
     if (from && to && from > to) {
       throw badRequest("Start date must not be after end date.");
     }
 
-    const snapshot = await getDb()
-      .collection("redemptions")
-      .where("status", "==", "redeemed")
-      .get();
+    const db = getDb();
+    let query = db.collection("redemptions")
+      .where("status", "==", "redeemed");
 
-    const history = snapshot.docs.map((doc) => {
+    if (businessId) {
+      query = query.where("businessId", "==", businessId);
+    }
+
+    // Date boundaries use India Standard Time (UTC+05:30).
+    if (from) {
+      query = query.where(
+        "redeemedAt",
+        ">=",
+        Timestamp.fromDate(new Date(`${from}T00:00:00+05:30`))
+      );
+    }
+    if (to) {
+      query = query.where(
+        "redeemedAt",
+        "<=",
+        Timestamp.fromDate(new Date(`${to}T23:59:59.999+05:30`))
+      );
+    }
+
+    const countSnapshot = await query.count().get();
+    const total = countSnapshot.data().count;
+
+    let pageQuery = query.orderBy("redeemedAt", "desc");
+
+    if (cursor) {
+      const cursorSnapshot = await db
+        .collection("redemptions")
+        .doc(cursor)
+        .get();
+
+      if (!cursorSnapshot.exists) {
+        throw badRequest("Invalid pagination cursor. Please refresh history.");
+      }
+
+      pageQuery = pageQuery.startAfter(cursorSnapshot);
+    }
+
+    const pageSnapshot = await pageQuery.limit(pageSize + 1).get();
+    const hasMore = pageSnapshot.docs.length > pageSize;
+    const pageDocs = pageSnapshot.docs.slice(0, pageSize);
+
+    const history = pageDocs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -159,37 +209,18 @@ redeemApprovalRouter.get(
         status: String(data.status || ""),
         redeemedAt: serializeTimestamp(data.redeemedAt),
       };
-    }).filter((item) => {
-      if (businessId && item.businessId !== businessId) return false;
-      if (!item.redeemedAt) return !from && !to;
+    });
 
-      // Interpret date filters in India Standard Time.
-      const date = new Date(item.redeemedAt);
-      const localDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(date);
-
-      if (from && localDate < from) return false;
-      if (to && localDate > to) return false;
-      return true;
-    }).sort((a, b) =>
-      (b.redeemedAt || "").localeCompare(a.redeemedAt || "")
-    );
-
-    res.json({ success: true, total: history.length, history });
+    res.json({
+      success: true,
+      total,
+      pageSize,
+      history,
+      nextCursor: hasMore ? pageDocs[pageDocs.length - 1]?.id || null : null,
+    });
   })
 );
 
-
-function csvCell(value: unknown): string {
-  let text = String(value ?? "");
-  // Prevent spreadsheet formula injection in exported CSV files.
-  if (/^[\s]*[=+\-@]/.test(text)) text = "'" + text;
-  return '"' + text.replace(/"/g, '""') + '"';
-}
 
 async function sendRedemptionCsv(
   res: import("express").Response,
@@ -240,7 +271,7 @@ async function sendRedemptionCsv(
     "Offer",
     "Discount",
     "Points Awarded",
-    "Redeemed At (UTC)",
+    "Redeemed At",
     "Status",
   ];
 
@@ -259,7 +290,11 @@ async function sendRedemptionCsv(
   ];
 
   const csv = "\uFEFF" + lines
-    .map((row) => row.map(csvCell).join(","))
+    .map((row) => row.map((value) => {
+      let text = String(value ?? "");
+      if (/^[\s]*[=+\-@]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    }).join(","))
     .join("\r\n");
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");

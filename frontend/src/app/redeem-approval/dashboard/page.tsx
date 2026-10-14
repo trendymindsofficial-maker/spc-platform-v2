@@ -80,6 +80,11 @@ export default function RedeemApprovalDashboard() {
   const [requests, setRequests] = useState<RedemptionRequest[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [history, setHistory] = useState<Redemption[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyCursors, setHistoryCursors] = useState<(string | null)[]>([null]);
+  const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
+  const historyPageSize = 25;
   const [selectedBusiness, setSelectedBusiness] = useState("");
   const [activeTab, setActiveTab] = useState<"history" | "pending">("history");
   const [from, setFrom] = useState("");
@@ -148,6 +153,9 @@ export default function RedeemApprovalDashboard() {
       if (selectedBusiness) params.set("businessId", selectedBusiness);
       if (from) params.set("from", from);
       if (to) params.set("to", to);
+      params.set("limit", String(historyPageSize));
+      const cursor = historyCursors[historyPage - 1];
+      if (cursor) params.set("cursor", cursor);
 
       const response = await apiFetch(
         `/api/redeem-approval/history?${params.toString()}`,
@@ -160,13 +168,19 @@ export default function RedeemApprovalDashboard() {
       }
 
       setHistory(Array.isArray(data.history) ? data.history : []);
+      setHistoryTotal(Number(data.total || 0));
+      setHistoryNextCursor(
+        typeof data.nextCursor === "string" ? data.nextCursor : null
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load history.");
       setHistory([]);
+      setHistoryTotal(0);
+      setHistoryNextCursor(null);
     } finally {
       setHistoryLoading(false);
     }
-  }, [getToken, selectedBusiness, from, to]);
+  }, [getToken, selectedBusiness, from, to, historyPage, historyCursors]);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
@@ -211,8 +225,13 @@ export default function RedeemApprovalDashboard() {
   }, [router, loadRequests, loadBusinesses, loadHistory]);
 
   useEffect(() => {
+    setHistoryPage(1);
+    setHistoryCursors([null]);
+  }, [selectedBusiness, from, to]);
+
+  useEffect(() => {
     if (auth.currentUser) void loadHistory();
-  }, [selectedBusiness, from, to, loadHistory]);
+  }, [selectedBusiness, from, to, historyPage, historyCursors, loadHistory]);
 
   const processRequest = async (
     request: RedemptionRequest,
@@ -628,6 +647,44 @@ export default function RedeemApprovalDashboard() {
                     </table>
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 px-5 py-4">
+                  <p className="text-sm text-slate-400">
+                    {historyTotal === 0
+                      ? "No records"
+                      : `Showing ${(historyPage - 1) * historyPageSize + 1}–${Math.min(
+                          historyPage * historyPageSize,
+                          historyTotal
+                        )} of ${historyTotal} records`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                      disabled={historyPage <= 1 || historyLoading}
+                      className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-bold hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-black">
+                      Page {historyPage} of {Math.max(1, Math.ceil(historyTotal / historyPageSize))}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (!historyNextCursor) return;
+                        setHistoryCursors((current) => {
+                          const next = [...current];
+                          next[historyPage] = historyNextCursor;
+                          return next;
+                        });
+                        setHistoryPage((page) => page + 1);
+                      }}
+                      disabled={!historyNextCursor || historyLoading}
+                      className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-bold hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
               </div>
             </>
           ) : (
