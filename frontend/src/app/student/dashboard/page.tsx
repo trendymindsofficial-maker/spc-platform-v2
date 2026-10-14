@@ -99,6 +99,7 @@ export default function StudentDashboard() {
   const scanRedeemRef = useRef<HTMLDivElement | null>(null);
   const [scanOpenRequest, setScanOpenRequest] = useState(0);
   const [showRedeemHistory, setShowRedeemHistory] = useState(false);
+  const [showLatestCoupon, setShowLatestCoupon] = useState(false);
   const [redemptionCoupons, setRedemptionCoupons] = useState<RedemptionCoupon[]>([]);
   const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
 
@@ -2262,6 +2263,23 @@ export default function StudentDashboard() {
                   </div>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setShowLatestCoupon(true)}
+                  className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-5 text-left transition hover:border-fuchsia-300/60 hover:bg-fuchsia-500/15"
+                >
+                  <span className="text-2xl">🎟️</span>
+                  <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-fuchsia-200">
+                    Redemption Records
+                  </p>
+                  <h3 className="mt-1 text-xl font-black text-white">
+                    Redeem History
+                  </h3>
+                  <p className="mt-1 text-sm text-white/60">
+                    View all your redeemed coupons and their status.
+                  </p>
+                </button>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <button
                     type="button"
@@ -2710,7 +2728,7 @@ export default function StudentDashboard() {
                 type="button"
                 onClick={() => setShowRedeemHistory(true)}
                 className={`relative flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${showRedeemHistory ? "text-[#f1cf63]" : "text-white"}`}
-                aria-label="Open Redeem History"
+                aria-label="Open latest coupon"
               >
                 <span className="flex h-7 w-7 items-center justify-center">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2718,13 +2736,54 @@ export default function StudentDashboard() {
                     <path d="M4 8h16M8 12h7M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4 text-center">Redeem History</span>
+                <span className="text-[10px] font-bold leading-4 text-center">Coupon</span>
                 {redemptionCoupons.some((coupon) => ["pending", "waiting", "waiting_for_approval"].includes(coupon.status)) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-400" />}
               </button>
 
             </div>
           </div>
         </nav>
+
+        {showLatestCoupon && (
+          <div className="fixed inset-0 z-[125] flex items-end justify-center bg-[#030817]/80 p-0 backdrop-blur-xl sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Latest Coupon">
+            <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
+                  <h2 className="mt-1 text-2xl font-black">Latest Coupon</h2>
+                </div>
+                <button type="button" onClick={() => setShowLatestCoupon(false)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-2xl" aria-label="Close coupon">×</button>
+              </div>
+              {redemptionCoupons.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/20 px-5 py-10 text-center">
+                  <div className="mb-3 text-3xl">🎟️</div>
+                  <h3 className="text-lg font-extrabold">No coupons yet</h3>
+                  <p className="mt-2 text-sm text-slate-400">Redeem an offer to see your latest coupon here.</p>
+                </div>
+              ) : (() => {
+                const coupon = [...redemptionCoupons].sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime())[0];
+                const status = String(coupon.status || "pending").toLowerCase();
+                const statusText = status === "approved" || status === "redeemed" ? "Approved" : status === "rejected" ? "Rejected" : "Waiting for Approval";
+                return (
+                  <div className="overflow-hidden rounded-[1.5rem] border border-fuchsia-300/30">
+                    <div className="bg-gradient-to-r from-fuchsia-700 via-purple-700 to-indigo-700 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-100">SBC · REDEMPTION COUPON</p>
+                      <h3 className="mt-2 break-words text-2xl font-black">{coupon.businessName || "SBC Partner Business"}</h3>
+                      <p className="mt-1 text-sm font-semibold text-white/85">{coupon.offerTitle || "SBC Offer"}</p>
+                      <span className="mt-3 inline-flex rounded-xl bg-white/15 px-3 py-2 text-sm font-black">{coupon.offerDiscount || "OFFER"}</span>
+                    </div>
+                    <div className="space-y-3 bg-white p-4 text-slate-900">
+                      <p className="text-sm font-bold">Status: {statusText}</p>
+                      <p className="text-xs text-slate-500">Redeemed: {coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "—"}</p>
+                      <p className="text-sm font-semibold">Points earned: {Number(coupon.pointsAwarded || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              <button type="button" onClick={() => { setShowLatestCoupon(false); setShowRedeemHistory(true); }} className="mt-4 w-full rounded-xl border border-white/15 bg-white/5 px-5 py-3 font-extrabold text-white">View Redeem History</button>
+            </section>
+          </div>
+        )}
 
         {showRedeemHistory && (
           <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#030817]/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Redeem History">
