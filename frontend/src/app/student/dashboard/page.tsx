@@ -1476,65 +1476,122 @@ export default function StudentDashboard() {
     router,
   ]);
 
-  // Load locally recorded requests and subscribe to each real Firestore request
-  // so the coupon status updates without changing the existing points logic.
+  // Load the student's complete redemption history from Firestore.
   useEffect(() => {
-    if (!student?.uid) return;
-
-    const storageKey = `${REDEMPTION_COUPON_STORAGE_KEY}_${student.uid}`;
-    let saved: RedemptionCoupon[] = [];
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      saved = Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.error("Unable to load saved redemption coupons:", error);
+    if (!student?.uid) {
+      setRedemptionCoupons([]);
+      return;
     }
 
-    setRedemptionCoupons(saved);
+    let active = true;
+    const storageKey = `${REDEMPTION_COUPON_STORAGE_KEY}_${student.uid}`;
+    const unsubscribers: Array<() => void> = [];
 
-    const reloadCoupons = () => {
+    const loadHistory = async () => {
       try {
-        const raw = window.localStorage.getItem(storageKey);
-        const parsed = raw ? JSON.parse(raw) : [];
-        const latest = Array.isArray(parsed) ? parsed : [];
-        setRedemptionCoupons(latest);
+        const requestsQuery = query(
+          collection(db, "redemptionRequests"),
+          where("studentId", "==", student.uid)
+        );
+
+        const snapshot = await getDocs(requestsQuery);
+        if (!active) return;
+
+        const fromFirestore: RedemptionCoupon[] = snapshot.docs.map((requestDoc) => {
+          const data = requestDoc.data();
+          const createdAt = data.createdAt?.toDate
+            ? data.createdAt.toDate().toISOString()
+            : data.createdAt
+              ? new Date(data.createdAt).toISOString()
+              : "";
+
+          return {
+            requestId: requestDoc.id,
+            studentUid: String(data.studentId || student.uid),
+            studentName: String(data.studentName || student.fullName || "SBC Student"),
+            cardNumber: String(data.studentCardNumber || student.cardNumber || ""),
+            businessName: String(data.businessName || "SBC Partner Business"),
+            offerTitle: String(data.offerTitle || "SBC Offer"),
+            offerDiscount: String(data.offerDiscount || ""),
+            requestedAt: createdAt,
+            status: String(data.status || "pending").toLowerCase(),
+            pointsAwarded: Number(data.pointsAwarded || data.lastPointsEarned || 0),
+          };
+        });
+
+        // Merge legacy local coupons in case a request is not returned by the query.
+        let localCoupons: RedemptionCoupon[] = [];
+        try {
+          const raw = window.localStorage.getItem(storageKey);
+          const parsed = raw ? JSON.parse(raw) : [];
+          localCoupons = Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          console.error("Unable to read local redemption coupons:", error);
+        }
+
+        const byId = new Map<string, RedemptionCoupon>();
+        for (const coupon of localCoupons) byId.set(coupon.requestId, coupon);
+        for (const coupon of fromFirestore) {
+          byId.set(coupon.requestId, { ...byId.get(coupon.requestId), ...coupon });
+        }
+
+        const allCoupons = Array.from(byId.values()).sort(
+          (a, b) => new Date(b.requestedAt || 0).getTime() - new Date(a.requestedAt || 0).getTime()
+        );
+
+        setRedemptionCoupons(allCoupons);
+        window.localStorage.setItem(storageKey, JSON.stringify(allCoupons));
+
+        for (const coupon of fromFirestore) {
+          const unsubscribe = onSnapshot(
+            doc(db, "redemptionRequests", coupon.requestId),
+            (requestSnapshot) => {
+              if (!active || !requestSnapshot.exists()) return;
+              const data = requestSnapshot.data();
+
+              setRedemptionCoupons((current) => {
+                const next = current.map((item) =>
+                  item.requestId === coupon.requestId
+                    ? {
+                        ...item,
+                        businessName: String(data.businessName || item.businessName),
+                        offerTitle: String(data.offerTitle || item.offerTitle),
+                        offerDiscount: String(data.offerDiscount || item.offerDiscount || ""),
+                        status: String(data.status || item.status || "pending").toLowerCase(),
+                        pointsAwarded: Number(
+                          data.pointsAwarded || data.lastPointsEarned || item.pointsAwarded || 0
+                        ),
+                      }
+                    : item
+                );
+                try {
+                  window.localStorage.setItem(storageKey, JSON.stringify(next));
+                } catch {}
+                return next;
+              });
+            },
+            (error) => console.error("Coupon status listener error:", error)
+          );
+          unsubscribers.push(unsubscribe);
+        }
       } catch (error) {
-        console.error("Unable to refresh redemption coupons:", error);
+        console.error("Unable to load Firestore redemption history:", error);
       }
     };
 
+    void loadHistory();
+
+    const reloadCoupons = () => {
+      void loadHistory();
+    };
     window.addEventListener("sbc-redemption-coupons-updated", reloadCoupons);
 
-    const unsubscribers = saved.map((coupon) =>
-      onSnapshot(
-        doc(db, "redemptionRequests", coupon.requestId),
-        (snapshot) => {
-          if (!snapshot.exists()) return;
-          const data = snapshot.data();
-          const updatedCoupon: RedemptionCoupon = {
-            ...coupon,
-            businessName: String(data.businessName || coupon.businessName),
-            offerTitle: String(data.offerTitle || coupon.offerTitle),
-            offerDiscount: String(data.offerDiscount || coupon.offerDiscount || ""),
-            status: String(data.status || coupon.status || "pending").toLowerCase(),
-            pointsAwarded: Number(data.pointsAwarded || coupon.pointsAwarded || 0),
-          };
-          setRedemptionCoupons((current) => {
-            const next = current.map((item) => item.requestId === coupon.requestId ? updatedCoupon : item);
-            try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
-            return next;
-          });
-        },
-        (error) => console.error("Coupon status listener error:", error)
-      )
-    );
-
     return () => {
+      active = false;
       window.removeEventListener("sbc-redemption-coupons-updated", reloadCoupons);
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [student?.uid]);
+  }, [student?.uid, student?.fullName, student?.cardNumber]);
 
   useEffect(() => {
     if (!showRedeemHistory) setSelectedCouponId(null);
@@ -2337,16 +2394,16 @@ export default function StudentDashboard() {
           <button
             type="button"
             onClick={() => setShowRedeemHistory(true)}
-            className="flex w-full items-center justify-between gap-4 rounded-2xl border border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-700/20 to-indigo-700/20 p-5 text-left text-white transition active:scale-[0.99]"
+            className="flex w-full items-center justify-between gap-4 rounded-2xl border border-[#d4af37]/40 bg-[#07111f] p-5 text-left text-white shadow-lg transition active:scale-[0.99]"
           >
             <span className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-fuchsia-500/15 text-2xl">🎟️</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 text-2xl">🎟️</span>
               <span>
                 <span className="block text-lg font-black">Redeem History</span>
                 <span className="mt-1 block text-sm text-white/60">View all your coupons and approval status</span>
               </span>
             </span>
-            <span className="text-xl text-fuchsia-200">→</span>
+            <span className="text-xl text-[#f1cf63]">→</span>
           </button>
         </section>
 
