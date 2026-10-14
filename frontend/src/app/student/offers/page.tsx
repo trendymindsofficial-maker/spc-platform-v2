@@ -1582,6 +1582,11 @@ export default function StudentOffers() {
   const redeemMyBenefit =
     async () => {
 
+      // Prevent rapid repeat submissions from the same UI.
+      if (redeemLoading) {
+        return;
+      }
+
       if (
         !auth.currentUser
       ) {
@@ -1749,6 +1754,21 @@ export default function StudentOffers() {
         const idToken =
           await auth.currentUser.getIdToken();
 
+        // Keep the same key if this exact attempt must be retried.
+        const attemptStorageKey =
+          `sbc_redemption_attempt_${studentUid}_${selectedOffer.businessId}_${selectedOffer.id}`;
+
+        let idempotencyKey =
+          window.localStorage.getItem(attemptStorageKey);
+
+        if (!idempotencyKey) {
+          idempotencyKey = window.crypto.randomUUID();
+          window.localStorage.setItem(
+            attemptStorageKey,
+            idempotencyKey
+          );
+        }
+
         const response = await apiFetch(
           "/api/redemption/create",
           {
@@ -1772,6 +1792,7 @@ export default function StudentOffers() {
               offerDiscount:
                 selectedOffer.discount ||
                 "",
+              idempotencyKey,
             }),
           }
         );
@@ -1785,6 +1806,10 @@ export default function StudentOffers() {
               "Unable to send redemption request."
           );
         }
+
+        // The server has confirmed the result; the next intentional attempt
+        // should receive a fresh key.
+        window.localStorage.removeItem(attemptStorageKey);
 
         /* Save a local coupon index for the student dashboard. The request itself
          * remains server-created; status is always refreshed from Firestore. */
@@ -1803,8 +1828,10 @@ export default function StudentOffers() {
               offerTitle: selectedOffer.title || "SBC Offer",
               offerDiscount: selectedOffer.discount || "",
               requestedAt: new Date().toISOString(),
-              status: "pending",
-              pointsAwarded: 0,
+              status: String(result.status || "pending"),
+              pointsAwarded: Number(result.pointsAwarded || 0),
+              totalPoints: Number(result.totalPoints || 0),
+              redemptionId: String(result.redemptionId || ""),
             };
             const safeExisting = Array.isArray(existingCoupons) ? existingCoupons : [];
             window.localStorage.setItem(storageKey, JSON.stringify([coupon, ...safeExisting.filter((item: any) => item?.requestId !== couponRequestId)]));
