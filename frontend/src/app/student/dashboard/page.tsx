@@ -2798,10 +2798,10 @@ export default function StudentDashboard() {
                 <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
               </button>
 
-              {/* REDEEM HISTORY */}
+              {/* LATEST COUPON */}
               <button
                 type="button"
-                onClick={() => setShowRedeemHistory(true)}
+                onClick={() => setShowLatestCoupon(true)}
                 className={`relative flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${showRedeemHistory ? "text-[#f1cf63]" : "text-white"}`}
                 aria-label="Open latest coupon"
               >
