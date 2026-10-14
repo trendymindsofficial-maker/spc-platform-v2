@@ -2332,6 +2332,24 @@ export default function StudentDashboard() {
           </div>
         </section>
 
+        {/* MOBILE REDEEM HISTORY BUTTON */}
+        <section className="mt-5 md:hidden">
+          <button
+            type="button"
+            onClick={() => setShowRedeemHistory(true)}
+            className="flex w-full items-center justify-between gap-4 rounded-2xl border border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-700/20 to-indigo-700/20 p-5 text-left text-white transition active:scale-[0.99]"
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-fuchsia-500/15 text-2xl">🎟️</span>
+              <span>
+                <span className="block text-lg font-black">Redeem History</span>
+                <span className="mt-1 block text-sm text-white/60">View all your coupons and approval status</span>
+              </span>
+            </span>
+            <span className="text-xl text-fuchsia-200">→</span>
+          </button>
+        </section>
+
         {/* MOBILE REWARD POINTS */}
         <section className="mt-7 md:hidden">
           <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)]">
