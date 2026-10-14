@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getIdToken, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -137,7 +137,10 @@ export default function RedeemApprovalDashboard() {
     }
   }, [getToken]);
 
+  const historyRequestId = useRef(0);
+
   const loadHistory = useCallback(async () => {
+    const requestId = ++historyRequestId.current;
     setHistoryLoading(true);
     setError("");
 
@@ -155,16 +158,21 @@ export default function RedeemApprovalDashboard() {
       );
       const data = await response.json();
 
+      if (requestId !== historyRequestId.current) return;
+
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Could not load redemption history.");
+        throw new Error(data.error || data.message || "Could not load redemption history.");
       }
 
       setHistory(Array.isArray(data.history) ? data.history : []);
     } catch (err) {
+      if (requestId !== historyRequestId.current) return;
       setError(err instanceof Error ? err.message : "Could not load history.");
       setHistory([]);
     } finally {
-      setHistoryLoading(false);
+      if (requestId === historyRequestId.current) {
+        setHistoryLoading(false);
+      }
     }
   }, [getToken, selectedBusiness, from, to]);
 
