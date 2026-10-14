@@ -149,7 +149,7 @@ export default function RedeemApprovalDashboard() {
         void refreshRequests(true);
 intervalId = setInterval(() => {
   void refreshRequests(false);
-}, 5000);
+}, 2000);
       }
     });
 
