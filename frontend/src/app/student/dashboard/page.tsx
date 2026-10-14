@@ -2843,18 +2843,58 @@ export default function StudentDashboard() {
                 })[0];
                 const status = String(coupon.status || "pending").toLowerCase();
                 const statusText = status === "approved" || status === "redeemed" ? "Approved" : status === "rejected" ? "Rejected" : "Waiting for Approval";
+                const approved = status === "approved" || status === "redeemed";
+                const rejected = status === "rejected";
+                const relativeTime = (value: string) => {
+                  const timestamp = Date.parse(value || "");
+                  if (!timestamp) return "Time unavailable";
+                  const diff = Math.max(0, Date.now() - timestamp);
+                  const minutes = Math.floor(diff / 60000);
+                  if (minutes < 1) return "Just now";
+                  if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+                  const hours = Math.floor(minutes / 60);
+                  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+                  const days = Math.floor(hours / 24);
+                  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+                  const weeks = Math.floor(days / 7);
+                  if (days < 30) return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
+                  const months = Math.floor(days / 30);
+                  if (days < 365) return `${months} month${months === 1 ? "" : "s"} ago`;
+                  const years = Math.floor(days / 365);
+                  return `${years} year${years === 1 ? "" : "s"} ago`;
+                };
                 return (
-                  <div className="overflow-hidden rounded-[1.5rem] border border-fuchsia-300/30">
+                  <div className="overflow-hidden rounded-[1.5rem] border border-fuchsia-300/50 shadow-[0_0_22px_rgba(217,70,239,0.12)]">
                     <div className="bg-gradient-to-r from-fuchsia-700 via-purple-700 to-indigo-700 p-5">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-100">SBC · REDEMPTION COUPON</p>
                       <h3 className="mt-2 break-words text-2xl font-black">{coupon.businessName || "SBC Partner Business"}</h3>
                       <p className="mt-1 text-sm font-semibold text-white/85">{coupon.offerTitle || "SBC Offer"}</p>
                       <span className="mt-3 inline-flex rounded-xl bg-white/15 px-3 py-2 text-sm font-black">{coupon.offerDiscount || "OFFER"}</span>
                     </div>
-                    <div className="space-y-3 bg-white p-4 text-slate-900">
-                      <p className="text-sm font-bold">Status: {statusText}</p>
-                      <p className="text-xs text-slate-500">Redeemed: {coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "—"}</p>
-                      <p className="text-sm font-semibold">Points earned: {Number(coupon.pointsAwarded || 0).toLocaleString()}</p>
+                    <div className="space-y-4 bg-white p-4 text-slate-900">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Student Name</p>
+                          <p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || coupon.studentName || "SBC Student"}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p>
+                          <p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || coupon.cardNumber || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="border-t border-dashed border-slate-300 pt-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <span className={`rounded-full px-3 py-1.5 text-xs font-black ${approved ? "bg-emerald-100 text-emerald-800" : rejected ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>{statusText}</span>
+                          <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-right">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-700">Redeemed date & time</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "Date unavailable"}</p>
+                            <p className="mt-1 text-xs font-extrabold text-amber-700">{relativeTime(coupon.requestedAt)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t border-dashed border-slate-300 pt-3">
+                        <p className="text-sm font-semibold text-slate-700">Points earned: <span className="font-black text-slate-950">{Number(coupon.pointsAwarded || 0).toLocaleString()}</span></p>
+                      </div>
                     </div>
                   </div>
                 );
