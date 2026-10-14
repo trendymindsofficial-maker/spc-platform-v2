@@ -333,6 +333,10 @@ export default function RedeemApprovalDashboard() {
 
   const filteredTotal = history.length;
 
+  // Show only the 10 most recent records in the dashboard.
+  // The API already sorts history newest first.
+  const displayedHistory = history.slice(0, 10);
+
   return (
     <main className="min-h-screen bg-[#080d19] text-slate-100">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-[#0c1323] px-5 py-5 md:px-8">
@@ -561,7 +565,7 @@ export default function RedeemApprovalDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
                   <h3 className="font-black">Successful Redemption Records</h3>
                   <span className="text-sm text-slate-400">
-                    {history.length} record{history.length === 1 ? "" : "s"}
+                    Showing {displayedHistory.length} latest records
                   </span>
                 </div>
 
@@ -590,7 +594,7 @@ export default function RedeemApprovalDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
-                        {history.map((item) => (
+                        {displayedHistory.map((item) => (
                           <tr key={item.id} className="hover:bg-slate-800/30">
                             <td className="px-5 py-4 font-bold">
                               {item.businessName || "Business"}
