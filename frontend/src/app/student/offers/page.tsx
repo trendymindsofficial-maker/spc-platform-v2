@@ -1704,6 +1704,25 @@ export default function StudentOffers() {
 
           }
 
+          // Some student profiles are stored under a different document ID.
+          // Use the UID field lookup before falling back to a generic name/card.
+          if (!studentCardNumber || studentName === "SBC Student") {
+            const studentQuery = query(
+              collection(db, "students"),
+              where("uid", "==", studentUid)
+            );
+            const studentQuerySnap = await getDocs(studentQuery);
+            const completeProfile = studentQuerySnap.docs.find((studentDoc) => {
+              const data = studentDoc.data();
+              return Boolean(data.fullName && data.cardNumber);
+            }) || studentQuerySnap.docs[0];
+            if (completeProfile) {
+              const data = completeProfile.data();
+              studentName = data.fullName || data.name || data.studentName || studentName;
+              studentCardNumber = data.cardNumber || data.studentCardNumber || studentCardNumber;
+            }
+          }
+
         } catch (error) {
 
           console.error(
@@ -1767,13 +1786,36 @@ export default function StudentOffers() {
           );
         }
 
-        /*
-         * Save request ID BEFORE
-         * closing the verification modal.
-         */
+        /* Save a local coupon index for the student dashboard. The request itself
+         * remains server-created; status is always refreshed from Firestore. */
+        const couponRequestId = String(result.requestId || "");
+        if (couponRequestId) {
+          try {
+            const storageKey = `sbc_redemption_coupons_${studentUid}`;
+            const rawCoupons = window.localStorage.getItem(storageKey);
+            const existingCoupons = rawCoupons ? JSON.parse(rawCoupons) : [];
+            const coupon = {
+              requestId: couponRequestId,
+              studentUid,
+              studentName,
+              cardNumber: studentCardNumber,
+              businessName: verifiedBusiness.businessName || selectedOffer.businessName || "SBC Partner Business",
+              offerTitle: selectedOffer.title || "SBC Offer",
+              offerDiscount: selectedOffer.discount || "",
+              requestedAt: new Date().toISOString(),
+              status: "pending",
+              pointsAwarded: 0,
+            };
+            const safeExisting = Array.isArray(existingCoupons) ? existingCoupons : [];
+            window.localStorage.setItem(storageKey, JSON.stringify([coupon, ...safeExisting.filter((item: any) => item?.requestId !== couponRequestId)]));
+          } catch (storageError) {
+            console.error("Unable to save coupon shortcut:", storageError);
+          }
+        }
 
+        /* Save request ID BEFORE closing the verification modal. */
         setPendingRequestId(
-          String(result.requestId)
+          couponRequestId
         );
 
         /*

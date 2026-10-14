@@ -32,6 +32,21 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
+interface RedemptionCoupon {
+  requestId: string;
+  studentUid: string;
+  studentName: string;
+  cardNumber: string;
+  businessName: string;
+  offerTitle: string;
+  offerDiscount: string;
+  requestedAt: string;
+  status: string;
+  pointsAwarded?: number;
+}
+
+const REDEMPTION_COUPON_STORAGE_KEY = "sbc_redemption_coupons";
+
 interface Student {
   uid: string;
   fullName?: string;
@@ -83,6 +98,9 @@ export default function StudentDashboard() {
   const referralCode = student?.referralCode || "";
   const scanRedeemRef = useRef<HTMLDivElement | null>(null);
   const [scanOpenRequest, setScanOpenRequest] = useState(0);
+  const [showRedeemHistory, setShowRedeemHistory] = useState(false);
+  const [redemptionCoupons, setRedemptionCoupons] = useState<RedemptionCoupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
 
   // Referral payout wallet
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -1457,6 +1475,53 @@ export default function StudentDashboard() {
     router,
   ]);
 
+  // Load locally recorded requests and subscribe to each real Firestore request
+  // so the coupon status updates without changing the existing points logic.
+  useEffect(() => {
+    if (!student?.uid) return;
+
+    const storageKey = `${REDEMPTION_COUPON_STORAGE_KEY}_${student.uid}`;
+    let saved: RedemptionCoupon[] = [];
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      saved = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error("Unable to load saved redemption coupons:", error);
+    }
+
+    setRedemptionCoupons(saved);
+    const unsubscribers = saved.map((coupon) =>
+      onSnapshot(
+        doc(db, "redemptionRequests", coupon.requestId),
+        (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.data();
+          const updatedCoupon: RedemptionCoupon = {
+            ...coupon,
+            businessName: String(data.businessName || coupon.businessName),
+            offerTitle: String(data.offerTitle || coupon.offerTitle),
+            offerDiscount: String(data.offerDiscount || coupon.offerDiscount || ""),
+            status: String(data.status || coupon.status || "pending").toLowerCase(),
+            pointsAwarded: Number(data.pointsAwarded || coupon.pointsAwarded || 0),
+          };
+          setRedemptionCoupons((current) => {
+            const next = current.map((item) => item.requestId === coupon.requestId ? updatedCoupon : item);
+            try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        },
+        (error) => console.error("Coupon status listener error:", error)
+      )
+    );
+
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [student?.uid]);
+
+  useEffect(() => {
+    if (!showRedeemHistory) setSelectedCouponId(null);
+  }, [showRedeemHistory]);
+
   useEffect(() => {
     if (!student) return;
 
@@ -2623,25 +2688,82 @@ export default function StudentDashboard() {
                 <span className="text-[10px] font-black leading-4 text-center">Scan & Redeem</span>
               </button>
 
-              {/* REFER A FRIEND — SAME AS OFFERS */}
+              {/* REDEEM HISTORY */}
               <button
                 type="button"
-                onClick={shareReferralLink}
-                className="flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 text-white transition active:scale-[0.97]"
+                onClick={() => setShowRedeemHistory(true)}
+                className={`relative flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.05rem] px-1 py-1.5 transition active:scale-[0.97] ${showRedeemHistory ? "text-[#f1cf63]" : "text-white"}`}
+                aria-label="Open Redeem History"
               >
-                <span className="flex h-7 w-7 items-center justify-center text-white">
-                  <svg width="25" height="25" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
-                    <path d="M3.5 19C4.2 15.8 6 14 9 14C12 14 13.8 15.8 14.5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M16 8V14M13 11H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <span className="flex h-7 w-7 items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H20v14H6.5A2.5 2.5 0 0 1 4 16.5v-9Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                    <path d="M4 8h16M8 12h7M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] font-bold leading-4 text-center">Refer a Friend</span>
+                <span className="text-[10px] font-bold leading-4 text-center">Redeem History</span>
+                {redemptionCoupons.some((coupon) => ["pending", "waiting", "waiting_for_approval"].includes(coupon.status)) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-400" />}
               </button>
 
             </div>
           </div>
         </nav>
+
+        {showRedeemHistory && (
+          <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#030817]/80 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Redeem History">
+            <section className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
+                  <h2 className="mt-1 text-2xl font-black">Redeem History</h2>
+                  <p className="mt-1 text-sm text-slate-400">Your coupons and approval status</p>
+                </div>
+                <button type="button" onClick={() => setShowRedeemHistory(false)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-2xl text-white" aria-label="Close redeem history">×</button>
+              </div>
+
+              {redemptionCoupons.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/20 px-5 py-10 text-center">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-fuchsia-500/15 text-3xl">🎟️</div>
+                  <h3 className="text-lg font-extrabold">No coupons yet</h3>
+                  <p className="mt-2 text-sm text-slate-400">Open Offers and tap Redeem to create your first coupon.</p>
+                  <button type="button" onClick={() => { setShowRedeemHistory(false); router.push("/student/offers"); }} className="mt-5 rounded-xl bg-fuchsia-600 px-5 py-3 text-sm font-extrabold text-white">Explore Offers</button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {[...redemptionCoupons].sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()).map((coupon) => {
+                    const status = coupon.status.toLowerCase();
+                    const approved = status === "approved" || status === "redeemed";
+                    const rejected = status === "rejected";
+                    const statusText = approved ? "Approved" : rejected ? "Rejected" : "Waiting for Approval";
+                    const isSelected = selectedCouponId === coupon.requestId || (!selectedCouponId && coupon.requestId === [...redemptionCoupons].sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime())[0]?.requestId);
+                    return (
+                      <button key={coupon.requestId} type="button" onClick={() => setSelectedCouponId(coupon.requestId)} className={`w-full overflow-hidden rounded-[1.5rem] border text-left transition ${isSelected ? "border-fuchsia-300 ring-2 ring-fuchsia-500/30" : "border-white/10"}`}>
+                        <div className="bg-gradient-to-r from-fuchsia-700 via-purple-700 to-indigo-700 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-100">SBC · REDEMPTION COUPON</p><h3 className="mt-2 break-words text-xl font-black">{coupon.businessName || "SBC Partner Business"}</h3><p className="mt-1 text-sm font-semibold text-white/85">{coupon.offerTitle || "SBC Offer"}</p></div>
+                            <span className="shrink-0 rounded-xl bg-white/15 px-3 py-2 text-sm font-black">{coupon.offerDiscount || "OFFER"}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-3 bg-white p-4 text-slate-900">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Student Name</p><p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || "SBC Student"}</p></div>
+                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p><p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || "—"}</p></div>
+                          </div>
+                          <div className="border-t border-dashed border-slate-300 pt-3">
+                            <div className="flex items-center justify-between gap-2"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${approved ? "bg-emerald-100 text-emerald-800" : rejected ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>{statusText}</span><span className="text-right text-[10px] font-semibold text-slate-500">{coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "Request date unavailable"}</span></div>
+                            <p className="mt-3 text-xs leading-5 text-slate-500">{approved ? `Request approved.${coupon.pointsAwarded ? ` ${coupon.pointsAwarded} points awarded.` : " Check your points balance for the latest total."}` : rejected ? "This request was rejected. Do not use this coupon for redemption." : "Request sent. Please wait for approval before using this offer."}</p>
+                            <div className="mt-3 flex items-center justify-between border-t border-dashed border-slate-200 pt-3"><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Request ID</span><span className="max-w-[68%] truncate font-mono text-[10px] font-bold text-slate-600">{coupon.requestId}</span></div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <button type="button" onClick={() => setShowRedeemHistory(false)} className="w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 px-5 py-3.5 font-extrabold text-white shadow-lg">Close Coupon</button>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
 
         {/* Scan & Redeem lives on the dashboard so scanned business offers remain visible here. */}
         <div className="mt-6 pb-4">
