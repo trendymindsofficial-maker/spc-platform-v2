@@ -1491,6 +1491,20 @@ export default function StudentDashboard() {
     }
 
     setRedemptionCoupons(saved);
+
+    const reloadCoupons = () => {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        const latest = Array.isArray(parsed) ? parsed : [];
+        setRedemptionCoupons(latest);
+      } catch (error) {
+        console.error("Unable to refresh redemption coupons:", error);
+      }
+    };
+
+    window.addEventListener("sbc-redemption-coupons-updated", reloadCoupons);
+
     const unsubscribers = saved.map((coupon) =>
       onSnapshot(
         doc(db, "redemptionRequests", coupon.requestId),
@@ -1515,7 +1529,10 @@ export default function StudentDashboard() {
       )
     );
 
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+    return () => {
+      window.removeEventListener("sbc-redemption-coupons-updated", reloadCoupons);
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
   }, [student?.uid]);
 
   useEffect(() => {

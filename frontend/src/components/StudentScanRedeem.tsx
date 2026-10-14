@@ -64,6 +64,7 @@ const saveScanCoupon = (coupon: ScanCoupon) => {
       ...safeExisting.filter((item: any) => item?.requestId !== coupon.requestId),
     ])
   );
+  window.dispatchEvent(new Event("sbc-redemption-coupons-updated"));
 };
 
 const updateScanCouponStatus = (
