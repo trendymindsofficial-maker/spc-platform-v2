@@ -36,7 +36,62 @@ interface Offer {
   googleReviewLink?: string;
 }
 
+
 const MAX_REDEMPTIONS = 4;
+
+type ScanCoupon = {
+  requestId: string;
+  studentUid: string;
+  studentName: string;
+  cardNumber: string;
+  businessName: string;
+  offerTitle: string;
+  offerDiscount: string;
+  requestedAt: string;
+  status: string;
+  pointsAwarded: number;
+};
+
+const saveScanCoupon = (coupon: ScanCoupon) => {
+  const key = `sbc_redemption_coupons_${coupon.studentUid}`;
+  const existingRaw = window.localStorage.getItem(key);
+  const existing = existingRaw ? JSON.parse(existingRaw) : [];
+  const safeExisting = Array.isArray(existing) ? existing : [];
+  window.localStorage.setItem(
+    key,
+    JSON.stringify([
+      coupon,
+      ...safeExisting.filter((item: any) => item?.requestId !== coupon.requestId),
+    ])
+  );
+};
+
+const updateScanCouponStatus = (
+  studentUid: string,
+  requestId: string,
+  status: string,
+  pointsAwarded = 0
+) => {
+  const key = `sbc_redemption_coupons_${studentUid}`;
+  try {
+    const raw = window.localStorage.getItem(key);
+    const coupons = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(coupons)) return;
+    window.localStorage.setItem(
+      key,
+      JSON.stringify(
+        coupons.map((coupon: any) =>
+          coupon?.requestId === requestId
+            ? { ...coupon, status, pointsAwarded: pointsAwarded || coupon.pointsAwarded || 0 }
+            : coupon
+        )
+      )
+    );
+  } catch (error) {
+    console.error("Unable to update scan coupon status:", error);
+  }
+};
+
 
 interface StudentScanRedeemProps {
   openRequest?: number;
@@ -79,7 +134,16 @@ export default function StudentScanRedeem({
         if (!snapshot.exists()) return;
 
         const data = snapshot.data();
-        const status = String(data.status || "pending");
+        const status = String(data.status || "pending").toLowerCase();
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          updateScanCouponStatus(
+            currentUser.uid,
+            pendingRequestId,
+            status,
+            Number(data.pointsAwarded || data.lastPointsEarned || 0)
+          );
+        }
 
         if (status === "approved") {
           const businessId = String(
@@ -520,7 +584,33 @@ export default function StudentScanRedeem({
         );
       }
 
-      setPendingRequestId(String(result.requestId));
+      const requestId = String(result.requestId);
+      const studentUid = auth.currentUser.uid;
+      const studentName = String(
+        studentData.fullName || studentData.name || studentData.studentName || "SBC Student"
+      );
+      const cardNumber = String(
+        studentData.cardNumber || studentData.studentCardNumber || ""
+      );
+
+      try {
+        saveScanCoupon({
+          requestId,
+          studentUid,
+          studentName,
+          cardNumber,
+          businessName: String(business.businessName || offer.businessName || "SBC Partner Business"),
+          offerTitle: String(offer.title || "SBC Offer"),
+          offerDiscount: String(offer.discount || ""),
+          requestedAt: new Date().toISOString(),
+          status: "pending",
+          pointsAwarded: 0,
+        });
+      } catch (storageError) {
+        console.error("Unable to save scan coupon:", storageError);
+      }
+
+      setPendingRequestId(requestId);
       setPendingOffer(offer);
       setSelectedOffer(null);
     } catch (error) {
