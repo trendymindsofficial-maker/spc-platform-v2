@@ -926,10 +926,13 @@ export default function StudentScanRedeem({
 
               <button
                 type="button"
-                onClick={closeApproved}
-                className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                onClick={() => {
+                  closeApproved();
+                  router.push("/student/dashboard?open=coupon");
+                }}
+                className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm font-extrabold text-white shadow-lg transition active:scale-[0.98]"
               >
-                Close
+                Close &amp; View Coupon
               </button>
 
               <p className="text-center text-[11px] leading-4 text-slate-400">
