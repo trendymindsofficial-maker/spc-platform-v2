@@ -928,7 +928,7 @@ export default function StudentScanRedeem({
                 type="button"
                 onClick={() => {
                   closeApproved();
-                  router.push("/student/dashboard?open=coupon");
+                  window.dispatchEvent(new Event("sbc-open-coupon"));
                 }}
                 className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm font-extrabold text-white shadow-lg transition active:scale-[0.98]"
               >

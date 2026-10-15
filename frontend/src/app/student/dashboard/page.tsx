@@ -1649,6 +1649,13 @@ export default function StudentDashboard() {
    */
 
   useEffect(() => {
+    const openLatestCoupon = () => setShowLatestCoupon(true);
+
+    window.addEventListener("sbc-open-coupon", openLatestCoupon);
+    return () => window.removeEventListener("sbc-open-coupon", openLatestCoupon);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
