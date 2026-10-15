@@ -298,7 +298,7 @@ export default function RedemptionHistory() {
 
                       <div className="rounded-2xl bg-purple-50 p-5">
                         <p className="text-sm font-semibold text-purple-600">
-                          🎫 SBC Card Number
+                          🎫 SBC Pass Number
                         </p>
                         <h3 className="mt-2 text-lg font-bold text-purple-800">
                           {item.studentCardNumber || "-"}

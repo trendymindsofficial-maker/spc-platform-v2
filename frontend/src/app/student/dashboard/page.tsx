@@ -1961,13 +1961,13 @@ export default function StudentDashboard() {
     const link = getReferralLink();
     if (!link) return;
 
-    const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
+    const shareText = `Join Student Benefit Pass (SBC) using my referral link and unlock student benefits: ${link}`;
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Student Benefit Card - SBC",
-          text: "Join Student Benefit Card using my referral link.",
+          title: "Student Benefit Pass - SBC",
+          text: "Join Student Benefit Pass using my referral link.",
           url: link,
         });
         return;
@@ -2176,7 +2176,7 @@ export default function StudentDashboard() {
               </div>
 
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f1cf63]">
-                Student Benefit Card
+                Student Benefit Pass
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
@@ -2259,7 +2259,7 @@ export default function StudentDashboard() {
             <div>
 
               <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
-                Student Benefit Card
+                Student Benefit Pass
               </p>
 
               <p className="text-xs font-medium text-white/70 sm:text-sm">
@@ -2697,24 +2697,24 @@ export default function StudentDashboard() {
             <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Card</p>
-                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Card</h2>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Pass</p>
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Pass</h2>
               </div>
               <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">SBC</div>
             </div>
             <div className="relative mt-7 rounded-[1.6rem] border border-[#d4af37]/25 bg-black/20 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Card</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Pass</p>
                   <p className="mt-2 text-xl font-black text-[#f1cf63]">More Benefits. More Savings.</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">SBC</div>
               </div>
               <div className="mt-8 grid gap-5 sm:grid-cols-[1fr_auto] sm:items-end">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Holder</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Pass Holder</p>
                   <p className="mt-1 text-xl font-black">{student.fullName || "—"}</p>
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Number</p>
+                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Pass Number</p>
                   <p className="mt-1 text-sm font-black tracking-wider text-white/80">{student.cardNumber || "—"}</p>
                 </div>
                 <div className="flex w-full justify-center sm:w-auto sm:justify-end">
@@ -2728,7 +2728,7 @@ export default function StudentDashboard() {
                 <span className="text-xs font-black uppercase tracking-[0.16em] text-[#f1cf63]">SBC • 2026</span>
               </div>
             </div>
-            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC card or QR when visiting an SBC Business Partner.</p>
+            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC pass or QR when visiting an SBC Business Partner.</p>
           </div>
 
           <div className="rounded-[2rem] bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
@@ -2757,7 +2757,7 @@ export default function StudentDashboard() {
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Started</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipStart)}</p></div>
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Valid Until</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipExpiry)}</p></div>
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Plan</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.membershipPlan || "Student Plan"}</p></div>
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Card Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Pass Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
               </div>
               {membershipIsActive ? (
                 <div className="mt-5 rounded-xl border border-emerald-200 bg-white/70 p-4 text-sm font-semibold text-emerald-800">✓ You are all set. Enjoy exclusive SBC student benefits.</div>
@@ -2850,7 +2850,7 @@ export default function StudentDashboard() {
             <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Pass</p>
                   <h2 className="mt-1 text-2xl font-black">Latest Coupon</h2>
                 </div>
                 <button type="button" onClick={() => setShowLatestCoupon(false)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-2xl" aria-label="Close coupon">×</button>
@@ -2904,7 +2904,7 @@ export default function StudentDashboard() {
                           <p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || coupon.studentName || "SBC Student"}</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Pass Number</p>
                           <p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || coupon.cardNumber || "—"}</p>
                         </div>
                       </div>
@@ -2935,7 +2935,7 @@ export default function StudentDashboard() {
             <section className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Pass</p>
                   <h2 className="mt-1 text-2xl font-black">Redeem History</h2>
                   <p className="mt-1 text-sm text-slate-400">Your coupons and approval status</p>
                 </div>
@@ -2968,7 +2968,7 @@ export default function StudentDashboard() {
                         <div className="space-y-3 bg-white p-4 text-slate-900">
                           <div className="grid grid-cols-2 gap-3">
                             <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Student Name</p><p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || "SBC Student"}</p></div>
-                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p><p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || "—"}</p></div>
+                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Pass Number</p><p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || "—"}</p></div>
                           </div>
                           <div className="border-t border-dashed border-slate-300 pt-3">
                             <div className="flex items-center justify-between gap-2"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${approved ? "bg-emerald-100 text-emerald-800" : rejected ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>{statusText}</span><span className="text-right text-[10px] font-semibold text-slate-500">{coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "Request date unavailable"}</span></div>
@@ -2998,11 +2998,11 @@ export default function StudentDashboard() {
           <div>
 
             <p className="font-black text-[#07111f]">
-              Student Benefit Card
+              Student Benefit Pass
             </p>
 
             <p className="mt-1">
-              One card. More benefits. More savings.
+              One pass. More benefits. More savings.
             </p>
 
           </div>

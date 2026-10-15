@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = [
-  ["🍔", "Food & Dining", "Save More", "bg-[#fff9df]"],
   ["🛍️", "Shopping", "Best Deals", "bg-[#fff0f5]"],
   ["✈️", "Travel", "Explore More", "bg-[#eef7ff]"],
-  ["❤️", "Health & Wellness", "Stay Healthy", "bg-[#edfff5]"],
   ["🎓", "Education", "Learn More", "bg-[#f6efff]"],
   ["🎬", "Entertainment", "Have Fun", "bg-[#fff3e5]"],
   ["🏋️", "Fitness", "Stay Fit", "bg-[#effff5]"],
@@ -19,8 +17,8 @@ const slides = [
     eyebrow: "STUDENT DISCOUNTS",
     title: "Big Discounts",
     highlight: "Just for You!",
-    text: "Show your SBC Card and enjoy exclusive discounts at shops, restaurants, travel, education and more.",
-    primary: "Get Your SBC Card",
+    text: "Use your SBC Pass and enjoy exclusive discounts at shops, restaurants, travel, education and more.",
+    primary: "Get Your Student Pass",
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
@@ -46,7 +44,7 @@ const slides = [
     title: "Refer SBC",
     highlight: "& Earn Money!",
     text: "Invite your friends to join SBC, help them save and earn referral rewards.",
-    primary: "Get Your SBC Card",
+    primary: "Get Your Student Pass",
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
@@ -92,7 +90,7 @@ export default function Home() {
               </span>
               <span className="min-w-0 text-left">
                 <span className="block truncate text-[11px] font-black tracking-[.10em] text-white sm:text-[#07111f] sm:text-[14px] sm:tracking-[.12em]">
-                  STUDENT BENEFIT CARD
+                  STUDENT BENEFIT PASS
                 </span>
                 <span className="mt-0.5 block text-[7px] font-semibold uppercase tracking-[.16em] text-white/55 sm:text-slate-500 sm:text-[9px] sm:tracking-[.2em]">
                   More Benefits. More Savings.
@@ -116,11 +114,11 @@ export default function Home() {
             </nav>
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
-              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your SBC Card</button>
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your Student Pass</button>
               <button type="button" onClick={() => go("/admin/login")} className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-5 sm:py-3 sm:text-xs">Admin Login</button>
             </div>
 
-            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your SBC Card</button>
+            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your Student Pass</button>
           </div>
 
         </div>
@@ -134,7 +132,7 @@ export default function Home() {
               <img
                 key={item.image}
                 src={item.image}
-                alt={`${item.title} ${item.highlight} - Student Benefit Card`}
+                alt={`${item.title} ${item.highlight} - Student Benefit Pass`}
                 className={`block h-auto w-full max-w-none object-contain transition-opacity duration-500 ease-in-out ${
                   index === slide
                     ? "relative opacity-100"
@@ -312,13 +310,13 @@ export default function Home() {
         <div className="mx-auto grid max-w-[1400px] items-center gap-10 lg:grid-cols-[1fr_1fr]">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-              ONE CARD. MANY BENEFITS.
+              ONE PASS. MANY BENEFITS.
             </p>
             <h2 className="mt-3 text-3xl font-black sm:text-5xl">
               Built around the way students live.
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600">
-              Student Benefit Card helps students discover exclusive discounts,
+              Student Benefit Pass helps students discover exclusive discounts,
               offers, rewards and savings from partner businesses — all through
               one simple digital platform.
             </p>
@@ -347,10 +345,10 @@ export default function Home() {
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-                    DIGITAL MEMBERSHIP CARD
+                    DIGITAL MEMBERSHIP PASS
                   </p>
                   <h3 className="mt-1 text-xl font-black text-[#07111f] sm:text-2xl">
-                    Your SBC Digital Card
+                    Your SBC Digital Pass
                   </h3>
                 </div>
                 <div className="rounded-full bg-emerald-50 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-emerald-700 shadow-sm">
@@ -366,7 +364,7 @@ export default function Home() {
                         SBC
                       </span>
                       <div>
-                        <p className="text-[10px] font-black tracking-[.12em]">STUDENT BENEFIT CARD</p>
+                        <p className="text-[10px] font-black tracking-[.12em]">STUDENT BENEFIT PASS</p>
                         <p className="text-[7px] font-semibold tracking-[.16em] text-white/50">MORE BENEFITS. MORE SAVINGS.</p>
                       </div>
                     </div>
@@ -378,7 +376,7 @@ export default function Home() {
 
                 <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
                   <div>
-                    <p className="text-[8px] font-bold uppercase tracking-[.18em] text-white/40">Card Holder</p>
+                    <p className="text-[8px] font-bold uppercase tracking-[.18em] text-white/40">Pass Holder</p>
                     <p className="mt-1 text-base font-black sm:text-lg">Your Name</p>
                     <p className="mt-3 text-[8px] font-bold uppercase tracking-[.18em] text-white/40">SBC Number</p>
                     <p className="mt-1 text-xs font-bold tracking-[.12em] text-white/85">SBCSTU100234</p>
@@ -430,8 +428,39 @@ export default function Home() {
               </div>
 
               <p className="mt-4 text-center text-[9px] font-semibold text-slate-500">
-                Your digital SBC card is secure, verified and available inside your student account.
+                Your digital SBC pass is secure, verified and available inside your student account.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* MEMBERSHIP PRICING */}
+      <section id="membership-pricing" className="px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center">
+            <p className="text-xs font-black uppercase tracking-[.2em] text-[#1557d6]">
+              SIMPLE YEARLY MEMBERSHIP
+            </p>
+            <h2 className="mt-3 text-3xl font-black sm:text-4xl">
+              Choose Your Student Benefit Pass
+            </h2>
+            <p className="mt-3 text-sm text-slate-600">
+              Membership validity: one year from activation.
+            </p>
+          </div>
+          <div className="mt-7 grid gap-5 sm:grid-cols-2">
+            <div className="rounded-3xl border border-blue-100 bg-blue-50/50 p-6 text-center">
+              <h3 className="text-xl font-black">Student Membership</h3>
+              <p className="mt-4 text-4xl font-black text-[#1557d6]">₹199</p>
+              <p className="mt-2 text-sm font-semibold text-slate-600">Valid for 1 year</p>
+              <p className="mt-3 text-sm text-slate-600">
+                Access eligible student offers and partner benefits with your Student Benefit Pass.
+              </p>
+              <button type="button" onClick={() => go("/student/register")}
+                className="mt-5 rounded-xl bg-[#1557d6] px-5 py-3 text-sm font-black text-white">
+                Get Student Pass
+              </button>
             </div>
           </div>
         </div>
@@ -485,7 +514,7 @@ export default function Home() {
           </h2>
           <div className="mt-5 grid gap-5 text-sm leading-7 text-slate-600 sm:grid-cols-2">
             <p>
-              Student Benefit Card (SBC) is a student benefits platform that
+              Student Benefit Pass (SBC) is a student benefits platform that
               helps students discover exclusive discounts, offers, rewards and
               savings from partner businesses.
             </p>
@@ -516,7 +545,7 @@ export default function Home() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-base font-bold tracking-wide">
-                  STUDENT BENEFIT CARD
+                  STUDENT BENEFIT PASS
                 </h2>
                 <p className="text-xs text-slate-300">More Benefits. More Savings.</p>
               </div>
@@ -587,7 +616,7 @@ export default function Home() {
           </div>
 
           <div className="bg-slate-200 px-4 py-3 text-center text-xs leading-5 text-slate-600">
-            © 2026 Student Benefit Card (SBC). All rights reserved.
+            © 2026 Student Benefit Pass (SBC). All rights reserved.
           </div>
         </div>
       </section>
@@ -600,7 +629,7 @@ export default function Home() {
               SBC
             </span>
             <span className="text-left">
-              <span className="block text-xs font-black tracking-[.12em]">STUDENT BENEFIT CARD</span>
+              <span className="block text-xs font-black tracking-[.12em]">STUDENT BENEFIT PASS</span>
               <span className="block text-[9px] text-slate-400">More Benefits. More Savings.</span>
             </span>
           </button>

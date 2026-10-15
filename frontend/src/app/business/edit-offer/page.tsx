@@ -553,7 +553,7 @@ export default function EditOffer({
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Category</label>
-                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Fashion / Food & Beverages / Beauty and salon / Entertainment" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
+                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Fashion / Beauty and salon / Entertainment" className="w-full rounded-2xl border border-slate-200 bg-[#fbfaf6] p-4 text-sm font-medium text-[#07111f] outline-none transition focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10" />
                 </div>
               </div>
 

@@ -51,7 +51,7 @@ export default function PrivacyPage() {
             </span>
             <div>
               <p className="text-xs font-bold tracking-[0.16em] text-slate-300">
-                STUDENT BENEFIT CARD
+                STUDENT BENEFIT PASS
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 More Benefits. More Savings.
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
 
         <div className="space-y-4 bg-slate-50 p-4 sm:space-y-5 sm:p-8">
           <p className="text-sm leading-6 text-slate-600">
-            This policy explains how Student Benefit Card handles information
+            This policy explains how Student Benefit Pass handles information
             when you use our platform and services.
           </p>
 
@@ -120,7 +120,7 @@ export default function PrivacyPage() {
         </div>
 
         <footer className="border-t border-slate-200 bg-slate-200 px-4 py-4 text-center text-xs leading-5 text-slate-600">
-          © 2026 Student Benefit Card (SBC). All rights reserved.
+          © 2026 Student Benefit Pass (SBC). All rights reserved.
         </footer>
       </div>
     </main>

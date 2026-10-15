@@ -350,7 +350,7 @@ export default function RedeemApprovalDashboard() {
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-[#0c1323] px-5 py-5 md:px-8">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-400">
-            Student Benefit Card
+            Student Benefit Pass
           </p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">
             Redemption Control Center

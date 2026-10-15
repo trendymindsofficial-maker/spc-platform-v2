@@ -1236,7 +1236,7 @@ export default function StudentRegister() {
 
           <div className="mt-5 rounded-2xl border border-slate-200 bg-[#f8fafc] p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">
-              Your SBC Card Number
+              Your SBC Pass Number
             </p>
             <p className="mt-1 text-lg font-black tracking-wide">
               {registeredCardNumber}
@@ -1266,7 +1266,7 @@ export default function StudentRegister() {
       <main className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-5 py-10 text-white">
         <section className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
-            Student Benefit Card
+            Student Benefit Pass
           </p>
 
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
@@ -1280,7 +1280,7 @@ export default function StudentRegister() {
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
             <p className="text-xs uppercase tracking-wider text-white/45">
-              Your SBC Card Number
+              Your SBC Pass Number
             </p>
             <p className="mt-1 text-lg font-bold tracking-wide">
               {registeredCardNumber}
@@ -1347,7 +1347,7 @@ export default function StudentRegister() {
                 </div>
 
                 <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">
-                  Student Benefit Card
+                  Student Benefit Pass
                 </p>
 
                 <h2 className="mt-3 text-4xl font-black leading-tight">
@@ -1358,7 +1358,7 @@ export default function StudentRegister() {
                 </h2>
 
                 <p className="mt-5 max-w-sm text-sm leading-6 text-white/55">
-                  Register once, get your SBC card and unlock exclusive student benefits from partner businesses.
+                  Register once, get your SBC pass and unlock exclusive student benefits from partner businesses.
                 </p>
 
               </div>
@@ -1882,7 +1882,7 @@ export default function StudentRegister() {
 
               <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 text-[9px] font-bold uppercase tracking-wider text-slate-400 sm:mt-7 sm:pt-5 sm:text-[10px]">
                 <span>
-                  Student Benefit Card
+                  Student Benefit Pass
                 </span>
 
                 <span className="text-[#a37b0d]">

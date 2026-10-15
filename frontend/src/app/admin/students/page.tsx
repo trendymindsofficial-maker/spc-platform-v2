@@ -134,7 +134,7 @@ export default function AdminStudents() {
               student.course || "",
             "Year":
               student.year || "",
-            "SBC Card Number":
+            "SBC Pass Number":
               student.cardNumber || "",
             "Status":
               student.status
@@ -1082,7 +1082,7 @@ export default function AdminStudents() {
                                 ],
                                 [
                                   "🪪",
-                                  "SBC Card Number",
+                                  "SBC Pass Number",
                                   student.cardNumber,
                                 ],
                               ].map(
@@ -1463,7 +1463,7 @@ export default function AdminStudents() {
                           selectedStudent.year,
                         ],
                         [
-                          "SBC Card Number",
+                          "SBC Pass Number",
                           selectedStudent.cardNumber,
                         ],
                         [
@@ -1598,7 +1598,7 @@ export default function AdminStudents() {
                         <div className="sm:col-span-2">
 
                           <label className="mb-2 block text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            SBC Card Number
+                            SBC Pass Number
                           </label>
 
                           <input

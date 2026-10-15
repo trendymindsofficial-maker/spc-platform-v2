@@ -204,7 +204,7 @@ export default function AdminNotificationsPage() {
 
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#f1cf63]">
-                    Student Benefit Card
+                    Student Benefit Pass
                   </p>
 
                   <h1 className="mt-1 text-2xl font-black sm:text-3xl">
@@ -557,7 +557,7 @@ export default function AdminNotificationsPage() {
                             <div className="flex items-center justify-between gap-2">
 
                               <p className="truncate text-xs font-black text-slate-900">
-                                Student Benefit Card
+                                Student Benefit Pass
                               </p>
 
                               <span className="shrink-0 text-[9px] text-slate-400">

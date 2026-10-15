@@ -18,7 +18,7 @@ export default function ContactPage() {
             </span>
             <div>
               <p className="text-xs font-bold tracking-[0.16em] text-slate-300">
-                STUDENT BENEFIT CARD
+                STUDENT BENEFIT PASS
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 More Benefits. More Savings.
@@ -50,7 +50,7 @@ export default function ContactPage() {
                 <dl className="mt-4 space-y-3 break-words text-sm">
                   <div>
                     <dt className="text-xs font-medium text-slate-500">Brand</dt>
-                    <dd className="mt-1 font-semibold text-slate-800">Student Benefit Card (SBC)</dd>
+                    <dd className="mt-1 font-semibold text-slate-800">Student Benefit Pass (SBC)</dd>
                   </div>
                   <div>
                     <dt className="text-xs font-medium text-slate-500">Legal Name</dt>
@@ -132,7 +132,7 @@ export default function ContactPage() {
         </div>
 
         <footer className="border-t border-slate-200 bg-slate-200 px-4 py-4 text-center text-xs leading-5 text-slate-600">
-          © 2026 Student Benefit Card (SBC). All rights reserved.
+          © 2026 Student Benefit Pass (SBC). All rights reserved.
         </footer>
       </div>
     </main>

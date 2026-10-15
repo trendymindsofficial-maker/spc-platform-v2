@@ -124,7 +124,7 @@ export default function BusinessDashboard() {
             <p class="instruction">
               If QR scanning is unavailable, students can enter this Business ID manually.
             </p>
-            <div class="footer">Student Benefit Card • SBC</div>
+            <div class="footer">Student Benefit Pass • SBC</div>
           </div>
           <script>window.onload=function(){window.print();};</script>
         </body>
@@ -191,41 +191,41 @@ export default function BusinessDashboard() {
 
   return (
     <BusinessProtected>
-      <main className="min-h-screen bg-slate-100 p-8">
+      <main className="min-h-screen bg-[#f5f3ed] px-4 py-6 text-slate-900 sm:px-8 sm:py-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-green-700">
+              <h1 className="text-3xl font-black tracking-tight text-[#07111f] sm:text-4xl">
                 👋 Welcome {businessName}
               </h1>
-              <p className="mt-2 text-gray-600">Business Dashboard</p>
+              <p className="mt-2 text-sm font-medium text-slate-500">Premium Business Dashboard</p>
             </div>
 
             <button
               onClick={logout}
-              className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700"
+              className="rounded-full border border-white/15 bg-[#07111f] px-6 py-3 font-bold text-white transition hover:border-[#d4af37]/60 hover:bg-[#122039]"
             >
               Logout
             </button>
           </div>
 
-          <div className="mb-8 rounded-3xl bg-white p-8 shadow-xl">
+          <div className="mb-8 rounded-[2rem] border border-[#d4af37]/20 bg-gradient-to-br from-[#07111f] via-[#101b2b] to-[#17243a] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)] sm:p-8">
             <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
               <div className="flex-1">
-                <div className="inline-flex rounded-full bg-green-100 px-4 py-2 text-sm font-bold text-green-700">
+                <div className="inline-flex rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-2 text-sm font-bold text-[#f1cf63]">
                   🎓 SBC Business Verification
                 </div>
 
-                <h2 className="mt-4 text-3xl font-extrabold text-slate-800">
+                <h2 className="mt-4 text-3xl font-black text-white">
                   Your Business QR
                 </h2>
 
-                <p className="mt-3 text-gray-600">
+                <p className="mt-3 text-sm leading-6 text-slate-500">
                   Students can scan this QR to verify your business before redeeming an SBC benefit.
                 </p>
 
-                <div className="mt-6 rounded-2xl bg-yellow-50 p-5">
-                  <p className="text-sm font-bold text-gray-500">SBC BUSINESS ID</p>
+                <div className="mt-6 rounded-2xl border border-[#d4af37]/25 bg-white/[0.06] p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">SBC BUSINESS ID</p>
                   <p className="mt-2 break-all text-2xl font-extrabold tracking-wide text-green-700">
                     {loadingBusinessQr ? "Generating..." : businessId || "Not available"}
                   </p>
@@ -235,7 +235,7 @@ export default function BusinessDashboard() {
                   <button
                     onClick={() => setShowBusinessQr(true)}
                     disabled={!businessQr}
-                    className="rounded-xl bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700 disabled:bg-gray-400"
+                    className="rounded-xl bg-gradient-to-r from-[#b98a16] via-[#d4af37] to-[#f1cf63] px-6 py-3 font-black text-[#07111f] transition hover:brightness-105 disabled:bg-gray-400"
                   >
                     📷 View QR
                   </button>
@@ -251,7 +251,7 @@ export default function BusinessDashboard() {
                   <button
                     onClick={printBusinessQr}
                     disabled={!businessQr}
-                    className="rounded-xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-700 disabled:bg-gray-400"
+                    className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-6 py-3 font-bold text-[#f1cf63] transition hover:bg-[#d4af37]/20 disabled:opacity-50"
                   >
                     🖨️ Print QR
                   </button>
@@ -282,48 +282,48 @@ export default function BusinessDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
-              <p className="text-gray-500">🎁 Total Offers</p>
-              <h2 className="mt-4 text-5xl font-bold text-green-700">{totalOffers}</h2>
+          <div className="grid gap-5 md:grid-cols-3">
+            <div className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+              <p className="text-sm font-bold text-slate-500">🎁 Total Offers</p>
+              <h2 className="mt-4 text-4xl font-black text-[#b18a16] sm:text-5xl">{totalOffers}</h2>
             </div>
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
-              <p className="text-gray-500">📷 Total Scans</p>
-              <h2 className="mt-4 text-5xl font-bold text-blue-700">{totalScans}</h2>
+            <div className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+              <p className="text-sm font-bold text-slate-500">📷 Total Scans</p>
+              <h2 className="mt-4 text-4xl font-black text-[#07111f] sm:text-5xl">{totalScans}</h2>
             </div>
 
-            <div className="rounded-3xl bg-white p-8 shadow-xl">
-              <p className="text-gray-500">🎉 Total Redeemed</p>
-              <h2 className="mt-4 text-5xl font-bold text-orange-600">{totalRedeemed}</h2>
+            <div className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+              <p className="text-sm font-bold text-slate-500">🎉 Total Redeemed</p>
+              <h2 className="mt-4 text-4xl font-black text-[#b18a16] sm:text-5xl">{totalRedeemed}</h2>
             </div>
           </div>
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <Link href="/business/add-offer" className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105">
-              <h2 className="text-2xl font-bold text-green-700">➕ Add Offer</h2>
-              <p className="mt-3 text-gray-600">Create new offers for students.</p>
+            <Link href="/business/add-offer" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
+              <h2 className="text-2xl font-black text-[#07111f]">➕ Add Offer</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">Create new offers for students.</p>
             </Link>
 
-            <Link href="/business/my-offers" className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105">
-              <h2 className="text-2xl font-bold text-blue-700">🎁 My Offers</h2>
-              <p className="mt-3 text-gray-600">View and manage your offers.</p>
+            <Link href="/business/my-offers" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
+              <h2 className="text-2xl font-black text-[#07111f]">🎁 My Offers</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">View and manage your offers.</p>
             </Link>
 
-            <Link href="/business/scan" className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105">
-              <h2 className="text-2xl font-bold text-purple-700">📷 Redeem Student Offer</h2>
-              <p className="mt-3 text-gray-600">Redeem Student Offer here.</p>
+            <Link href="/business/scan" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
+              <h2 className="text-2xl font-black text-[#07111f]">📷 Redeem Student Offer</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">Redeem Student Offer here.</p>
             </Link>
 
-            <Link href="/business/history" className="rounded-3xl bg-white p-8 shadow-xl transition hover:scale-105">
-              <h2 className="text-2xl font-bold text-orange-700">📊 Redemption History</h2>
-              <p className="mt-3 text-gray-600">View all redeemed offer history.</p>
+            <Link href="/business/history" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
+              <h2 className="text-2xl font-black text-[#07111f]">📊 Redemption History</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">View all redeemed offer history.</p>
             </Link>
           </div>
 
-          <div className="mt-10 rounded-3xl bg-white p-8 shadow-xl">
-            <h2 className="text-3xl font-bold text-green-700">🚀 SBC Business Portal</h2>
-            <p className="mt-4 text-lg text-gray-600">
+          <div className="mt-10 rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+            <h2 className="text-3xl font-black text-[#f1cf63]">🚀 SBC Business Portal</h2>
+            <p className="mt-4 text-base leading-7 text-white/65">
               Manage your offers, display your Business QR, receive student redemption requests,
               award SBC points and track all redemptions from one secure dashboard.
             </p>

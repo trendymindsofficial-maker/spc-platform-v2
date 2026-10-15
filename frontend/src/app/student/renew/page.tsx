@@ -215,7 +215,7 @@ export default function StudentRenewMembership() {
             <div className="flex items-start justify-between gap-5">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
-                  Student Benefit Card
+                  Student Benefit Pass
                 </p>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
                   Renew SBC

@@ -829,7 +829,7 @@ export default function PendingApprovals() {
                                 <div className="rounded-2xl bg-purple-50 p-5 md:col-span-2 lg:col-span-3">
 
                                   <p className="text-sm font-semibold text-purple-600">
-                                    🎫 SBC Card Number
+                                    🎫 SBC Pass Number
                                   </p>
 
                                   <p className="mt-2 text-xl font-extrabold tracking-wide text-purple-700">

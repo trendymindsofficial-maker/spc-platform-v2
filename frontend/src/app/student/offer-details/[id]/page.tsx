@@ -84,7 +84,7 @@ export default function OfferDetails({
               </p>
               <p className="mt-2 text-center text-base font-semibold text-slate-700">
                 This is an exclusive offer available only to verified Student
-                Benefit Card (SBC) members.
+                Benefit Pass (SBC) members.
               </p>
             </div>
 

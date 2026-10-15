@@ -1716,7 +1716,7 @@ export default function StudentOffers() {
         <header className="mb-5 flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-[#f4c52b] sm:text-4xl">
-              STUDENT PRIVILEGE CARD
+              STUDENT PRIVILEGE PASS
             </h1>
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
               Exclusive student offers &amp; benefits

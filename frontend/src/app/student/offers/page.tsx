@@ -1998,12 +1998,12 @@ export default function StudentOffers() {
         `${window.location.origin}/student/register?ref=${encodeURIComponent(referralCode)}`;
 
       const shareText =
-        `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
+        `Join Student Benefit Pass (SBC) using my referral link and unlock student benefits: ${link}`;
 
       if (navigator.share) {
         await navigator.share({
-          title: "Student Benefit Card - SBC",
-          text: "Join Student Benefit Card using my referral link.",
+          title: "Student Benefit Pass - SBC",
+          text: "Join Student Benefit Pass using my referral link.",
           url: link,
         });
         return;
@@ -2051,7 +2051,7 @@ export default function StudentOffers() {
 
               <div>
                 <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
-                  Student Benefit Card
+                  Student Benefit Pass
                 </p>
 
                 <p className="text-xs font-medium text-white/70 sm:text-sm">
