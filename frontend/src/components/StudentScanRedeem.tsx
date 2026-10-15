@@ -561,6 +561,9 @@ export default function StudentScanRedeem({
 
       const idToken = await auth.currentUser.getIdToken();
 
+      const idempotencyKey = crypto.randomUUID();
+
+
       const response = await apiFetch("/api/redemption/create", {
         method: "POST",
         headers: {
@@ -574,6 +577,7 @@ export default function StudentScanRedeem({
           offerId: offer.id,
           offerTitle: offer.title || "SBC Offer",
           offerDiscount: offer.discount || "",
+          idempotencyKey,
         }),
       });
 
