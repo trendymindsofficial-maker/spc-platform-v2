@@ -225,6 +225,7 @@ export default function StudentScanRedeem({
                 earnedPoints = Math.max(
                   earnedPoints,
                   Number(
+                    pointsData.lastPointsAwarded ||
                     pointsData.lastPointsEarned ||
                     pointsData.pointsAwarded ||
                     0
