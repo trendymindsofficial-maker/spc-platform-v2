@@ -74,7 +74,7 @@ interface Student {
 
 export default function StudentDashboard() {
   const router = useRouter();
-
+ 
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<Student | null>(null);
   const [error, setError] = useState("");
@@ -1597,6 +1597,8 @@ export default function StudentDashboard() {
     if (!showRedeemHistory) setSelectedCouponId(null);
   }, [showRedeemHistory]);
 
+
+
   useEffect(() => {
     if (!student) return;
 
@@ -1645,6 +1647,23 @@ export default function StudentDashboard() {
    * ?open=scan, trigger the same StudentScanRedeem
    * scanner through a window event.
    */
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("open") !== "coupon") return;
+
+    setShowLatestCoupon(true);
+
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${window.location.hash}`
+    );
+  }, []);
+
   useEffect(() => {
     if (!student || !membershipIsActive) return;
     if (typeof window === "undefined") return;

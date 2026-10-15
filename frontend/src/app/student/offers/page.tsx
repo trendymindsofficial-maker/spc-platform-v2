@@ -2862,95 +2862,126 @@ export default function StudentOffers() {
           APPROVED MODAL
       =========================================== */}
 
+     
+      
+      {/* MOBILE-FIRST REDEMPTION SUCCESS MODAL */}
       {approvedOffer && (
-
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
-
-          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
-
-                        {approvedOffer?.googleReviewLink ? (
-              <button
-                type="button"
-                onClick={() => shareGoogleReview(approvedOffer)}
-                className="mt-4 w-full rounded-xl bg-[#4285F4] py-3 text-sm font-black text-white transition hover:bg-[#3367d6]"
-              >
-                ⭐ Share your experience on Google
-              </button>
-            ) : null}
-
-<button
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#020811]/80 p-3 backdrop-blur-md">
+          <div className="relative max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-[2rem] border border-emerald-100 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
+            <button
               type="button"
               onClick={closeApproved}
               aria-label="Close"
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+              className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-500"
             >
-              ✕
+              ×
             </button>
 
-            <div className="p-6 text-center">
+            <div className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-white px-5 pb-4 pt-7 text-center">
+              <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-around text-lg" aria-hidden="true">
+                <span>🎉</span>
+                <span>✨</span>
+                <span>🎊</span>
+                <span>✨</span>
+                <span>🎉</span>
+              </div>
 
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl font-black text-green-600">
+              <div className="relative mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-full border-4 border-white bg-emerald-100 text-5xl text-emerald-600 shadow-lg">
                 ✓
               </div>
 
-              <h2 className="mt-3 text-2xl font-black text-green-700">
-                Approved Successfully!
+              <h2 className="mt-4 text-[26px] font-black tracking-tight text-emerald-700">
+                Redeem Successful!
               </h2>
 
-              <p className="mt-1 text-sm font-extrabold text-gray-800">
-                {approvedOffer.businessName}
+              <p className="mt-2 text-sm leading-5 text-slate-600">
+                Your redemption has been approved successfully.
               </p>
 
-              <div className="mt-4 rounded-xl bg-emerald-50 p-4">
+              <p className="mt-3 break-words text-base font-extrabold text-slate-900">
+                {approvedOffer.businessName || "SBC Partner Business"}
+              </p>
+            </div>
 
-                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                  Benefit Redeemed
+            <div className="space-y-3 px-4 pb-5 sm:px-5">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">🎟️</span>
+                  <h3 className="text-base font-black text-amber-900">
+                    Show Your Coupon
+                  </h3>
+                </div>
+
+                <p className="mt-2 text-center text-sm leading-6 text-amber-950">
+                  Open the Coupon section on your SBC dashboard and show your coupon to the respective business to avail the offer.
                 </p>
 
-                <p className="mt-1 text-base font-extrabold leading-5 text-green-700">
-                  🎁 {approvedOffer.title}
-                </p>
-
-                {approvedOffer.discount && (
-                  <p className="mt-1 text-sm font-black text-yellow-600">
-                    {approvedOffer.discount}
+                <div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-white/80 p-3 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Your Redeemed Offer
                   </p>
-                )}
-
+                  <p className="mt-1 break-words text-sm font-extrabold text-emerald-700">
+                    {approvedOffer.title || "SBC Offer"}
+                  </p>
+                  {approvedOffer.discount && (
+                    <p className="mt-1 text-sm font-black text-amber-700">
+                      {approvedOffer.discount}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-4">
-
-                <p className="text-xs font-black uppercase tracking-wide text-purple-600">
-                  ⭐ SBC Reward Points
+              <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-center">
+                <p className="text-xs font-black uppercase tracking-wider text-purple-700">
+                  ⭐ SBC Reward Points Earned
                 </p>
-
-                <p className="mt-1 text-3xl font-black text-purple-700">
+                <p className="mt-1 text-3xl font-black text-purple-800">
                   +{approvedPoints}
                 </p>
-
-
+                {approvedTotalPoints > 0 && (
+                  <p className="mt-1 text-xs font-semibold text-purple-700">
+                    Total points: {approvedTotalPoints}
+                  </p>
+                )}
               </div>
 
-              <p className="mt-3 text-xs font-semibold text-gray-400">
-                Redemption successful.
-              </p>
+              {approvedOffer.googleReviewLink ? (
+                <button
+                  type="button"
+                  onClick={() => shareGoogleReview(approvedOffer)}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-extrabold text-blue-700 transition active:scale-[0.98]"
+                >
+                  ⭐ Share Your Experience on Google
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => {
+                  closeApproved();
+                  router.push("/student/dashboard?open=coupon");
+                }}
+                className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 active:scale-[0.98]"
+              >
+                🎟️ View My Coupon
+              </button>
 
               <button
                 type="button"
                 onClick={closeApproved}
-                className="mt-4 w-full rounded-xl bg-[#07111f] py-3 text-sm font-black text-white transition hover:bg-[#101d2e]"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
               >
-                ✓ Done
+                Close
               </button>
 
+              <p className="text-center text-[11px] leading-4 text-slate-400">
+                Keep your coupon handy when visiting the business.
+              </p>
             </div>
-
           </div>
-
         </div>
-
       )}
+
 
       {/* ==========================================
           REJECTED MODAL
