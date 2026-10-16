@@ -1379,11 +1379,11 @@ export default function StudentRegister() {
 
                   <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
                     <p className="text-xl">
-                      ⭐
+                      🛡️
                     </p>
 
                     <p className="mt-2 text-xs font-black">
-                      Reward Points
+                      Trusted Partners
                     </p>
                   </div>
 

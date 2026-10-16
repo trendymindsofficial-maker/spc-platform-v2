@@ -2301,7 +2301,7 @@ export default function StudentDashboard() {
                 <span className="ml-2">👋</span>
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
-                Your SBC card unlocks exclusive student benefits, partner offers and reward points.
+                Your Student Benefit Pass unlocks exclusive student benefits and partner offers.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/80">
@@ -2384,30 +2384,6 @@ export default function StudentDashboard() {
                     </span>
                   </button>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
-                      Reward Points
-                    </p>
-                    <div className="mt-2 flex items-end gap-2">
-                      <span className="text-4xl font-black text-[#f1cf63]">
-                        {totalPoints.toLocaleString()}
-                      </span>
-                      <span className="pb-1 text-sm font-bold text-white/50">
-                        / 1000
-                      </span>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-[#d4af37] transition-all"
-                        style={{
-                          width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="mt-3 text-xs font-semibold text-white/55">
-                      {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -2431,34 +2407,6 @@ export default function StudentDashboard() {
             </span>
             <span className="text-xl text-[#f1cf63]">→</span>
           </button>
-        </section>
-
-        {/* MOBILE REWARD POINTS */}
-        <section className="mt-7 md:hidden">
-          <div className="rounded-[2rem] border border-[#d4af37]/25 bg-[#07111f] p-6 text-white shadow-[0_20px_60px_rgba(7,17,31,0.14)]">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
-              Reward Points
-            </p>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="text-4xl font-black text-[#f1cf63]">
-                {totalPoints.toLocaleString()}
-              </span>
-              <span className="pb-1 text-sm font-bold text-white/50">
-                / 1000
-              </span>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-[#d4af37] transition-all"
-                style={{
-                  width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-3 text-xs font-semibold text-white/55">
-              {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
-            </p>
-          </div>
         </section>
 
         {/* REFERRAL MARKETING */}
@@ -2919,7 +2867,6 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                       <div className="border-t border-dashed border-slate-300 pt-3">
-                        <p className="text-sm font-semibold text-slate-700">Points earned: <span className="font-black text-slate-950">{Number(coupon.pointsAwarded || 0).toLocaleString()}</span></p>
                       </div>
                     </div>
                   </div>
@@ -2972,7 +2919,7 @@ export default function StudentDashboard() {
                           </div>
                           <div className="border-t border-dashed border-slate-300 pt-3">
                             <div className="flex items-center justify-between gap-2"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${approved ? "bg-emerald-100 text-emerald-800" : rejected ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>{statusText}</span><span className="text-right text-[10px] font-semibold text-slate-500">{coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "Request date unavailable"}</span></div>
-                            <p className="mt-3 text-xs leading-5 text-slate-500">{approved ? `Request approved.${coupon.pointsAwarded ? ` ${coupon.pointsAwarded} points awarded.` : " Check your points balance for the latest total."}` : rejected ? "This request was rejected. Do not use this coupon for redemption." : "Request sent. Please wait for approval before using this offer."}</p>
+                            <p className="mt-3 text-xs leading-5 text-slate-500">{approved ? "Request approved." : rejected ? "This request was rejected. Do not use this coupon for redemption." : "Request sent. Please wait for approval before using this offer."}</p>
                             <div className="mt-3 flex items-center justify-between border-t border-dashed border-slate-200 pt-3"><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Request ID</span><span className="max-w-[68%] truncate font-mono text-[10px] font-bold text-slate-600">{coupon.requestId}</span></div>
                           </div>
                         </div>

@@ -308,7 +308,7 @@ export default function StudentLogin() {
                 </h2>
 
                 <p className="mt-5 max-w-sm text-sm leading-6 text-white/55">
-                  Sign in to discover exclusive student offers, partner benefits and SBC reward points.
+                  Sign in to discover exclusive student offers and partner benefits.
                 </p>
               </div>
 

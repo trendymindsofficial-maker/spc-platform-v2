@@ -317,7 +317,7 @@ export default function Home() {
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600">
               Student Benefit Pass helps students discover exclusive discounts,
-              offers, rewards and savings from partner businesses — all through
+              offers and savings from partner businesses — all through
               one simple digital platform.
             </p>
 
@@ -325,7 +325,6 @@ export default function Home() {
               {[
                 ["💰", "Real Savings", "Exclusive benefits made for students."],
                 ["⚡", "Simple Redemption", "Request and get approval digitally."],
-                ["🎁", "Reward Points", "Get more value from eligible activity."],
                 ["🛡️", "Trusted Partners", "A growing network of businesses."],
               ].map(([icon, title, text]) => (
                 <div key={title} className="rounded-2xl border border-black/[.06] p-4">

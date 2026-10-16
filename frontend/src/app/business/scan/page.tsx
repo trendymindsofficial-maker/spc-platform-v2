@@ -2285,20 +2285,6 @@ export default function StudentOffers() {
               </p>
             </div>
 
-            <div className="mt-2 rounded-lg border border-purple-300 bg-purple-50 px-3 py-2">
-              <p className="text-[11px] font-bold text-purple-600">
-                ⭐ SBC Reward Points
-              </p>
-
-              <p className="mt-0.5 text-2xl font-black leading-7 text-purple-700">
-                +{approvedPoints} Points
-              </p>
-
-              <p className="mt-0.5 text-[10px] font-semibold text-gray-600">
-                Total points: {approvedTotalPoints}
-              </p>
-            </div>
-
             <button
               onClick={closeApproved}
               className="mt-3 w-full rounded-lg bg-[#07111f] py-2 text-sm font-black text-white transition hover:bg-[#101d2e]"

@@ -900,20 +900,6 @@ export default function StudentScanRedeem({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-center">
-                <p className="text-xs font-black uppercase tracking-wider text-purple-700">
-                  ⭐ SBC Reward Points Earned
-                </p>
-                <p className="mt-1 text-3xl font-black text-purple-800">
-                  +{approvedPoints}
-                </p>
-                {approvedTotalPoints > 0 && (
-                  <p className="mt-1 text-xs font-semibold text-purple-700">
-                    Total points: {approvedTotalPoints}
-                  </p>
-                )}
-              </div>
-
               {approvedOffer.googleReviewLink ? (
                 <button
                   type="button"
