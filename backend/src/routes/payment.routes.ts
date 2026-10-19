@@ -1,4 +1,6 @@
+
 import crypto from "crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { Router } from "express";
 
 import {
@@ -6,11 +8,7 @@ import {
   MEMBERSHIP_AMOUNT_PAISE,
   MEMBERSHIP_PLAN,
 } from "../config/constants";
-import {
-  CHECKOUT_API_ENABLED,
-  RAZORPAY_KEY_SECRET,
-  RAZORPAY_PAYMENT_BUTTON_ID,
-} from "../config/env";
+import { APP_PUBLIC_URL } from "../config/env";
 import { toDate } from "../lib/dates";
 import { getDb } from "../lib/firebase-admin";
 import {
@@ -21,57 +19,26 @@ import {
   readString,
 } from "../lib/http";
 import { grantMembership } from "../lib/membership";
-import { getRazorpay, getRazorpayKeyId } from "../lib/razorpay";
+import { getPhonePeClient } from "../lib/phonepe";
 import { currentUser, requireUser } from "../middleware/auth";
-import { webhookRouter } from "./webhook.routes";
 
 export const paymentRouter = Router();
-
-/*
- * POST /api/payment/webhook — mounted first and deliberately before any
- * auth middleware. Razorpay is the caller and authenticates with a
- * signature, not a Firebase token.
- */
-paymentRouter.use("/", webhookRouter);
-
-/*
-|--------------------------------------------------------------------------
-| GET /api/payment/config
-|--------------------------------------------------------------------------
-|
-| Public. Tells the frontend which payment button to render and what the
-| membership costs, so neither value is hardcoded in the UI.
-|
-*/
 
 paymentRouter.get("/config", (_req, res) => {
   res.json({
     success: true,
-    paymentButtonId: RAZORPAY_PAYMENT_BUTTON_ID,
     amount: MEMBERSHIP_AMOUNT,
     currency: "INR",
     plan: MEMBERSHIP_PLAN,
-    checkoutApiEnabled: CHECKOUT_API_ENABLED,
+    provider: "PhonePe",
   });
 });
-
-/*
-|--------------------------------------------------------------------------
-| GET /api/payment/membership-status
-|--------------------------------------------------------------------------
-|
-| The payment button hands control to Razorpay's hosted page, so the
-| browser never learns the outcome directly. The frontend watches the
-| student document in Firestore and can fall back to polling this.
-|
-*/
 
 paymentRouter.get(
   "/membership-status",
   requireUser,
   asyncHandler(async (req, res) => {
     const uid = currentUser(req).uid;
-
     const snap = await getDb().collection("students").doc(uid).get();
 
     if (!snap.exists) {
@@ -79,18 +46,15 @@ paymentRouter.get(
     }
 
     const student = snap.data() || {};
-
     const expiry = toDate(student.membershipExpiryDate);
     const start = toDate(student.membershipStartDate);
-
-    const active = !!expiry && expiry.getTime() > Date.now();
 
     res.json({
       success: true,
       paid: String(student.paymentStatus || "").toLowerCase() === "paid",
       status: String(student.status || ""),
       membershipStatus: String(student.membershipStatus || ""),
-      membershipActive: active,
+      membershipActive: !!expiry && expiry.getTime() > Date.now(),
       membershipStartDate: start?.toISOString() || null,
       membershipExpiryDate: expiry?.toISOString() || null,
       cardNumber: String(student.cardNumber || ""),
@@ -98,331 +62,200 @@ paymentRouter.get(
   })
 );
 
-/*
-|--------------------------------------------------------------------------
-| POST /api/payment/claim
-|--------------------------------------------------------------------------
-|
-| Safety net for the one weakness of a static payment button: the webhook
-| matches a payment to a student by the phone number entered on Razorpay's
-| checkout. If a student pays with a different number, the payment lands
-| as "unmatched".
-|
-| This lets them claim it with the Razorpay payment id from their receipt.
-| The claim is only honoured for a payment that
-|
-|   - we actually received and verified by webhook signature,
-|   - is captured for the correct amount,
-|   - is still unmatched (never already credited to anyone).
-|
-| So this cannot invent a payment or steal one that is already assigned.
-|
-*/
-
-paymentRouter.post(
-  "/claim",
-  requireUser,
-  asyncHandler(async (req, res) => {
-    const uid = currentUser(req).uid;
-
-    const paymentId = readString(req.body?.paymentId);
-
-    if (!paymentId || !/^pay_[A-Za-z0-9]+$/.test(paymentId)) {
-      throw badRequest(
-        "Enter the Razorpay Payment ID from your receipt (it starts with pay_)."
-      );
-    }
-
-    const db = getDb();
-
-    const paymentRef = db.collection("membershipPayments").doc(paymentId);
-    const paymentSnap = await paymentRef.get();
-
-    /*
-     * Only payments this server received over a signature-verified
-     * webhook exist here, so an invented id cannot be claimed.
-     */
-    if (!paymentSnap.exists) {
-      throw notFound(
-        "We have not received this payment yet. Please wait a minute and try again, or contact SBC support."
-      );
-    }
-
-    const payment = paymentSnap.data() || {};
-    const paymentState = String(payment.status || "").toLowerCase();
-
-    if (paymentState === "paid") {
-      /*
-       * Already credited. If it was this student, treat as success so a
-       * double tap is harmless.
-       */
-      if (String(payment.uid || "") === uid) {
-        res.json({ success: true, alreadyCredited: true });
-        return;
-      }
-
-      throw new ApiError(
-        409,
-        "This payment is already linked to another SBC account. Please contact support."
-      );
-    }
-
-    if (paymentState !== "unmatched") {
-      throw badRequest("This payment cannot be claimed.");
-    }
-
-    if (
-      Number(payment.amount) !== MEMBERSHIP_AMOUNT ||
-      String(payment.currency || "").toUpperCase() !== "INR"
-    ) {
-      throw badRequest(
-        `Only a ₹${MEMBERSHIP_AMOUNT} SBC membership payment can be claimed.`
-      );
-    }
-
-    const result = await grantMembership({
-      uid,
-      paymentId,
-      orderId: String(payment.razorpayOrderId || ""),
-      amount: Number(payment.amount),
-      currency: String(payment.currency || "INR").toUpperCase(),
-      source: "payment_button_webhook",
-      payerContact: String(payment.payerContact || ""),
-      payerEmail: String(payment.payerEmail || ""),
-    });
-
-    await paymentRef.set(
-      {
-        claimedByUid: uid,
-        claimedAt: new Date(),
-        unmatchedReason: "",
-      },
-      { merge: true }
-    );
-
-    console.log("Unmatched payment claimed:", { uid, paymentId });
-
-    res.json({
-      success: true,
-      membershipStartDate: result.membershipStartDate,
-      membershipExpiryDate: result.membershipExpiryDate,
-    });
-  })
-);
-
-/*
-|--------------------------------------------------------------------------
-| LEGACY CHECKOUT (Orders API)
-|--------------------------------------------------------------------------
-|
-| Kept for accounts that are approved for the Orders API. Both endpoints
-| below refuse to run when the API keys are absent, which is the case
-| while only the no-code Payment Button is available.
-|
-*/
-
-function assertCheckoutEnabled(): void {
-  if (!CHECKOUT_API_ENABLED) {
-    throw new ApiError(
-      503,
-      "Card checkout is unavailable. Please use the SBC payment button to pay."
-    );
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| POST /api/payment/create-order
-|--------------------------------------------------------------------------
-|
-| Creates the Razorpay order for a new membership or a renewal.
-|
-| The amount is fixed server-side at MEMBERSHIP_AMOUNT. body.amount is
-| ignored entirely, so a tampered browser cannot buy a membership for ₹1.
-|
-*/
-
 paymentRouter.post(
   "/create-order",
   requireUser,
   asyncHandler(async (req, res) => {
-    assertCheckoutEnabled();
-
     const uid = currentUser(req).uid;
+    const mode = readString(req.body?.mode).toLowerCase();
 
-    /*
-     * Purpose only affects bookkeeping and the renewal pre-check.
-     */
-    const requestedPurpose =
-      typeof req.body?.purpose === "string"
-        ? req.body.purpose.trim().toLowerCase()
-        : "";
-
-    const isRenewal = requestedPurpose === "sbc membership renewal";
-
-    const purpose = isRenewal
-      ? "SBC membership renewal"
-      : "SBC student membership";
-
-    /*
-     * A renewal only makes sense for an existing student. Registration
-     * has no student document yet at this point.
-     */
-    if (isRenewal) {
-      const studentSnap = await getDb().collection("students").doc(uid).get();
-
-      if (!studentSnap.exists) {
-        throw notFound(
-          "Student membership account was not found. Please complete registration first."
-        );
-      }
+    if (mode !== "registration" && mode !== "renewal") {
+      throw badRequest("Invalid membership payment mode.");
     }
 
-    const order = await getRazorpay().orders.create({
-      amount: MEMBERSHIP_AMOUNT_PAISE,
+    const db = getDb();
+    const studentRef = db.collection("students").doc(uid);
+    const studentSnap = await studentRef.get();
+
+    if (!studentSnap.exists) {
+      throw notFound("Student account was not found. Please complete registration first.");
+    }
+
+    const merchantOrderId = `SBC${Date.now()}${crypto
+      .randomBytes(8)
+      .toString("hex")}`;
+
+    const returnUrl = new URL("/student/payment-return", APP_PUBLIC_URL);
+    returnUrl.searchParams.set("merchantOrderId", merchantOrderId);
+    returnUrl.searchParams.set("mode", mode);
+
+    const orderRef = db.collection("phonepeOrders").doc(merchantOrderId);
+
+    await orderRef.set({
+      uid,
+      merchantOrderId,
+      amount: MEMBERSHIP_AMOUNT,
+      amountPaise: MEMBERSHIP_AMOUNT_PAISE,
       currency: "INR",
-      receipt: `sbc_${uid.slice(0, 8)}_${Date.now()}`,
-      notes: {
-        purpose,
-        uid,
-        membershipPlan: MEMBERSHIP_PLAN,
-        amount: String(MEMBERSHIP_AMOUNT),
-      },
+      purpose: mode,
+      plan: MEMBERSHIP_PLAN,
+      status: "initiated",
+      provider: "PhonePe",
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
-    res.json({
-      success: true,
-      order,
-      keyId: getRazorpayKeyId(),
-    });
+    try {
+      const payRequest = (
+        await import("@phonepe-pg/pg-sdk-node")
+      ).StandardCheckoutPayRequest.builder()
+        .merchantOrderId(merchantOrderId)
+        .amount(MEMBERSHIP_AMOUNT_PAISE)
+        .redirectUrl(returnUrl.toString())
+        .message("SBC one-year student membership")
+        .expireAfter(900)
+        .build();
+
+      const phonePeResponse = await getPhonePeClient().pay(payRequest);
+
+      if (!phonePeResponse.redirectUrl) {
+        throw new Error("PhonePe did not return a checkout URL.");
+      }
+
+      await orderRef.set(
+        {
+          status: "pending",
+          phonepeOrderId: phonePeResponse.orderId,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      res.json({
+        success: true,
+        merchantOrderId,
+        redirectUrl: phonePeResponse.redirectUrl,
+      });
+    } catch (error) {
+      await orderRef.set(
+        {
+          status: "initiation_failed",
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      throw error;
+    }
   })
 );
-
-/*
-|--------------------------------------------------------------------------
-| POST /api/payment/verify
-|--------------------------------------------------------------------------
-|
-| Four independent checks before any membership is granted:
-|
-|   1. HMAC signature over "<orderId>|<paymentId>" using the key secret.
-|   2. The order really is a ₹199 INR order (fetched from Razorpay).
-|   3. A payment with this id really belongs to that order and is captured
-|      for the same amount and currency.
-|   4. The membershipPayments/<paymentId> document acts as an idempotency
-|      key, so a retried verification never extends membership twice.
-|
-*/
 
 paymentRouter.post(
   "/verify",
   requireUser,
   asyncHandler(async (req, res) => {
-    assertCheckoutEnabled();
-
     const uid = currentUser(req).uid;
+    const merchantOrderId = readString(req.body?.merchantOrderId);
 
-    const orderId = String(req.body?.razorpay_order_id || "").trim();
-    const paymentId = String(req.body?.razorpay_payment_id || "").trim();
-    const signature = String(req.body?.razorpay_signature || "").trim();
-
-    if (!orderId || !paymentId || !signature) {
-      throw badRequest("Missing Razorpay payment verification fields.");
+    if (!merchantOrderId || !/^SBC[A-Za-z0-9]+$/.test(merchantOrderId)) {
+      throw badRequest("Invalid PhonePe order reference.");
     }
 
-    if (!RAZORPAY_KEY_SECRET) {
-      console.error("Razorpay environment variables are missing.");
+    const db = getDb();
+    const orderRef = db.collection("phonepeOrders").doc(merchantOrderId);
+    const orderSnap = await orderRef.get();
 
-      throw new ApiError(500, "Payment verification is not configured.");
+    if (!orderSnap.exists) {
+      throw notFound("PhonePe membership order was not found.");
     }
 
-    /*
-     * 1. Signature.
-     */
-    const expectedSignature = crypto
-      .createHmac("sha256", RAZORPAY_KEY_SECRET)
-      .update(`${orderId}|${paymentId}`)
-      .digest("hex");
+    const order = orderSnap.data() || {};
 
-    const signatureBuffer = Buffer.from(signature, "utf8");
-    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
-
-    const signatureValid =
-      signatureBuffer.length === expectedBuffer.length &&
-      crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
-
-    if (!signatureValid) {
-      throw badRequest("Invalid payment signature.");
-    }
-
-    const razorpay = getRazorpay();
-
-    /*
-     * 2. The order itself.
-     */
-    const razorpayOrder = await razorpay.orders.fetch(orderId);
-
-    const orderAmount = Number(razorpayOrder.amount);
-    const orderCurrency = String(razorpayOrder.currency || "").toUpperCase();
-
-    if (orderAmount !== MEMBERSHIP_AMOUNT_PAISE || orderCurrency !== "INR") {
-      console.error("Invalid SBC membership order:", {
-        orderId,
-        orderAmount,
-        orderCurrency,
-      });
-
-      throw badRequest("Invalid SBC membership payment amount.");
-    }
-
-    /*
-     * 3. The payment belongs to that order and was captured.
-     */
-    const payments = await razorpay.orders.fetchPayments(orderId);
-
-    const matchingPayment = Array.isArray(payments?.items)
-      ? payments.items.find(
-          (payment: { id?: string }) => payment?.id === paymentId
-        )
-      : undefined;
-
-    if (!matchingPayment) {
-      throw badRequest(
-        "Payment could not be confirmed for this Razorpay order."
-      );
-    }
-
-    if (String(matchingPayment.status || "").toLowerCase() !== "captured") {
-      throw badRequest("Payment has not been captured successfully.");
+    if (String(order.uid || "") !== uid) {
+      throw new ApiError(403, "This payment order does not belong to your account.");
     }
 
     if (
-      Number(matchingPayment.amount) !== MEMBERSHIP_AMOUNT_PAISE ||
-      String(matchingPayment.currency || "").toUpperCase() !== "INR"
+      Number(order.amountPaise) !== MEMBERSHIP_AMOUNT_PAISE ||
+      String(order.currency || "").toUpperCase() !== "INR"
     ) {
-      throw badRequest("Invalid captured payment amount.");
+      throw badRequest("Invalid SBC membership order amount.");
     }
 
-    /*
-     * 4. Idempotent membership write, shared with the webhook path.
-     */
+    const phonePeStatus = await getPhonePeClient().getOrderStatus(
+      merchantOrderId,
+      true
+    );
+
+    const orderState = String(phonePeStatus.state || "").toUpperCase();
+    const responseAmount = Number(phonePeStatus.amount);
+
+    if (orderState !== "COMPLETED") {
+      res.status(200).json({
+        success: false,
+        pending: orderState !== "FAILED" && orderState !== "DECLINED",
+        message:
+          orderState === "FAILED" || orderState === "DECLINED"
+            ? "PhonePe reports that this payment failed. You can try again."
+            : "Payment is not confirmed yet. Please wait and check again.",
+      });
+      return;
+    }
+
+    if (responseAmount !== MEMBERSHIP_AMOUNT_PAISE) {
+      throw badRequest("PhonePe payment amount does not match the SBC membership fee.");
+    }
+
+    const completedPayment = Array.isArray(phonePeStatus.paymentDetails)
+      ? phonePeStatus.paymentDetails.find(
+          (payment) =>
+            String(payment.state || "").toUpperCase() === "COMPLETED" &&
+            Number(payment.amount) === MEMBERSHIP_AMOUNT_PAISE &&
+            Boolean(payment.transactionId)
+        )
+      : undefined;
+
+    if (!completedPayment) {
+      throw badRequest(
+        "A completed PhonePe transaction could not be confirmed for this order."
+      );
+    }
+
+    const studentSnap = await db.collection("students").doc(uid).get();
+
+    if (!studentSnap.exists) {
+      throw notFound("Student account was not found.");
+    }
+
     const result = await grantMembership({
       uid,
-      paymentId,
-      orderId,
+      paymentProvider: "PhonePe",
+      paymentId: completedPayment.transactionId,
+      orderId: merchantOrderId,
       amount: MEMBERSHIP_AMOUNT,
       currency: "INR",
-      source: "checkout_verify",
+      source: "phonepe_status_verify",
     });
+
+    await orderRef.set(
+      {
+        status: "paid",
+        phonepeOrderId: phonePeStatus.orderId,
+        phonepeTransactionId: completedPayment.transactionId,
+        verifiedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     res.json({
       success: true,
       verified: true,
-      paymentId,
-      orderId,
+      paymentId: completedPayment.transactionId,
+      merchantOrderId,
       membershipStartDate: result.membershipStartDate,
       membershipExpiryDate: result.membershipExpiryDate,
-      membershipUpdated: result.isRenewal && !result.alreadyProcessed,
+      membershipUpdated: !result.alreadyProcessed,
       alreadyProcessed: result.alreadyProcessed,
     });
   })

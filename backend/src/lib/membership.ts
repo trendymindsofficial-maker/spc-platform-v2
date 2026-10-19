@@ -26,7 +26,12 @@ import { getDb } from "./firebase-admin";
 |
 */
 
-export type PaymentSource = "payment_button_webhook" | "checkout_verify";
+
+export type PaymentSource =
+  | "payment_button_webhook"
+  | "checkout_verify"
+  | "phonepe_status_verify";
+
 
 export interface GrantMembershipInput {
   uid: string;
@@ -35,13 +40,11 @@ export interface GrantMembershipInput {
   amount: number;
   currency: string;
   source: PaymentSource;
-  /** Razorpay contact/email as received, for the audit trail. */
+  paymentProvider?: "Razorpay" | "PhonePe";
   payerContact?: string;
   payerEmail?: string;
-  /** Razorpay event id, when the grant came from a webhook. */
   eventId?: string;
 }
-
 export interface GrantMembershipResult {
   alreadyProcessed: boolean;
   isRenewal: boolean;
@@ -135,8 +138,17 @@ export async function grantMembership(
         paymentAmount: input.amount,
         paymentCurrency: input.currency,
 
-        razorpayPaymentId: input.paymentId,
-        razorpayOrderId: input.orderId,
+       ...(input.paymentProvider === "PhonePe"
+  ? {
+      phonepeTransactionId: input.paymentId,
+      phonepeMerchantOrderId: input.orderId,
+      paymentProvider: "PhonePe",
+    }
+  : {
+      razorpayPaymentId: input.paymentId,
+      razorpayOrderId: input.orderId,
+      paymentProvider: "Razorpay",
+    }),
 
         lastMembershipPaymentId: input.paymentId,
         lastMembershipOrderId: input.orderId,
@@ -156,12 +168,18 @@ export async function grantMembership(
       amount: input.amount,
       currency: input.currency,
 
-      razorpayPaymentId: input.paymentId,
-      razorpayOrderId: input.orderId,
-
-      ...(input.eventId ? { razorpayEventId: input.eventId } : {}),
-      ...(input.payerContact ? { payerContact: input.payerContact } : {}),
-      ...(input.payerEmail ? { payerEmail: input.payerEmail } : {}),
+      ...(input.paymentProvider === "PhonePe"
+        ? {
+            phonepeTransactionId: input.paymentId,
+            phonepeMerchantOrderId: input.orderId,
+            paymentProvider: "PhonePe",
+          }
+        : {
+            razorpayPaymentId: input.paymentId,
+            razorpayOrderId: input.orderId,
+            paymentProvider: "Razorpay",
+            ...(input.eventId ? { razorpayEventId: input.eventId } : {}),
+          }),
 
       membershipStartDate: Timestamp.fromDate(membershipStartDate),
       membershipExpiryDate: Timestamp.fromDate(membershipExpiryDate),

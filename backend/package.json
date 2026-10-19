@@ -14,15 +14,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@phonepe-pg/pg-sdk-node": "^2.0.6",
+    "@types/cors": "2.8.17",
+    "@types/express": "4.17.21",
+    "@types/node": "20.17.12",
     "cors": "2.8.5",
     "dotenv": "16.4.7",
     "express": "4.22.3",
     "firebase-admin": "13.10.0",
     "helmet": "8.0.0",
     "razorpay": "2.9.8",
-    "@types/cors": "2.8.17",
-    "@types/express": "4.17.21",
-    "@types/node": "20.17.12",
     "typescript": "5.7.3"
   },
   "devDependencies": {
