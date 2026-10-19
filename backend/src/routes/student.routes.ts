@@ -70,6 +70,14 @@ studentRouter.post(
       ]);
       console.log("[check-mobile] Firestore matches:", snapshot.size);
 console.log("[check-mobile] Firebase Auth user found:", Boolean(authUser));
+console.log(
+  "[check-mobile] Auth UID:",
+  authUser?.uid ?? "not-found"
+);
+console.log(
+  "[check-mobile] Auth phone matches requested:",
+  authUser?.phoneNumber === toE164(mobile)
+);
       if (!snapshot.empty) {
         const matchingStudent = snapshot.docs.find((item) => {
           const data = item.data();
