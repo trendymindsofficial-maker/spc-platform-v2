@@ -90,7 +90,7 @@ export default function Home() {
               </span>
               <span className="min-w-0 text-left">
                 <span className="block truncate text-[11px] font-black tracking-[.10em] text-white sm:text-[#07111f] sm:text-[14px] sm:tracking-[.12em]">
-                  STUDENT BENEFIT PASS
+                  STUDENT BENEFIT CARD
                 </span>
                 <span className="mt-0.5 block text-[7px] font-semibold uppercase tracking-[.16em] text-white/55 sm:text-slate-500 sm:text-[9px] sm:tracking-[.2em]">
                   More Benefits. More Savings.
@@ -363,7 +363,7 @@ export default function Home() {
                         SBC
                       </span>
                       <div>
-                        <p className="text-[10px] font-black tracking-[.12em]">STUDENT BENEFIT PASS</p>
+                        <p className="text-[10px] font-black tracking-[.12em]">STUDENT BENEFIT CARD</p>
                         <p className="text-[7px] font-semibold tracking-[.16em] text-white/50">MORE BENEFITS. MORE SAVINGS.</p>
                       </div>
                     </div>
@@ -544,7 +544,7 @@ export default function Home() {
               </span>
               <div className="min-w-0">
                 <h2 className="text-base font-bold tracking-wide">
-                  STUDENT BENEFIT PASS
+                  STUDENT BENEFIT CARD
                 </h2>
                 <p className="text-xs text-slate-300">More Benefits. More Savings.</p>
               </div>
@@ -628,7 +628,7 @@ export default function Home() {
               SBC
             </span>
             <span className="text-left">
-              <span className="block text-xs font-black tracking-[.12em]">STUDENT BENEFIT PASS</span>
+              <span className="block text-xs font-black tracking-[.12em]">STUDENT BENEFIT CARD</span>
               <span className="block text-[9px] text-slate-400">More Benefits. More Savings.</span>
             </span>
           </button>

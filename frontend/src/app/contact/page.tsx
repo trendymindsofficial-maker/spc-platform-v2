@@ -18,7 +18,7 @@ export default function ContactPage() {
             </span>
             <div>
               <p className="text-xs font-bold tracking-[0.16em] text-slate-300">
-                STUDENT BENEFIT PASS
+                STUDENT BENEFIT CARD
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 More Benefits. More Savings.
