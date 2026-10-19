@@ -68,7 +68,8 @@ studentRouter.post(
             throw authError;
           }),
       ]);
-
+      console.log("[check-mobile] Firestore matches:", snapshot.size);
+console.log("[check-mobile] Firebase Auth user found:", Boolean(authUser));
       if (!snapshot.empty) {
         const matchingStudent = snapshot.docs.find((item) => {
           const data = item.data();
