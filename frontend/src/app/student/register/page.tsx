@@ -24,6 +24,7 @@ import {
 
 import {
   doc,
+  getDoc,
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
@@ -468,24 +469,22 @@ export default function StudentRegister() {
         }
 
         /*
-         * Existing mobile
+         * Existing mobile:
+         * Do not stop before OTP. The number may belong to the same
+         * student whose first payment failed. OTP proves control of the
+         * number; after verification registerStudent checks the signed-in
+         * UID and only resumes an unpaid student document for that UID.
+         * Paid/active accounts are still blocked later.
          */
-
         if (data.exists === true) {
           console.log(
-            "🚫 Mobile already registered. OTP will NOT be sent."
+            "ℹ️ Mobile already has an account; OTP verification is required to check for pending payment recovery."
           );
-
           alert(
-            "⚠️ This mobile number is already registered.\n\nPlease login using your existing SBC account."
+            "This mobile number already has an SBC account. Verify OTP to continue a pending membership payment. Active accounts cannot register again."
           );
-
-          return true;
+          return false;
         }
-
-        /*
-         * New mobile
-         */
 
         console.log(
           "✅ Mobile is available for registration."
@@ -808,17 +807,8 @@ export default function StudentRegister() {
 
   const registerStudent =
     async () => {
-      if (
-        !fullName.trim() ||
-        !mobile.trim() ||
-        !password ||
-        !college.trim() ||
-        !course.trim() ||
-        !year.trim()
-      ) {
-        alert(
-          "Please fill all fields."
-        );
+      if (!mobile.trim()) {
+        alert("Please enter your mobile number.");
         return;
       }
 
@@ -828,15 +818,6 @@ export default function StudentRegister() {
       ) {
         alert(
           "Please verify your mobile number with OTP first."
-        );
-        return;
-      }
-
-      if (
-        password.length < 6
-      ) {
-        alert(
-          "Password should be at least 6 characters."
         );
         return;
       }
@@ -890,6 +871,102 @@ export default function StudentRegister() {
           "👤 Current OTP Firebase UID:",
           currentUser.uid
         );
+
+        /*
+         * ======================================================
+         * RESUME EXISTING PENDING-PAYMENT STUDENT
+         * ======================================================
+         * If the student already completed registration but PhonePe
+         * payment failed, reuse their existing student document and UID.
+         * Never link the email/password credential a second time and
+         * never overwrite their referral/card/college data.
+         */
+        const existingStudentSnap = await getDoc(
+          doc(db, "students", currentUser.uid)
+        );
+
+        if (existingStudentSnap.exists()) {
+          const existingStudent = existingStudentSnap.data();
+          const existingMobile = String(existingStudent.mobile || "")
+            .replace(/\D/g, "");
+          const existingStatus = String(existingStudent.status || "")
+            .toLowerCase();
+          const existingPaymentStatus = String(
+            existingStudent.paymentStatus || ""
+          ).toLowerCase();
+          const existingMembershipStatus = String(
+            existingStudent.membershipStatus || ""
+          ).toLowerCase();
+
+          if (existingMobile && existingMobile !== cleanedMobile) {
+            alert(
+              "The verified mobile number does not match this student account. Please contact SBC support."
+            );
+            return;
+          }
+
+          const paymentPending =
+            existingStatus === "pending_payment" ||
+            existingPaymentStatus === "pending" ||
+            existingMembershipStatus === "pending_payment";
+
+          const alreadyPaid =
+            existingPaymentStatus === "paid" ||
+            existingStatus === "active" ||
+            existingMembershipStatus === "active";
+
+          if (paymentPending && !alreadyPaid) {
+            const existingCardNumber = String(
+              existingStudent.cardNumber || ""
+            );
+
+            setRegisteredUid(currentUser.uid);
+            setRegisteredCardNumber(existingCardNumber || "SBC");
+            setRegisteredMobile(cleanedMobile);
+            setOtpSent(false);
+            setOtpVerified(false);
+            confirmationResultRef.current = null;
+            resetRecaptcha();
+
+            alert(
+              "Your previous registration was found. You can retry the ₹199 membership payment now."
+            );
+            return;
+          }
+
+          if (alreadyPaid) {
+            alert(
+              "This SBC account is already active. Please login instead of registering again."
+            );
+            try {
+              await signOut(auth);
+            } catch {}
+            router.replace("/student/login");
+            return;
+          }
+
+          alert(
+            "An SBC account already exists for this mobile number. Please login or contact SBC support if you cannot access it."
+          );
+          return;
+        }
+
+        // Only a genuinely new student needs the full registration form.
+        if (
+          !fullName.trim() ||
+          !password ||
+          !college.trim() ||
+          !course.trim() ||
+          !year.trim()
+        ) {
+          alert("Please fill all student details to create a new account.");
+          return;
+        }
+
+        if (password.length < 6) {
+          alert("Password should be at least 6 characters.");
+          return;
+        }
 
         /*
          * ======================================================
@@ -970,14 +1047,11 @@ export default function StudentRegister() {
          * ACCOUNT FIRST, THEN PAYMENT
          * ======================================================
          *
-         * The SBC membership fee is collected by the hosted
-         * Razorpay Payment Button, which reports the payment to
-         * our backend over a signed webhook rather than to this
-         * page.
+         * The SBC membership fee is collected through PhonePe hosted checkout.
+         * The backend verifies the order status before activating membership.
          *
-         * The webhook has to be able to find the student it is
-         * paying for, so the account is created here first, in a
-         * deliberately unpaid state:
+         * The backend must find the student before verifying payment, so the
+         * account is created here first in a deliberately unpaid state:
          *
          *     status           = pending_payment
          *     paymentStatus    = pending
@@ -1081,8 +1155,7 @@ export default function StudentRegister() {
 
             /*
              * Unpaid on purpose. Membership dates are written only
-             * by the server, when Razorpay confirms the payment
-             * over the webhook. The client never sets them.
+             * by the server, after PhonePe payment status is verified. The client never sets them.
              */
             membershipStatus:
               "pending_payment",
