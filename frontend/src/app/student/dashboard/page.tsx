@@ -1961,13 +1961,13 @@ export default function StudentDashboard() {
     const link = getReferralLink();
     if (!link) return;
 
-    const shareText = `Join Student Benefit Pass (SBC) using my referral link and unlock student benefits: ${link}`;
+    const shareText = `Join Student Benefit Card (SBC) using my referral link and unlock student benefits: ${link}`;
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "Student Benefit Pass - SBC",
-          text: "Join Student Benefit Pass using my referral link.",
+          title: "Student Benefit Card - SBC",
+          text: "Join Student Benefit Card using my referral link.",
           url: link,
         });
         return;
@@ -2176,7 +2176,7 @@ export default function StudentDashboard() {
               </div>
 
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#f1cf63]">
-                Student Benefit Pass
+                Student Benefit Card
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
@@ -2259,7 +2259,7 @@ export default function StudentDashboard() {
             <div>
 
               <p className="break-words text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] sm:text-[15px] sm:tracking-[0.25em]">
-                Student Benefit Pass
+                Student Benefit Card
               </p>
 
               <p className="text-xs font-medium text-white/70 sm:text-sm">
@@ -2301,7 +2301,7 @@ export default function StudentDashboard() {
                 <span className="ml-2">👋</span>
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
-                Your Student Benefit Pass unlocks exclusive student benefits and partner offers.
+                Your Student Benefit Card unlocks exclusive student benefits and partner offers.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/80">
@@ -2653,7 +2653,7 @@ export default function StudentDashboard() {
             <div className="relative mt-7 rounded-[1.6rem] border border-[#d4af37]/25 bg-black/20 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Pass</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Student Benefit Card</p>
                   <p className="mt-2 text-xl font-black text-[#f1cf63]">More Benefits. More Savings.</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 text-lg font-black text-[#f1cf63]">SBC</div>
@@ -2798,7 +2798,7 @@ export default function StudentDashboard() {
             <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Pass</p>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
                   <h2 className="mt-1 text-2xl font-black">Latest Coupon</h2>
                 </div>
                 <button type="button" onClick={() => setShowLatestCoupon(false)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-2xl" aria-label="Close coupon">×</button>
@@ -2882,7 +2882,7 @@ export default function StudentDashboard() {
             <section className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Pass</p>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-300">Student Benefit Card</p>
                   <h2 className="mt-1 text-2xl font-black">Redeem History</h2>
                   <p className="mt-1 text-sm text-slate-400">Your coupons and approval status</p>
                 </div>
@@ -2945,7 +2945,7 @@ export default function StudentDashboard() {
           <div>
 
             <p className="font-black text-[#07111f]">
-              Student Benefit Pass
+              Student Benefit Card
             </p>
 
             <p className="mt-1">

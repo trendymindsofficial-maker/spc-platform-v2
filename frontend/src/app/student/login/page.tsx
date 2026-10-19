@@ -297,7 +297,7 @@ export default function StudentLogin() {
                 </div>
 
                 <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">
-                  Student Benefit Pass
+                  Student Benefit Card
                 </p>
 
                 <h2 className="mt-3 text-4xl font-black leading-tight">
@@ -444,7 +444,7 @@ export default function StudentLogin() {
 
               {/* FOOTER */}
               <div className="mt-8 flex items-center justify-between border-t border-black/5 pt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span>Student Benefit Pass</span>
+                <span>Student Benefit Card</span>
                 <span className="text-[#a37b0d]">SBC • 2026</span>
               </div>
             </div>

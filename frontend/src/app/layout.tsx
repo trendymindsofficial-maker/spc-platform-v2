@@ -16,15 +16,15 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.studentbenefitcard.com"),
 
   title: {
-    default: "Student Benefit Pass | SBC",
-    template: "%s | Student Benefit Pass",
+    default: "Student Benefit Card | SBC",
+    template: "%s | Student Benefit Card",
   },
 
   description:
-    "Student Benefit Pass (SBC) gives students access to exclusive offers, discounts and benefits from partner businesses.",
+    "Student Benefit Card (SBC) gives students access to exclusive offers, discounts and benefits from partner businesses.",
 
   keywords: [
-    "Student Benefit Pass",
+    "Student Benefit Card",
     "SBC",
     "student discounts",
     "student offers",
@@ -33,16 +33,16 @@ export const metadata: Metadata = {
     "student offers Nellore",
   ],
 
-  applicationName: "Student Benefit Pass",
+  applicationName: "Student Benefit Card",
 
   authors: [
     {
-      name: "Student Benefit Pass",
+      name: "Student Benefit Card",
     },
   ],
 
-  creator: "Student Benefit Pass",
-  publisher: "Student Benefit Pass",
+  creator: "Student Benefit Card",
+  publisher: "Student Benefit Card",
 
   alternates: {
     canonical: "https://www.studentbenefitcard.com",
@@ -51,8 +51,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "https://www.studentbenefitcard.com",
-    siteName: "Student Benefit Pass",
-    title: "Student Benefit Pass | SBC",
+    siteName: "Student Benefit Card",
+    title: "Student Benefit Card | SBC",
     description:
       "Exclusive offers, discounts and benefits for students from SBC partner businesses.",
     locale: "en_IN",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary",
-    title: "Student Benefit Pass | SBC",
+    title: "Student Benefit Card | SBC",
     description:
       "Exclusive offers, discounts and benefits for students.",
   },

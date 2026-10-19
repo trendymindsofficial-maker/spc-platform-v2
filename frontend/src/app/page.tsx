@@ -132,7 +132,7 @@ export default function Home() {
               <img
                 key={item.image}
                 src={item.image}
-                alt={`${item.title} ${item.highlight} - Student Benefit Pass`}
+                alt={`${item.title} ${item.highlight} - Student Benefit Card`}
                 className={`block h-auto w-full max-w-none object-contain transition-opacity duration-500 ease-in-out ${
                   index === slide
                     ? "relative opacity-100"
@@ -316,7 +316,7 @@ export default function Home() {
               Built around the way students live.
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-600">
-              Student Benefit Pass helps students discover exclusive discounts,
+              Student Benefit Card helps students discover exclusive discounts,
               offers and savings from partner businesses — all through
               one simple digital platform.
             </p>
@@ -442,7 +442,7 @@ export default function Home() {
               SIMPLE YEARLY MEMBERSHIP
             </p>
             <h2 className="mt-3 text-3xl font-black sm:text-4xl">
-              Choose Your Student Benefit Pass
+              Choose Your Student Benefit Card
             </h2>
             <p className="mt-3 text-sm text-slate-600">
               Membership validity: one year from activation.
@@ -454,7 +454,7 @@ export default function Home() {
               <p className="mt-4 text-4xl font-black text-[#1557d6]">₹199</p>
               <p className="mt-2 text-sm font-semibold text-slate-600">Valid for 1 year</p>
               <p className="mt-3 text-sm text-slate-600">
-                Access eligible student offers and partner benefits with your Student Benefit Pass.
+                Access eligible student offers and partner benefits with your Student Benefit Card.
               </p>
               <button type="button" onClick={() => go("/student/register")}
                 className="mt-5 rounded-xl bg-[#1557d6] px-5 py-3 text-sm font-black text-white">
@@ -513,7 +513,7 @@ export default function Home() {
           </h2>
           <div className="mt-5 grid gap-5 text-sm leading-7 text-slate-600 sm:grid-cols-2">
             <p>
-              Student Benefit Pass (SBC) is a student benefits platform that
+              Student Benefit Card (SBC) is a student benefits platform that
               helps students discover exclusive discounts, offers, rewards and
               savings from partner businesses.
             </p>
@@ -615,7 +615,7 @@ export default function Home() {
           </div>
 
           <div className="bg-slate-200 px-4 py-3 text-center text-xs leading-5 text-slate-600">
-            © 2026 Student Benefit Pass (SBC). All rights reserved.
+            © 2026 Student Benefit Card (SBC). All rights reserved.
           </div>
         </div>
       </section>

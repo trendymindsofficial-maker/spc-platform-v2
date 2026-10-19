@@ -1339,7 +1339,7 @@ export default function StudentRegister() {
       <main className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-5 py-10 text-white">
         <section className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
-            Student Benefit Pass
+            Student Benefit Card
           </p>
 
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
@@ -1420,7 +1420,7 @@ export default function StudentRegister() {
                 </div>
 
                 <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">
-                  Student Benefit Pass
+                  Student Benefit Card
                 </p>
 
                 <h2 className="mt-3 text-4xl font-black leading-tight">
@@ -1955,7 +1955,7 @@ export default function StudentRegister() {
 
               <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 text-[9px] font-bold uppercase tracking-wider text-slate-400 sm:mt-7 sm:pt-5 sm:text-[10px]">
                 <span>
-                  Student Benefit Pass
+                  Student Benefit Card
                 </span>
 
                 <span className="text-[#a37b0d]">

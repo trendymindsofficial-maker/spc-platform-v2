@@ -130,7 +130,7 @@ export default function AdminLoginPage() {
           </h1>
 
           <p className="mt-1 text-sm font-medium text-white/60">
-            Student Benefit Pass
+            Student Benefit Card
           </p>
         </div>
 
@@ -220,7 +220,7 @@ export default function AdminLoginPage() {
             </p>
 
             <p className="mt-1 text-[11px] font-medium text-slate-300">
-              SBC • Student Benefit Pass
+              SBC • Student Benefit Card
             </p>
           </div>
         </div>

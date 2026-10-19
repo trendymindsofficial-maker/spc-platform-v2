@@ -124,7 +124,7 @@ export default function BusinessDashboard() {
             <p class="instruction">
               If QR scanning is unavailable, students can enter this Business ID manually.
             </p>
-            <div class="footer">Student Benefit Pass • SBC</div>
+            <div class="footer">Student Benefit Card • SBC</div>
           </div>
           <script>window.onload=function(){window.print();};</script>
         </body>

@@ -111,7 +111,7 @@ return (
 <section className="w-full max-w-md rounded-3xl border border-[#d4af37]/30 bg-white p-8 shadow-2xl">
 <div className="mb-8 text-center">
 <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#9a7a10]">
-Student Benefit Pass
+Student Benefit Card
 </p>
 
       <h1 className="text-2xl font-black text-[#07111f]">
