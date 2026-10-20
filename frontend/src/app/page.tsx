@@ -59,6 +59,7 @@ const slides = [
 export default function Home() {
   const router = useRouter();
   const [slide, setSlide] = useState(0);
+  const [portalRole, setPortalRole] = useState<"student" | "business">("student");
 
   const go = (path: string) => {
     if (path.startsWith("#")) {
@@ -180,6 +181,130 @@ export default function Home() {
               <p className="relative mt-1 text-[9px] font-medium text-slate-500">{sub}</p>
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="px-4 py-8 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-2 overflow-hidden rounded-3xl border border-[#dce7f7] bg-[#f7faff] sm:grid-cols-4">
+          {[
+            ["10,000+", "Students Registered", "👥"],
+            ["500+", "Partner Businesses", "🏪"],
+            ["50+", "Colleges Onboard", "🎓"],
+            ["1000+", "Exclusive Offers", "🏷️"],
+          ].map(([number, label, icon]) => (
+            <div key={label} className="flex items-center justify-center gap-3 border-black/[.06] px-4 py-6 sm:border-r last:border-r-0">
+              <span className="text-2xl">{icon}</span>
+              <div>
+                <p className="text-2xl font-black">{number}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="bg-[#f7faff] px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-[1200px] text-center">
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">SIMPLE & SECURE</p>
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">How SBC Works</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            One simple flow from discovering a deal to enjoying your student benefit.
+          </p>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["01", "Find an Offer", "Browse exclusive student offers from partner businesses.", "🔎"],
+              ["02", "Tap Redeem", "Choose the offer you want and send a redemption request.", "🎁"],
+              ["03", "Business Approves", "Get real-time approval from the partner business.", "✅"],
+              ["04", "Enjoy & Save", "Show your approved redemption and enjoy the benefit.", "⭐"],
+            ].map(([number, title, text, icon]) => (
+              <div key={number} className="rounded-3xl bg-white p-7 shadow-[0_10px_30px_rgba(7,17,31,.06)]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf2ff] text-2xl">
+                  {icon}
+                </div>
+                <p className="mt-5 text-[9px] font-black tracking-widest text-[#1557d6]">{number}</p>
+                <h3 className="mt-1 text-base font-black">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+
+      {/* FEATURED OFFERS */}
+      <section className="border-b border-black/[.05] bg-white px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-[1400px] text-center">
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+            FEATURED OFFERS
+          </p>
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+            Save more at brands and businesses loved by students.
+          </p>
+          <button
+            type="button"
+            onClick={() => go("/student/login")}
+            className="mt-6 rounded-xl border-2 border-[#1557d6] px-6 py-3 text-sm font-black text-[#1557d6] transition hover:bg-blue-50"
+          >
+            View All Offers →
+          </button>
+        </div>
+      </section>
+
+      {/* PARTNER WITH SBC */}
+      <section className="overflow-hidden bg-[#eef6ff] px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-[#d7e7ff] bg-white/55 p-6 shadow-[0_12px_40px_rgba(21,87,214,.08)] sm:p-10">
+            <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-[#1557d6]/[.06]" />
+            <div className="pointer-events-none absolute -bottom-20 right-24 h-44 w-44 rounded-full bg-[#f6c934]/[.10]" />
+
+            <div className="relative">
+              <p className="text-[10px] font-black uppercase tracking-[.25em] text-[#1557d6]">
+                PARTNER WITH SBC
+              </p>
+              <div className="mt-2 max-w-2xl">
+                <h2 className="text-3xl font-black leading-tight text-[#07111f] sm:text-4xl">
+                  Grow Your Business with Students
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+                  Join SBC and connect with students. Increase your visibility, reach and sales with exclusive student benefits.
+                </p>
+              </div>
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => go("/business/register")}
+                  className="rounded-2xl bg-[#1557d6] px-5 py-4 text-left text-white shadow-[0_12px_30px_rgba(21,87,214,.18)] transition hover:-translate-y-0.5"
+                >
+                  <span className="flex items-center gap-3 text-sm font-black sm:text-base">
+                    <span className="text-2xl">🏪</span>
+                    Business Register
+                  </span>
+                  <span className="mt-1 block pl-9 text-xs font-medium text-white/75 sm:text-sm">
+                    List your business on SBC →
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => go("/business/login")}
+                  className="rounded-2xl bg-[#07111f] px-5 py-4 text-left text-white shadow-[0_12px_30px_rgba(7,17,31,.12)] transition hover:-translate-y-0.5"
+                >
+                  <span className="flex items-center gap-3 text-sm font-black sm:text-base">
+                    <span className="text-2xl">🔐</span>
+                    Business Login
+                  </span>
+                  <span className="mt-1 block pl-9 text-xs font-medium text-white/65 sm:text-sm">
+                    Access your dashboard →
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -312,76 +437,6 @@ export default function Home() {
         </div>
       </section>
 
-
-      {/* STATS */}
-      <section className="px-4 py-8 sm:px-6">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-2 overflow-hidden rounded-3xl border border-[#dce7f7] bg-[#f7faff] sm:grid-cols-4">
-          {[
-            ["10,000+", "Students Registered", "👥"],
-            ["500+", "Partner Businesses", "🏪"],
-            ["50+", "Colleges Onboard", "🎓"],
-            ["1000+", "Exclusive Offers", "🏷️"],
-          ].map(([number, label, icon]) => (
-            <div key={label} className="flex items-center justify-center gap-3 border-black/[.06] px-4 py-6 sm:border-r last:border-r-0">
-              <span className="text-2xl">{icon}</span>
-              <div>
-                <p className="text-2xl font-black">{number}</p>
-                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURED OFFERS */}
-      <section className="border-b border-black/[.05] bg-white px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-[1400px] text-center">
-          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-            FEATURED OFFERS
-          </p>
-          <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-            Save more at brands and businesses loved by students.
-          </p>
-          <button
-            type="button"
-            onClick={() => go("/student/login")}
-            className="mt-6 rounded-xl border-2 border-[#1557d6] px-6 py-3 text-sm font-black text-[#1557d6] transition hover:bg-blue-50"
-          >
-            View All Offers →
-          </button>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section id="how-it-works" className="bg-[#f7faff] px-4 py-14 sm:px-6">
-        <div className="mx-auto max-w-[1200px] text-center">
-          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">SIMPLE & SECURE</p>
-          <h2 className="mt-2 text-3xl font-black sm:text-4xl">How SBC Works</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-            Find an offer, visit the partner business, create your coupon and enjoy your benefit.
-          </p>
-
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ["01", "Find an Offer", "Browse available offers and choose the benefit you want.", "🔎"],
-              ["02", "Go to Partner Business", "Visit the shop or business providing the offer.", "🏪"],
-              ["03", "Scan Business QR & Create Coupon", "Scan the partner's business QR code to generate your coupon.", "📱"],
-              ["04", "Show Coupon & Get Offer", "Show your coupon to the business partner and enjoy your offer.", "🎟️"],
-            ].map(([number, title, text, icon]) => (
-              <div key={number} className="rounded-3xl bg-white p-7 shadow-[0_10px_30px_rgba(7,17,31,.06)]">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf2ff] text-2xl">
-                  {icon}
-                </div>
-                <p className="mt-5 text-[9px] font-black tracking-widest text-[#1557d6]">{number}</p>
-                <h3 className="mt-1 text-base font-black">{title}</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* MEMBERSHIP PRICING */}
       <section id="membership-pricing" className="px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-5xl">
@@ -396,8 +451,8 @@ export default function Home() {
               Membership validity: one year from activation.
             </p>
           </div>
-          <div className="mt-7 grid gap-5 sm:grid-cols-2">
-            <div className="rounded-3xl border border-blue-100 bg-blue-50/50 p-6 text-center">
+          <div className="mt-7 grid grid-cols-1 gap-5">
+            <div className="w-full rounded-3xl border border-blue-100 bg-blue-50/50 p-5 text-center sm:p-8">
               <h3 className="text-xl font-black">Student Membership</h3>
               <p className="mt-4 text-4xl font-black text-[#1557d6]">₹199</p>
               <p className="mt-2 text-sm font-semibold text-slate-600">Valid for 1 year</p>
