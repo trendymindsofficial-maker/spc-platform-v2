@@ -37,7 +37,7 @@ interface Offer {
 }
 
 
-const MAX_REDEMPTIONS = 4;
+const MAX_REDEMPTIONS = 6;
 
 type ScanCoupon = {
   requestId: string;

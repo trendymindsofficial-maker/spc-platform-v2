@@ -45,7 +45,7 @@ interface BusinessInfo {
   businessName: string;
 }
 
-const MAX_REDEMPTIONS = 4;
+const MAX_REDEMPTIONS = 6;
 
 const OFFER_ORDER_SESSION_KEY = "sbc_offer_order_seed";
 

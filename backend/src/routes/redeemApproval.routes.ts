@@ -15,7 +15,7 @@ export const redeemApprovalRouter = Router();
 
 redeemApprovalRouter.use(requireRedeemApproval);
 
-const MAX_REDEMPTIONS = 4;
+const MAX_REDEMPTIONS = 6;
 
 function getPointsForUsage(usageNumber: number): number {
   if (usageNumber === 1) return 20;

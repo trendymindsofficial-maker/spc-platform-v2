@@ -42,7 +42,7 @@ interface BusinessInfo {
   businessName: string;
 }
 
-const MAX_REDEMPTIONS = 4;
+const MAX_REDEMPTIONS = 6;
 
 export default function StudentOffers() {
   const router = useRouter();

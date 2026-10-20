@@ -19,7 +19,7 @@ export const MEMBERSHIP_PLAN = "1_year";
 export const MEMBERSHIP_AMOUNT_PAISE = MEMBERSHIP_AMOUNT * 100;
 
 /** Maximum redemptions per student per business, across all offers. */
-export const MAX_REDEMPTIONS_PER_BUSINESS = 4;
+export const MAX_REDEMPTIONS_PER_BUSINESS = 6;
 
 /** A referral reward unlocks for every N successful referrals. */
 export const REFERRAL_REWARD_STEP = 10;

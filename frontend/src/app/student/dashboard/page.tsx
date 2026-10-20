@@ -2393,19 +2393,19 @@ export default function StudentDashboard() {
                         {totalPoints.toLocaleString()}
                       </span>
                       <span className="pb-1 text-sm font-bold text-white/50">
-                        / 1000
+                        / 1500
                       </span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
                       <div
                         className="h-full rounded-full bg-[#d4af37] transition-all"
                         style={{
-                          width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
+                          width: `${Math.min(100, (totalPoints / 1500) * 100)}%`,
                         }}
                       />
                     </div>
                     <p className="mt-3 text-xs font-semibold text-white/55">
-                      {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
+                      {Math.max(0, 1500 - totalPoints).toLocaleString()} points to reach 1,500 and qualify for the Surprise Gift 🎁
                     </p>
                   </div>
                 </div>
@@ -2444,20 +2444,21 @@ export default function StudentDashboard() {
                 {totalPoints.toLocaleString()}
               </span>
               <span className="pb-1 text-sm font-bold text-white/50">
-                / 1000
+                / 1500
               </span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-[#d4af37] transition-all"
                 style={{
-                  width: `${Math.min(100, (totalPoints / 1000) * 100)}%`,
+                  width: `${Math.min(100, (totalPoints / 1500) * 100)}%`,
                 }}
               />
             </div>
             <p className="mt-3 text-xs font-semibold text-white/55">
-              {Math.max(0, 1000 - totalPoints).toLocaleString()} points to get Surprise Gift 🎁
+              {Math.max(0, 1500 - totalPoints).toLocaleString()} points to reach 1,500 and qualify for the Surprise Gift 🎁
             </p>
+            <p className="mt-3 rounded-xl border border-[#d4af37]/25 bg-[#d4af37]/10 px-3 py-2 text-xs font-black leading-5 text-[#f1cf63]">🎁 Surprise Gift for the first 100 members who reach 1,500 points!</p>
           </div>
         </section>
 
@@ -2481,6 +2482,28 @@ export default function StudentDashboard() {
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
                   Share your personal referral link with friends and help more students join the SBC community. Your referral activity and rewards are tracked automatically.
                 </p>
+                <div className="mt-5 rounded-2xl border-2 border-[#d4af37]/60 bg-gradient-to-r from-[#d4af37]/20 to-amber-500/5 p-5 shadow-[0_0_30px_rgba(212,175,55,0.12)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f1cf63]">Referral Reward</p>
+                      <p className="mt-1 text-3xl font-black text-white">Refer 10 Students. Get ₹250!</p>
+                      <p className="mt-2 text-sm leading-5 text-white/70">10 students must join through your referral link and meet SBC referral eligibility.</p>
+                    </div>
+                    <div className="shrink-0 rounded-2xl bg-[#d4af37] px-5 py-3 text-center text-[#07111f]">
+                      <p className="text-xs font-black uppercase tracking-wider">Cash Payout</p>
+                      <p className="text-3xl font-black">₹250</p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold">
+                      <span className="text-white/70">Referral progress</span>
+                      <span className="text-[#f1cf63]">{Math.min(10, payoutWallet.successfulReferrals)}/10 students</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-[#d4af37] transition-all" style={{ width: `${Math.min(100, (payoutWallet.successfulReferrals / 10) * 100)}%` }} />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
@@ -2697,8 +2720,8 @@ export default function StudentDashboard() {
             <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d4af37]/10 blur-3xl" />
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Pass</p>
-                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Pass</h2>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d4af37]">Digital Membership Card</p>
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">Your Digital SBC Card</h2>
               </div>
               <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-xs font-black text-[#f1cf63]">SBC</div>
             </div>
@@ -2712,9 +2735,9 @@ export default function StudentDashboard() {
               </div>
               <div className="mt-8 grid gap-5 sm:grid-cols-[1fr_auto] sm:items-end">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Pass Holder</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Holder</p>
                   <p className="mt-1 text-xl font-black">{student.fullName || "—"}</p>
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Pass Number</p>
+                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Card Number</p>
                   <p className="mt-1 text-sm font-black tracking-wider text-white/80">{student.cardNumber || "—"}</p>
                 </div>
                 <div className="flex w-full justify-center sm:w-auto sm:justify-end">
@@ -2728,7 +2751,7 @@ export default function StudentDashboard() {
                 <span className="text-xs font-black uppercase tracking-[0.16em] text-[#f1cf63]">SBC • 2026</span>
               </div>
             </div>
-            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC pass or QR when visiting an SBC Business Partner.</p>
+            <p className="relative mt-4 text-xs leading-5 text-white/45">Show your digital SBC card or QR when visiting an SBC Business Partner.</p>
           </div>
 
           <div className="rounded-[2rem] bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
@@ -2757,7 +2780,7 @@ export default function StudentDashboard() {
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Started</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipStart)}</p></div>
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Valid Until</p><p className="mt-1 text-sm font-black text-[#07111f]">{formatMembershipDate(membershipExpiry)}</p></div>
                 <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Plan</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.membershipPlan || "Student Plan"}</p></div>
-                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Pass Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
+                <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Card Number</p><p className="mt-1 text-sm font-black text-[#07111f]">{student.cardNumber || "—"}</p></div>
               </div>
               {membershipIsActive ? (
                 <div className="mt-5 rounded-xl border border-emerald-200 bg-white/70 p-4 text-sm font-semibold text-emerald-800">✓ You are all set. Enjoy exclusive SBC student benefits.</div>
@@ -2904,7 +2927,7 @@ export default function StudentDashboard() {
                           <p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || coupon.studentName || "SBC Student"}</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Pass Number</p>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p>
                           <p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || coupon.cardNumber || "—"}</p>
                         </div>
                       </div>
@@ -2967,7 +2990,7 @@ export default function StudentDashboard() {
                         <div className="space-y-3 bg-white p-4 text-slate-900">
                           <div className="grid grid-cols-2 gap-3">
                             <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Student Name</p><p className="mt-1 break-words text-sm font-extrabold">{student?.fullName || "SBC Student"}</p></div>
-                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Pass Number</p><p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || "—"}</p></div>
+                            <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">SBC Card Number</p><p className="mt-1 break-words text-sm font-extrabold tracking-wide">{student?.cardNumber || "—"}</p></div>
                           </div>
                           <div className="border-t border-dashed border-slate-300 pt-3">
                             <div className="flex items-center justify-between gap-2"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${approved ? "bg-emerald-100 text-emerald-800" : rejected ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}>{statusText}</span><span className="text-right text-[10px] font-semibold text-slate-500">{coupon.requestedAt ? new Date(coupon.requestedAt).toLocaleString() : "Request date unavailable"}</span></div>
@@ -3001,7 +3024,7 @@ export default function StudentDashboard() {
             </p>
 
             <p className="mt-1">
-              One pass. More benefits. More savings.
+              One card. More benefits. More savings.
             </p>
 
           </div>
