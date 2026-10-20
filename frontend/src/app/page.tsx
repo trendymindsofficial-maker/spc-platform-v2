@@ -333,25 +333,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FEATURED OFFERS */}
-      <section className="border-b border-black/[.05] bg-white px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-[1400px] text-center">
-          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-            FEATURED OFFERS
-          </p>
-          <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-            Save more at brands and businesses loved by students.
-          </p>
-          <button
-            type="button"
-            onClick={() => go("/student/login")}
-            className="mt-6 rounded-xl border-2 border-[#1557d6] px-6 py-3 text-sm font-black text-[#1557d6] transition hover:bg-blue-50"
-          >
-            View All Offers →
-          </button>
-        </div>
-      </section>
+      
 
       {/* HOW IT WORKS */}
       <section id="how-it-works" className="bg-[#f7faff] px-4 py-14 sm:px-6">
@@ -381,10 +363,29 @@ export default function Home() {
           </div>
         </div>
       </section>
+      {/* FEATURED OFFERS */}
+      <section className="border-b border-black/[.05] bg-white px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-[1400px] text-center">
+          <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
+            FEATURED OFFERS
+          </p>
+          <h2 className="mt-2 text-3xl font-black sm:text-4xl">Popular Student Deals</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+            Save more at brands and businesses loved by students.
+          </p>
+          <button
+            type="button"
+            onClick={() => go("/student/login")}
+            className="mt-6 rounded-xl border-2 border-[#1557d6] px-6 py-3 text-sm font-black text-[#1557d6] transition hover:bg-blue-50"
+          >
+            View All Offers →
+          </button>
+        </div>
+      </section>
 
       {/* MEMBERSHIP PRICING */}
       <section id="membership-pricing" className="px-4 py-12 sm:px-6">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto w-full max-w-[1400px]">
           <div className="text-center">
             <p className="text-xs font-black uppercase tracking-[.2em] text-[#1557d6]">
               SIMPLE YEARLY MEMBERSHIP
@@ -396,8 +397,8 @@ export default function Home() {
               Membership validity: one year from activation.
             </p>
           </div>
-          <div className="mt-7 grid gap-5 sm:grid-cols-2">
-            <div className="rounded-3xl border border-blue-100 bg-blue-50/50 p-6 text-center">
+          <div className="mt-7 grid grid-cols-1 gap-5">
+            <div className="w-full rounded-3xl border border-blue-100 bg-blue-50/50 p-6 text-center sm:p-8 lg:p-10">
               <h3 className="text-xl font-black">Student Membership</h3>
               <p className="mt-4 text-4xl font-black text-[#1557d6]">₹199</p>
               <p className="mt-2 text-sm font-semibold text-slate-600">Valid for 1 year</p>
