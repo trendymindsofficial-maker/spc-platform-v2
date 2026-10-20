@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { apiFetch } from "@/lib/api";
+
 import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
@@ -102,7 +103,9 @@ export default function StudentScanRedeem({
   openRequest = 0,
 }: StudentScanRedeemProps) {
   const router = useRouter();
-  const [scannerOpen, setScannerOpen] = useState(false);
+const scannerRef = useRef<Html5Qrcode | null>(null);
+const scannerStartTimerRef = useRef<number | null>(null);
+const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -414,31 +417,78 @@ export default function StudentScanRedeem({
     }
   };
 
+
+  const stopScanner = async () => {
+    if (scannerStartTimerRef.current !== null) {
+      window.clearTimeout(scannerStartTimerRef.current);
+      scannerStartTimerRef.current = null;
+    }
+
+    const scanner = scannerRef.current;
+    scannerRef.current = null;
+
+    if (scanner) {
+      try {
+        if (scanner.isScanning) {
+          await scanner.stop();
+        }
+      } catch (error) {
+        console.warn("SBC camera stop error:", error);
+      }
+
+      try {
+        scanner.clear();
+      } catch {
+        // Scanner may already be cleared.
+      }
+    }
+  };
+
   const startScanner = async () => {
     setScannerError("");
+
+    await stopScanner();
     setScannerOpen(true);
 
-    window.setTimeout(async () => {
+    scannerStartTimerRef.current = window.setTimeout(async () => {
+      scannerStartTimerRef.current = null;
+
+      let scanner: Html5Qrcode | null = null;
+
       try {
-        const reader = document.getElementById("sbc-dashboard-business-qr-reader");
+        const reader = document.getElementById(
+          "sbc-dashboard-business-qr-reader"
+        );
+
         if (!reader) {
-          setScannerError("❌ Scanner could not be opened. Please tap Scan & Redeem again.");
+          setScannerError(
+            "❌ Scanner could not be opened. Please tap Scan & Redeem again."
+          );
+          setScannerOpen(false);
           return;
         }
 
         reader.innerHTML = "";
-        const scanner = new Html5Qrcode("sbc-dashboard-business-qr-reader");
+
+        scanner = new Html5Qrcode(
+          "sbc-dashboard-business-qr-reader"
+        );
+
+        scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1,
+          },
           async (decodedText) => {
-            try { await scanner.stop(); } catch {}
-            try { scanner.clear(); } catch {}
-
+            await stopScanner();
             setScannerOpen(false);
 
             const businessId = extractBusinessId(decodedText);
+
             if (!businessId) {
               setScannerError(
                 "❌ This is not a valid SBC Business QR. Please scan the QR displayed in the SBC Business dashboard."
@@ -453,12 +503,24 @@ export default function StudentScanRedeem({
         );
       } catch (error) {
         console.error("Dashboard QR scanner error:", error);
+
+        if (scannerRef.current === scanner) {
+          await stopScanner();
+        }
+
+        setScannerOpen(false);
         setScannerError(
           "❌ Camera could not be opened. Please allow camera permission."
         );
       }
     }, 250);
   };
+
+  const closeScanner = () => {
+    void stopScanner();
+    setScannerOpen(false);
+  };
+
 
   const shareGoogleReview = (offer: Offer | null) => {
     const reviewLink = String(offer?.googleReviewLink || "").trim();
@@ -498,7 +560,7 @@ export default function StudentScanRedeem({
     router.replace("/student/dashboard");
   };
 
-  const closeScanner = () => setScannerOpen(false);
+
 
   // Dashboard passes an incrementing openRequest value when
   // Bottom Nav -> Scan & Redeem is clicked.
@@ -538,6 +600,37 @@ export default function StudentScanRedeem({
       window.removeEventListener("sbc-open-scan", handleOpenScan);
     };
   }, []);
+
+
+  useEffect(() => {
+    return () => {
+      if (scannerStartTimerRef.current !== null) {
+        window.clearTimeout(scannerStartTimerRef.current);
+        scannerStartTimerRef.current = null;
+      }
+
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+
+      if (scanner) {
+        if (scanner.isScanning) {
+          void scanner
+            .stop()
+            .catch(() => {})
+            .finally(() => {
+              try {
+                scanner.clear();
+              } catch {}
+            });
+        } else {
+          try {
+            scanner.clear();
+          } catch {}
+        }
+      }
+    };
+  }, []);
+
 
   const redeemOffer = async (offer: Offer) => {
     if (!auth.currentUser || !business) {
