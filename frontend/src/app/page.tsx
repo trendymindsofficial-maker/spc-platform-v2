@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const categories = [
+  ["🍽️", "Food & Beverages", "Eat & Save", "bg-[#fff5e8]"],
   ["🛍️", "Shopping", "Best Deals", "bg-[#fff0f5]"],
   ["✈️", "Travel", "Explore More", "bg-[#eef7ff]"],
   ["🎓", "Education", "Learn More", "bg-[#f6efff]"],
   ["🎬", "Entertainment", "Have Fun", "bg-[#fff3e5]"],
   ["🏋️", "Fitness", "Stay Fit", "bg-[#effff5]"],
+  ["❤️", "Health Care", "Care & Wellness", "bg-[#fff0f0]"],
   ["💇", "Salon & Beauty", "Look Great", "bg-[#fff0f8]"],
 ];
 
@@ -17,8 +19,8 @@ const slides = [
     eyebrow: "STUDENT DISCOUNTS",
     title: "Big Discounts",
     highlight: "Just for You!",
-    text: "Use your SBC Pass and enjoy exclusive discounts at shops, restaurants, travel, education and more.",
-    primary: "Get Your Student Pass",
+    text: "Use your SBC Card and enjoy exclusive discounts at shops, restaurants, travel, education and more.",
+    primary: "Get Your Student Card",
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
@@ -44,7 +46,7 @@ const slides = [
     title: "Refer SBC",
     highlight: "& Earn Money!",
     text: "Invite your friends to join SBC, help them save and earn referral rewards.",
-    primary: "Get Your Student Pass",
+    primary: "Get Your Student Card",
     primaryPath: "/student/register",
     secondary: "Student Login",
     secondaryPath: "/student/login",
@@ -114,11 +116,11 @@ export default function Home() {
             </nav>
 
             <div className="hidden items-center justify-end gap-2 sm:flex sm:flex-nowrap">
-              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your Student Pass</button>
+              <button type="button" onClick={() => go("/student/register")} className="rounded-xl bg-[#1557d6] px-4 py-2.5 text-[10px] font-black text-white shadow-[0_12px_28px_rgba(21,87,214,.22)] transition hover:-translate-y-0.5 sm:px-5 sm:py-3 sm:text-xs">Get Your Student Card</button>
               <button type="button" onClick={() => go("/admin/login")} className="rounded-xl border border-[#07111f]/15 bg-[#07111f] px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-[#111d2d] sm:px-5 sm:py-3 sm:text-xs">Admin Login</button>
             </div>
 
-            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your Student Pass</button>
+            <button type="button" onClick={() => go("/student/register")} className="shrink-0 rounded-xl bg-[#1557d6] px-3 py-2.5 text-[9px] font-black text-white shadow-[0_8px_20px_rgba(21,87,214,.20)] sm:hidden">Get Your Student Card</button>
           </div>
 
         </div>
@@ -310,7 +312,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-[1400px] items-center gap-10 lg:grid-cols-[1fr_1fr]">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-              ONE PASS. MANY BENEFITS.
+              ONE CARD. MANY BENEFITS.
             </p>
             <h2 className="mt-3 text-3xl font-black sm:text-5xl">
               Built around the way students live.
@@ -344,10 +346,10 @@ export default function Home() {
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[.22em] text-[#1557d6]">
-                    DIGITAL MEMBERSHIP PASS
+                    DIGITAL MEMBERSHIP CARD
                   </p>
                   <h3 className="mt-1 text-xl font-black text-[#07111f] sm:text-2xl">
-                    Your SBC Digital Pass
+                    Your SBC Digital Card
                   </h3>
                 </div>
                 <div className="rounded-full bg-emerald-50 px-3 py-2 text-[9px] font-black uppercase tracking-wider text-emerald-700 shadow-sm">
@@ -375,7 +377,7 @@ export default function Home() {
 
                 <div className="mt-6 grid grid-cols-[1fr_auto] items-end gap-4">
                   <div>
-                    <p className="text-[8px] font-bold uppercase tracking-[.18em] text-white/40">Pass Holder</p>
+                    <p className="text-[8px] font-bold uppercase tracking-[.18em] text-white/40">Card Holder</p>
                     <p className="mt-1 text-base font-black sm:text-lg">Your Name</p>
                     <p className="mt-3 text-[8px] font-bold uppercase tracking-[.18em] text-white/40">SBC Number</p>
                     <p className="mt-1 text-xs font-bold tracking-[.12em] text-white/85">SBCSTU100234</p>
@@ -427,7 +429,7 @@ export default function Home() {
               </div>
 
               <p className="mt-4 text-center text-[9px] font-semibold text-slate-500">
-                Your digital SBC pass is secure, verified and available inside your student account.
+                Your digital SBC card is secure, verified and available inside your student account.
               </p>
             </div>
           </div>
@@ -458,7 +460,7 @@ export default function Home() {
               </p>
               <button type="button" onClick={() => go("/student/register")}
                 className="mt-5 rounded-xl bg-[#1557d6] px-5 py-3 text-sm font-black text-white">
-                Get Student Pass
+                Get Student Card
               </button>
             </div>
           </div>
