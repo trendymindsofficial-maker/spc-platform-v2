@@ -3008,11 +3008,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Scan & Redeem lives on the dashboard so scanned business offers remain visible here. */}
-        <div className="mt-6 pb-4">
-          <StudentScanRedeem openRequest={scanOpenRequest} />
-        </div>
-
+       
         {/* FOOTER */}
 
         <footer className="mt-10 pb-24 md:pb-7 flex flex-col gap-3 border-t border-black/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
