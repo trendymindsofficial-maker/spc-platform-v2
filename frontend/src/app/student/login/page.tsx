@@ -303,7 +303,7 @@ export default function StudentLogin() {
                 <h2 className="mt-3 text-4xl font-black leading-tight">
                   Your benefits.
                   <span className="block text-[#f1cf63]">
-                    One pass.
+                    One Card.
                   </span>
                 </h2>
 
