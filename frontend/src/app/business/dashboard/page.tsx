@@ -322,7 +322,9 @@ export default function BusinessDashboard() {
           </div>
 
           <div className="mt-10 rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
-            <h2 className="text-3xl font-black text-[#f1cf63]">🚀 SBC Business Portal</h2>
+            <h2 className="text-3xl font-black text-[#07111f]">
+  <span className="text-[#b18a16]">🚀 SBC</span> Business Portal
+</h2>
             <p className="mt-4 text-base leading-7 text-white/65">
               Manage your offers, display your Business QR, receive student redemption requests,
               award SBC points and track all redemptions from one secure dashboard.
