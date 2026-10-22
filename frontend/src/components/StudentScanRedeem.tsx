@@ -119,6 +119,7 @@ const [scannerOpen, setScannerOpen] = useState(false);
   const [approvedTotalPoints, setApprovedTotalPoints] = useState(0);
   const [rejectedOffer, setRejectedOffer] = useState<Offer | null>(null);
   const [redeemLoading, setRedeemLoading] = useState(false);
+  const [showLimitPopup, setShowLimitPopup] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -390,23 +391,39 @@ const [scannerOpen, setScannerOpen] = useState(false);
       // Usage is optional for loading the business. If its Firestore rule
       // blocks the read, the business and offers must still open normally.
       if (auth.currentUser) {
-        try {
-          const usageRef = doc(
-            db,
-            "businessStudentUsage",
-            `${businessAuthUid}_${auth.currentUser.uid}`
-          );
-          const usageSnap = await getDoc(usageRef);
-          setUsageCount(
-            usageSnap.exists()
-              ? Math.min(Number(usageSnap.data().count || 0), MAX_REDEMPTIONS)
-              : 0
-          );
-        } catch (usageError) {
-          console.error("SBC usage read failed (non-blocking):", usageError);
-          setUsageCount(0);
-        }
-      }
+  try {
+    const usageRef = doc(
+      db,
+      "businessStudentUsage",
+      `${businessAuthUid}_${auth.currentUser.uid}`
+    );
+
+    const usageSnap = await getDoc(usageRef);
+
+    const count = usageSnap.exists()
+      ? Math.min(
+          Number(usageSnap.data().count || 0),
+          MAX_REDEMPTIONS
+        )
+      : 0;
+
+    setUsageCount(count);
+
+    // Show limit popup only after this business usage is loaded.
+    setShowLimitPopup(count >= MAX_REDEMPTIONS);
+  } catch (usageError) {
+    console.error(
+      "SBC usage read failed (non-blocking):",
+      usageError
+    );
+
+    setUsageCount(0);
+    setShowLimitPopup(false);
+  }
+} else {
+  setUsageCount(0);
+  setShowLimitPopup(false);
+}
     } catch (error) {
       console.error("Scan business loading error:", error);
       setOffers([]);
@@ -638,12 +655,10 @@ const [scannerOpen, setScannerOpen] = useState(false);
       return;
     }
 
-    if (usageCount >= MAX_REDEMPTIONS) {
-      alert(
-        `🚫 Redemption limit reached. You can redeem from "${business.businessName}" only 4 times in total.`
-      );
-      return;
-    }
+   if (usageCount >= MAX_REDEMPTIONS) {
+  setShowLimitPopup(true);
+  return;
+}
 
     try {
       setRedeemLoading(true);
@@ -830,6 +845,74 @@ const [scannerOpen, setScannerOpen] = useState(false);
         </div>
       )}
     </section>
+
+  
+      {showLimitPopup && business && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm"
+          onClick={() => setShowLimitPopup(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sbc-scan-limit-title"
+            className="relative w-full max-w-sm rounded-3xl border border-[#ead9a5] bg-white p-6 text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close popup"
+              onClick={() => setShowLimitPopup(false)}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-lg text-slate-500 hover:bg-slate-100"
+            >
+              ✕
+            </button>
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fff5dd] text-3xl">
+              🎟️
+            </div>
+
+            <h2
+              id="sbc-scan-limit-title"
+              className="mt-5 text-2xl font-black leading-tight text-[#07111f]"
+            >
+              Redemption limit reached
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              You've used all 6 redemptions available at
+            </p>
+
+            <p className="mt-2 break-words text-lg font-extrabold text-[#9a741c]">
+              {business.businessName || "SBC Partner Business"}
+            </p>
+
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Renew your SBC Membership to continue enjoying
+              student benefits.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/student/renew";
+              }}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#bd912e] px-4 py-4 text-sm font-black text-white transition hover:bg-[#a87d22]"
+            >
+              <span>↻</span>
+              Renew SBC Membership
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowLimitPopup(false)}
+              className="mt-3 w-full rounded-xl py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
 
 
     {/* FIXED MODALS: outside the desktop-only section so they also work on mobile. */}
