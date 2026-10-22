@@ -2868,6 +2868,8 @@ export default function StudentDashboard() {
           </div>
         </nav>
 
+        <StudentScanRedeem />
+
         {showLatestCoupon && (
           <div className="fixed inset-0 z-[125] flex items-end justify-center bg-[#030817]/80 p-0 backdrop-blur-xl sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Latest Coupon">
             <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border border-white/10 bg-[#0b1224] p-4 text-white shadow-2xl sm:rounded-[2rem] sm:p-6">
