@@ -1,476 +1,490 @@
-
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import BusinessProtected from "@/components/BusinessProtected";
+
 import { auth, db } from "@/lib/firebase";
+
 import { onAuthStateChanged } from "firebase/auth";
+
 import {
   collection,
-  onSnapshot,
+  getDocs,
   query,
   where,
 } from "firebase/firestore";
 
-interface Coupon {
-  requestId: string;
+interface Redemption {
+  id: string;
   studentName: string;
-  studentMobile: string;
-  studentCardNumber: string;
-  businessName: string;
+  studentCardNumber?: string;
   offerTitle: string;
   discount: string;
-  requestedAt: any;
   redeemedAt?: any;
-  status: string;
-  pointsAwarded: number;
+  businessId?: string;
+  status?: string;
 }
-
-const toMillis = (value: any): number => {
-  if (typeof value?.toMillis === "function") {
-    return value.toMillis();
-  }
-
-  if (typeof value?.toDate === "function") {
-    return value.toDate().getTime();
-  }
-
-  if (value instanceof Date) return value.getTime();
-
-  if (typeof value === "string" || typeof value === "number") {
-    const result = new Date(value).getTime();
-    return Number.isFinite(result) ? result : 0;
-  }
-
-  return 0;
-};
-
-const formatDate = (value: any) => {
-  const ms = toMillis(value);
-  if (!ms) return "Date unavailable";
-
-  return new Date(ms).toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  });
-};
-
-const statusInfo = (status: string) => {
-  const value = status.toLowerCase();
-
-  if (value === "rejected") {
-    return {
-      label: "Rejected",
-      badge: "bg-rose-100 text-rose-800",
-      message: "This request was rejected.",
-    };
-  }
-
-  if (value === "approved" || value === "redeemed") {
-    return {
-      label: "Approved",
-      badge: "bg-emerald-100 text-emerald-800",
-      message: "Request approved.",
-    };
-  }
-
-  return {
-    label: "Waiting for Approval",
-    badge: "bg-amber-100 text-amber-900",
-    message: "Request received. Waiting for business approval.",
-  };
-};
 
 export default function RedemptionHistory() {
   const router = useRouter();
 
-  const [requests, setRequests] = useState<Coupon[]>([]);
-  const [redemptions, setRedemptions] = useState<Coupon[]>([]);
+  const [history, setHistory] = useState<Redemption[]>([]);
+  const [filteredHistory, setFilteredHistory] =
+    useState<Redemption[]>([]);
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    let stopRequests: (() => void) | undefined;
-    let stopRedemptions: (() => void) | undefined;
+  /*
+   * ==========================================
+   * LOAD BUSINESS REDEMPTION HISTORY
+   * ==========================================
+   */
 
-    const stopAuth = onAuthStateChanged(auth, (user) => {
-      stopRequests?.();
-      stopRedemptions?.();
-      stopRequests = undefined;
-      stopRedemptions = undefined;
-
-      setRequests([]);
-      setRedemptions([]);
-
-      if (!active) return;
-
-      if (!user) {
-        setLoading(false);
-        router.replace("/business/login");
-        return;
-      }
-
+  const loadHistory = async (businessId: string) => {
+    try {
       setLoading(true);
       setError("");
 
-      // Live student coupon requests
-      const requestsQuery = query(
-        collection(db, "redemptionRequests"),
-        where("businessId", "==", user.uid)
-      );
-
-      // Live approved/redemption records
-      const redemptionsQuery = query(
+      const q = query(
         collection(db, "redemptions"),
-        where("businessId", "==", user.uid)
+        where("businessId", "==", businessId)
       );
 
-      let requestsReady = false;
-      let redemptionsReady = false;
+      const snap = await getDocs(q);
 
-      const updateLoading = () => {
-        if (active && requestsReady && redemptionsReady) {
-          setLoading(false);
-        }
-      };
+      const data: Redemption[] = snap.docs.map((item) => {
+        const data = item.data();
 
-      stopRequests = onSnapshot(
-        requestsQuery,
-        (snapshot) => {
-          if (!active) return;
+        return {
+          id: item.id,
+          studentName: data.studentName || "",
+          studentCardNumber:
+            data.studentCardNumber || "",
+          offerTitle: data.offerTitle || "",
+          discount: data.discount || "",
+          redeemedAt: data.redeemedAt,
+          businessId: data.businessId || "",
+          status: data.status || "redeemed",
+        };
+      });
 
-          const data: Coupon[] = snapshot.docs.map((item) => {
-            const record = item.data();
+      /*
+       * Sort newest first.
+       *
+       * We intentionally do NOT use Firestore orderBy()
+       * because redeemedAt is created using serverTimestamp()
+       * and orderBy can require an index / cause loading issues.
+       */
 
-            return {
-              requestId: item.id,
-              studentName: String(record.studentName || "SBC Student"),
-              studentMobile: String(record.studentMobile || ""),
-              studentCardNumber: String(
-                record.studentCardNumber || record.cardNumber || ""
-              ),
-              businessName: String(record.businessName || "SBC Partner Business"),
-              offerTitle: String(record.offerTitle || "SBC Offer"),
-              discount: String(
-                record.discount || record.offerDiscount || ""
-              ),
-              requestedAt: record.createdAt,
-              status: String(record.status || "pending").toLowerCase(),
-              pointsAwarded: Number(record.pointsAwarded || 0),
-            };
-          });
+      data.sort((a, b) => {
+        const timeA =
+          a.redeemedAt?.toMillis?.() || 0;
 
-          setRequests(data);
-          requestsReady = true;
-          updateLoading();
-        },
-        (err) => {
-          console.error("Business coupon request listener:", err);
-          if (!active) return;
-          setError("Unable to load coupon requests. Please check access and try again.");
-          setLoading(false);
-        }
+        const timeB =
+          b.redeemedAt?.toMillis?.() || 0;
+
+        return timeB - timeA;
+      });
+
+      setHistory(data);
+      setFilteredHistory(data);
+    } catch (err) {
+      console.error(
+        "Redemption history error:",
+        err
       );
 
-      stopRedemptions = onSnapshot(
-        redemptionsQuery,
-        (snapshot) => {
-          if (!active) return;
+      setError(
+        "Unable to load redemption history. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          const data: Coupon[] = snapshot.docs.map((item) => {
-            const record = item.data();
+  /*
+   * ==========================================
+   * AUTH
+   * ==========================================
+   */
 
-            return {
-              requestId: String(record.requestId || item.id),
-              studentName: String(record.studentName || "SBC Student"),
-              studentMobile: String(record.studentMobile || ""),
-              studentCardNumber: String(
-                record.studentCardNumber || record.cardNumber || ""
-              ),
-              businessName: String(record.businessName || "SBC Partner Business"),
-              offerTitle: String(record.offerTitle || "SBC Offer"),
-              discount: String(
-                record.discount || record.offerDiscount || ""
-              ),
-              requestedAt: record.redeemedAt,
-              redeemedAt: record.redeemedAt,
-              status: "redeemed",
-              pointsAwarded: Number(record.pointsAwarded || 0),
-            };
-          });
-
-          setRedemptions(data);
-          redemptionsReady = true;
-          updateLoading();
-        },
-        (err) => {
-          console.error("Business redemption listener:", err);
-          if (!active) return;
-          setError("Unable to load redemption records. Please check access and try again.");
-          setLoading(false);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (user) => {
+        if (!user) {
+          router.replace("/business/login");
+          return;
         }
+
+        await loadHistory(user.uid);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [router]);
+
+  /*
+   * ==========================================
+   * SEARCH
+   * ==========================================
+   */
+
+  useEffect(() => {
+    const searchText =
+      search.trim().toLowerCase();
+
+    if (!searchText) {
+      setFilteredHistory(history);
+      return;
+    }
+
+    const filtered = history.filter((item) => {
+      const studentName =
+        item.studentName?.toLowerCase() || "";
+
+      const cardNumber =
+        item.studentCardNumber
+          ?.toLowerCase() || "";
+
+      const offerTitle =
+        item.offerTitle?.toLowerCase() || "";
+
+      return (
+        studentName.includes(searchText) ||
+        cardNumber.includes(searchText) ||
+        offerTitle.includes(searchText)
       );
     });
 
-    return () => {
-      active = false;
-      stopAuth();
-      stopRequests?.();
-      stopRedemptions?.();
-    };
-  }, [router]);
+    setFilteredHistory(filtered);
+  }, [search, history]);
 
-  // Merge requests and redemptions by Request ID.
-  // A redeemed record takes precedence over its request.
-  const history = useMemo(() => {
-    const byId = new Map<string, Coupon>();
+  /*
+   * ==========================================
+   * DATE / RELATIVE TIME
+   * ==========================================
+   */
 
-    for (const coupon of requests) {
-      byId.set(coupon.requestId, coupon);
+  const [, setTimeRefresh] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeRefresh((value) => value + 1);
+    }, 30_000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const getDateValue = (timestamp: any): Date | null => {
+    if (!timestamp) return null;
+
+    try {
+      const date =
+        typeof timestamp?.toDate === "function"
+          ? timestamp.toDate()
+          : timestamp instanceof Date
+            ? timestamp
+            : typeof timestamp === "number" || typeof timestamp === "string"
+              ? new Date(timestamp)
+              : null;
+
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    const date = getDateValue(timestamp);
+    if (!date) return "Date unavailable";
+
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getRelativeTime = (timestamp: any) => {
+    const date = getDateValue(timestamp);
+    if (!date) return "";
+
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (seconds < 60) return "Just now";
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} ${minutes === 1 ? "min" : "mins"} ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} ${days === 1 ? "day" : "days"} ago`;
+
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} ${months === 1 ? "month" : "months"} ago`;
+
+    const years = Math.floor(days / 365);
+    return `${years} ${years === 1 ? "year" : "years"} ago`;
+  };
+
+  /*
+   * ==========================================
+   * REFRESH
+   * ==========================================
+   */
+
+  const refreshHistory = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      router.replace("/business/login");
+      return;
     }
 
-    for (const coupon of redemptions) {
-      const previous = byId.get(coupon.requestId);
+    await loadHistory(user.uid);
+  };
 
-      byId.set(coupon.requestId, {
-        ...previous,
-        ...coupon,
-        studentName: coupon.studentName || previous?.studentName || "",
-        studentMobile: coupon.studentMobile || previous?.studentMobile || "",
-        studentCardNumber:
-          coupon.studentCardNumber || previous?.studentCardNumber || "",
-        businessName: coupon.businessName || previous?.businessName || "",
-        offerTitle: coupon.offerTitle || previous?.offerTitle || "",
-        discount: coupon.discount || previous?.discount || "",
-        requestedAt: previous?.requestedAt || coupon.requestedAt,
-        pointsAwarded: coupon.pointsAwarded || previous?.pointsAwarded || 0,
-        status: "redeemed",
-      });
-    }
-
-    return Array.from(byId.values()).sort(
-      (a, b) =>
-        toMillis(b.redeemedAt || b.requestedAt) -
-        toMillis(a.redeemedAt || a.requestedAt)
-    );
-  }, [requests, redemptions]);
-
-  const searchText = search.trim().toLowerCase();
-
-  const filteredHistory = history.filter((item) =>
-    [
-      item.studentName,
-      item.studentMobile,
-      item.studentCardNumber,
-      item.offerTitle,
-      item.businessName,
-      item.requestId,
-    ].some((value) => value.toLowerCase().includes(searchText))
-  );
+  /*
+   * ==========================================
+   * PAGE
+   * ==========================================
+   */
 
   return (
     <BusinessProtected>
       <main className="min-h-screen bg-slate-100 p-4 sm:p-6">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto max-w-7xl">
+
+          {/* HEADER */}
+
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-fuchsia-700">
-                Student Benefit Card
-              </p>
-              <h1 className="mt-1 text-3xl font-black text-slate-900">
-                Redemption History
+              <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+                📊 Redemption History
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Student coupons and approval status
-              </p>
-              <p className="mt-2 text-sm font-bold text-emerald-700">
-                ● Live updates enabled
+
+              <p className="mt-2 text-gray-600">
+                View all student offer redemptions
+                made at your business.
               </p>
             </div>
 
-            <button
-              onClick={() => router.push("/business/dashboard")}
-              className="rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
-            >
-              Dashboard
-            </button>
+            <div className="flex gap-3">
+
+              <button
+                onClick={refreshHistory}
+                disabled={loading}
+                className="rounded-xl bg-green-600 px-5 py-3 font-bold text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                🔄 Refresh
+              </button>
+
+              <button
+                onClick={() =>
+                  router.push(
+                    "/business/dashboard"
+                  )
+                }
+                className="rounded-xl bg-slate-900 px-5 py-3 font-bold text-white hover:bg-slate-800"
+              >
+                🏠 Dashboard
+              </button>
+
+            </div>
           </div>
 
-          <input
-            type="text"
-            placeholder="Search Student / Mobile / Card Number / Offer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mb-6 w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-100"
-          />
+          {/* SEARCH */}
+
+          <div className="mb-8">
+            <input
+              type="text"
+              placeholder="🔍 Search Student / SBC Number / Offer..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="w-full rounded-2xl border border-gray-300 bg-white p-5 text-lg outline-none transition focus:border-orange-600 focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+
+          {/* ERROR */}
 
           {error && (
-            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
-              {error}
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+
+              <h2 className="text-xl font-bold text-red-700">
+                ❌ {error}
+              </h2>
+
+              <button
+                onClick={refreshHistory}
+                className="mt-4 rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-700"
+              >
+                🔄 Try Again
+              </button>
+
             </div>
           )}
+
+          {/* LOADING */}
 
           {loading ? (
-            <div className="rounded-3xl bg-white p-12 text-center shadow-lg">
-              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-fuchsia-100 border-t-fuchsia-600" />
-              <p className="font-bold text-slate-700">Loading coupons...</p>
+            <div className="rounded-3xl bg-white p-12 text-center shadow-xl">
+
+              <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-4 border-orange-200 border-t-orange-600" />
+
+              <h2 className="text-2xl font-bold">
+                Loading Redemption History...
+              </h2>
+
+              <p className="mt-2 text-gray-500">
+                Please wait...
+              </p>
+
             </div>
           ) : filteredHistory.length === 0 ? (
-            <div className="rounded-3xl bg-white p-10 text-center shadow-lg">
-              <div className="text-5xl">🎟️</div>
-              <h2 className="mt-4 text-xl font-black text-slate-900">
-                {search ? "No Matching Coupons" : "No Coupons Yet"}
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
+
+            /* EMPTY */
+
+            <div className="rounded-3xl bg-white p-14 text-center shadow-xl">
+
+              <div className="text-6xl">
+                📊
+              </div>
+
+              <h2 className="mt-5 text-3xl font-bold">
                 {search
-                  ? "Try another search."
-                  : "Coupons generated for your business will appear here."}
+                  ? "No Matching Redemptions"
+                  : "No Redemption History"}
+              </h2>
+
+              <p className="mt-3 text-gray-500">
+                {search
+                  ? "Try a different student name, SBC number or offer name."
+                  : "Redeemed offers will appear here."}
               </p>
+
             </div>
           ) : (
-            <div className="space-y-5">
-              {filteredHistory.map((coupon) => {
-                const info = statusInfo(coupon.status);
-                const approved =
-                  coupon.status === "approved" ||
-                  coupon.status === "redeemed";
 
-                return (
-                  <article
-                    key={coupon.requestId}
-                    className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-lg"
+            /* HISTORY LIST */
+
+            <div className="grid gap-6">
+
+              {filteredHistory.map(
+                (item, index) => (
+
+                  <div
+                    key={item.id}
+                    className="mx-auto w-full max-w-3xl overflow-hidden rounded-[2rem] border border-purple-100 bg-white shadow-xl transition hover:shadow-2xl"
                   >
-                    {/* Coupon header */}
-                    <div className="bg-gradient-to-r from-fuchsia-700 via-purple-700 to-indigo-700 p-4 text-white sm:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-100">
-                            SBC · REDEMPTION COUPON
-                          </p>
-                          <h2 className="mt-2 break-words text-xl font-black">
-                            {coupon.businessName}
-                          </h2>
-                          <p className="mt-1 text-sm font-semibold text-white/85">
-                            {coupon.offerTitle}
-                          </p>
-                        </div>
 
-                        <span className="shrink-0 rounded-xl bg-white/15 px-3 py-2 text-sm font-black">
-                          {coupon.discount || "OFFER"}
+                    {/* COUPON HEADER */}
+                    <div className="bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-700 p-5 text-white">
+                      <p className="text-xs font-bold tracking-[0.25em]">SBC · REDEMPTION COUPON</p>
+                      <div className="mt-3 flex items-start justify-between gap-3">
+                        <div>
+                          <h2 className="text-2xl font-extrabold">{item.offerTitle || "SBC Offer"}</h2>
+                          <p className="mt-1 font-semibold opacity-90">{item.discount || "SBC Offer"}</p>
+                        </div>
+                        <span className="shrink-0 rounded-xl bg-white/20 px-4 py-2 text-sm font-bold">OFFER</span>
+                      </div>
+                    </div>
+
+                    {/* COUPON DETAILS */}
+                    <div className="p-5 sm:p-6">
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div>
+                          <p className="text-xs font-bold tracking-wide text-slate-400">STUDENT NAME</p>
+                          <h3 className="mt-2 break-words text-lg font-extrabold text-slate-900">{item.studentName || "-"}</h3>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold tracking-wide text-slate-400">SBC CARD NUMBER</p>
+                          <h3 className="mt-2 break-words text-lg font-extrabold text-slate-900">{item.studentCardNumber || "-"}</h3>
+                        </div>
+                      </div>
+
+                      <div className="my-5 border-t border-dashed border-slate-300" />
+
+                      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                        <span className="rounded-full bg-emerald-100 px-5 py-2 font-bold text-emerald-800">
+                          ✓ Approved
                         </span>
-                      </div>
-                    </div>
 
-                    {/* Coupon details */}
-                    <div className="space-y-4 p-4 sm:p-5">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            Student Name
-                          </p>
-                          <p className="mt-1 break-words text-sm font-extrabold text-slate-900">
-                            {coupon.studentName || "SBC Student"}
-                          </p>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            SBC Card Number
-                          </p>
-                          <p className="mt-1 break-words text-sm font-extrabold tracking-wide text-slate-900">
-                            {coupon.studentCardNumber || "—"}
-                          </p>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            Mobile
-                          </p>
-                          <p className="mt-1 break-words text-sm font-extrabold text-slate-900">
-                            {coupon.studentMobile || "—"}
-                          </p>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            Points Awarded
-                          </p>
-                          <p className="mt-1 text-sm font-extrabold text-slate-900">
-                            {coupon.pointsAwarded}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-dashed border-slate-300 pt-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span
-                            className={`rounded-full px-3 py-1.5 text-xs font-black ${info.badge}`}
-                          >
-                            {info.label}
-                          </span>
-                          <span className="text-right text-[10px] font-semibold text-slate-500">
-                            {formatDate(coupon.redeemedAt || coupon.requestedAt)}
-                          </span>
-                        </div>
-
-                        <p className="mt-3 text-xs leading-5 text-slate-500">
-                          {info.message}
-                        </p>
-
-                        {approved && (
-                          <p className="mt-2 text-xs font-bold text-emerald-700">
-                            {coupon.status === "redeemed"
-                              ? "Redemption recorded."
-                              : "Approved by business."}
-                          </p>
-                        )}
-
-                        <div className="mt-3 flex items-start justify-between gap-2 border-t border-dashed border-slate-200 pt-3">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                            Request ID
-                          </span>
-                          <span className="max-w-[70%] break-all text-right font-mono text-[10px] font-bold text-slate-600">
-                            {coupon.requestId}
-                          </span>
+                        <div className="w-full rounded-2xl border-2 border-yellow-300 bg-amber-50 p-4 sm:w-auto sm:min-w-[300px]">
+                          <p className="text-center text-sm font-extrabold tracking-wide text-amber-800">REDEEMED DATE &amp; TIME</p>
+                          <p className="mt-2 text-center text-lg font-extrabold text-slate-900">{formatDate(item.redeemedAt)}</p>
+                          {getDateValue(item.redeemedAt) && (
+                            <p className="mt-2 text-right font-extrabold text-amber-800">{getRelativeTime(item.redeemedAt)}</p>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </article>
-                );
-              })}
+                  </div>
+
+                )
+              )}
+
             </div>
           )}
 
-          <div className="mt-6 rounded-2xl bg-white p-5 shadow">
-            <div className="flex items-center justify-between gap-3">
+          {/* TOTAL */}
+
+          <div className="mt-10 rounded-3xl bg-white p-6 shadow-xl">
+
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+
               <div>
-                <h2 className="text-lg font-black text-slate-900">
-                  Total Coupons
+
+                <h2 className="text-2xl font-bold">
+                  📊 Total Redemptions
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Includes pending, approved, rejected and redeemed requests.
+
+                <p className="mt-2 text-gray-500">
+                  Total redeemed offers by your
+                  business.
                 </p>
+
+                {search && (
+                  <p className="mt-2 text-sm font-semibold text-orange-600">
+                    Showing {filteredHistory.length}{" "}
+                    matching result
+                    {filteredHistory.length !== 1
+                      ? "s"
+                      : ""}
+                  </p>
+                )}
+
               </div>
-              <div className="rounded-xl bg-fuchsia-50 px-5 py-3 text-center">
-                <span className="block text-2xl font-black text-fuchsia-700">
+
+              <div className="rounded-2xl bg-orange-100 px-8 py-5 text-center">
+
+                <span className="block text-4xl font-bold text-orange-700">
                   {history.length}
                 </span>
-                <span className="text-[10px] font-bold text-fuchsia-600">
+
+                <span className="text-sm font-semibold text-orange-600">
                   TOTAL
                 </span>
+
               </div>
+
             </div>
 
-            {search && (
-              <p className="mt-3 text-sm font-semibold text-fuchsia-700">
-                Showing {filteredHistory.length} matching coupons
-              </p>
-            )}
           </div>
+
         </div>
       </main>
     </BusinessProtected>
