@@ -163,6 +163,9 @@ export default function StudentOffers() {
   const [detailsOffer, setDetailsOffer] =
     useState<Offer | null>(null);
 
+  const [showLimitPopup, setShowLimitPopup] =
+  useState(false);
+
   const [pendingRequestId, setPendingRequestId] =
     useState<string | null>(null);
 
@@ -1143,15 +1146,24 @@ export default function StudentOffers() {
    * ==========================================
    */
 
-  const openOfferDetails =
-    (offer: Offer) => {
-      setDetailsOffer(offer);
-    };
+  
+const openOfferDetails = (offer: Offer) => {
+  const usedCount = offer.businessId
+    ? getUsageCount(offer.businessId)
+    : 0;
 
-  const closeOfferDetails =
-    () => {
-      setDetailsOffer(null);
-    };
+  setDetailsOffer(offer);
+  setShowLimitPopup(
+    usedCount >= MAX_REDEMPTIONS &&
+      Boolean(offer.businessId)
+  );
+};
+
+const closeOfferDetails = () => {
+  setShowLimitPopup(false);
+  setDetailsOffer(null);
+};
+
 
   const callBusiness =
     (
@@ -2357,6 +2369,81 @@ export default function StudentOffers() {
               </div>
 
             </div>
+
+{showLimitPopup && detailsOffer && (
+  <div
+    className="fixed inset-0 z-[60] flex items-center justify-center bg-[#020811]/80 p-4 backdrop-blur-sm"
+    onClick={() => setShowLimitPopup(false)}
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sbc-limit-title"
+      className="relative w-full max-w-sm rounded-3xl border border-[#ead9a5] bg-white p-6 text-center shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* CLOSE */}
+      <button
+        type="button"
+        aria-label="Close popup"
+        onClick={() => setShowLimitPopup(false)}
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-lg text-slate-500 hover:bg-slate-100"
+      >
+        ✕
+      </button>
+
+      {/* ICON */}
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fff5dd] text-3xl">
+        🎟️
+      </div>
+
+      {/* TITLE */}
+      <h2
+        id="sbc-limit-title"
+        className="mt-5 text-2xl font-black leading-tight text-[#07111f]"
+      >
+        Redemption limit reached
+      </h2>
+
+      {/* MESSAGE */}
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        You've used all 6 redemptions available at
+      </p>
+
+      {/* DYNAMIC BUSINESS NAME */}
+      <p className="mt-2 break-words text-lg font-extrabold text-[#9a741c]">
+        {detailsOffer.businessName || "SBC Partner Business"}
+      </p>
+
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        Renew your SBC Membership to continue enjoying
+        student benefits.
+      </p>
+
+      {/* RENEW BUTTON */}
+      <button
+        type="button"
+        onClick={() => {
+          window.location.href = "/student/renew";
+        }}
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#bd912e] px-4 py-4 text-sm font-black text-white transition hover:bg-[#a87d22]"
+      >
+        <span>↻</span>
+        Renew SBC Membership
+      </button>
+
+      {/* MAYBE LATER */}
+      <button
+        type="button"
+        onClick={() => setShowLimitPopup(false)}
+        className="mt-3 w-full rounded-xl py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+      >
+        Maybe later
+      </button>
+    </div>
+  </div>
+)}
+
 
             {/* FULL DETAILS */}
 
