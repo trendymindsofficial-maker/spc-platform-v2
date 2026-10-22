@@ -33,6 +33,7 @@ interface ExistingOffer {
 export default function AddOffer() {
   const router = useRouter();
 
+  const [discount, setDiscount] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
 
@@ -233,6 +234,11 @@ export default function AddOffer() {
    */
 
   const addOffer = async () => {
+    if (!discount.trim()) {
+      alert("Please enter the offer discount.");
+      return;
+    }
+
     if (!category) {
       alert("Please select a category.");
       return;
@@ -405,7 +411,7 @@ export default function AddOffer() {
         {
           title: "SBC Offer",
 
-          discount: "",
+          discount: discount.trim(),
 
           category,
 
@@ -643,6 +649,35 @@ export default function AddOffer() {
             {/* FORM */}
 
             <div className="space-y-6 p-6 sm:p-8">
+
+              {/* OFFER TITLE */}
+
+              <div>
+                <label className="mb-2 block text-sm font-black text-slate-800">
+                  Offer Title
+                </label>
+                <input
+                  type="text"
+                  value="SBC Offer"
+                  readOnly
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-medium text-slate-600 outline-none"
+                />
+              </div>
+
+              {/* DISCOUNT */}
+
+              <div>
+                <label className="mb-2 block text-sm font-black text-slate-800">
+                  Discount
+                </label>
+                <input
+                  type="text"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="Example: 20% OFF"
+                  className="w-full rounded-2xl border border-slate-200 bg-[#fafbf9] p-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#d4af37] focus:bg-white focus:ring-4 focus:ring-[#d4af37]/10"
+                />
+              </div>
 
               {/* CATEGORY */}
 
