@@ -99,26 +99,13 @@ export async function grantMembership(
      * unexpired membership — not by whether the document exists.
      */
     const currentExpiry = toDate(student.membershipExpiryDate);
-    const currentStart = toDate(student.membershipStartDate);
 
-    const stillActive =
-      !!currentExpiry && currentExpiry.getTime() > paymentDate.getTime();
+// Option C: Every successful payment starts a fresh one-year membership.
+const membershipStartDate = paymentDate;
+const membershipExpiryDate = addOneYear(paymentDate);
 
-    /*
-     * Paying early must never cost the student days: an active membership
-     * is extended from its existing expiry.
-     */
-    const membershipStartDate = stillActive
-      ? currentStart || paymentDate
-      : paymentDate;
-
-    const membershipExpiryDate =
-      stillActive && currentExpiry
-        ? addOneYear(currentExpiry)
-        : addOneYear(paymentDate);
-
-    const isRenewal = stillActive || !!currentExpiry;
-
+// Preserve registration vs renewal classification.
+const isRenewal = !!currentExpiry;
     transaction.set(
       studentRef,
       {
