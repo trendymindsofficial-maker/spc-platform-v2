@@ -300,10 +300,7 @@ export default function BusinessDashboard() {
           </div>
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <Link href="/business/add-offer" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
-              <h2 className="text-2xl font-black text-[#07111f]">➕ Add Offer</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-500">Create new offers for students.</p>
-            </Link>
+            
 
             <Link href="/business/my-offers" className="rounded-[1.75rem] border border-[#d4af37]/20 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8 transition hover:scale-105">
               <h2 className="text-2xl font-black text-[#07111f]">🎁 My Offers</h2>
