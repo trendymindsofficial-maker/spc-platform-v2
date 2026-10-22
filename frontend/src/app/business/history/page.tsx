@@ -12,6 +12,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   getDocs,
+  onSnapshot,
   query,
   where,
 } from "firebase/firestore";
@@ -113,19 +114,74 @@ export default function RedemptionHistory() {
    */
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
+    let unsubscribeHistory: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(
       auth,
-      async (user) => {
+      (user) => {
+        // Stop the previous business listener on auth changes.
+        unsubscribeHistory?.();
+        unsubscribeHistory = undefined;
+
         if (!user) {
+          setHistory([]);
+          setFilteredHistory([]);
+          setLoading(false);
           router.replace("/business/login");
           return;
         }
 
-        await loadHistory(user.uid);
+        setLoading(true);
+        setError("");
+
+        const q = query(
+          collection(db, "redemptions"),
+          where("businessId", "==", user.uid)
+        );
+
+        unsubscribeHistory = onSnapshot(
+          q,
+          (snap) => {
+            const data: Redemption[] = snap.docs.map((item) => {
+              const record = item.data();
+
+              return {
+                id: item.id,
+                studentName: record.studentName || "",
+                studentCardNumber: record.studentCardNumber || "",
+                offerTitle: record.offerTitle || "",
+                discount: record.discount || "",
+                redeemedAt: record.redeemedAt,
+                businessId: record.businessId || "",
+                status: record.status || "redeemed",
+              };
+            });
+
+            data.sort((a, b) => {
+              const timeA = a.redeemedAt?.toMillis?.() || 0;
+              const timeB = b.redeemedAt?.toMillis?.() || 0;
+              return timeB - timeA;
+            });
+
+            setHistory(data);
+            setLoading(false);
+            setError("");
+          },
+          (err) => {
+            console.error("Real-time redemption history error:", err);
+            setError(
+              "Unable to load redemption history. Please try again."
+            );
+            setLoading(false);
+          }
+        );
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeHistory?.();
+      unsubscribeAuth();
+    };
   }, [router]);
 
   /*
