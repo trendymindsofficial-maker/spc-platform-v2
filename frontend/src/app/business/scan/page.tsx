@@ -598,287 +598,141 @@ export default function StudentOffers() {
    * ==========================================
    */
 
-  const loadBusinessUsage =
-    async (
-      studentUid: string
-    ) => {
+  const loadBusinessUsage = async (studentUid: string) => {
+    try {
+      const studentSnap = await getDoc(
+        doc(db, "students", studentUid)
+      );
 
-      try {
+      if (!studentSnap.exists()) {
+        setUsageCounts({});
+        return;
+      }
 
-        const studentIds =
-          await findStudentIds(
-            studentUid
+      const currentCycleId = String(
+        studentSnap.data().membershipCycleId || ""
+      ).trim();
+
+      if (!currentCycleId) {
+        setUsageCounts({});
+        return;
+      }
+
+      const studentIds = await findStudentIds(studentUid);
+
+      const offerSnap = await getDocs(
+        query(
+          collection(db, "offers"),
+          where("status", "==", "active")
+        )
+      );
+
+      const businessIds = new Set<string>();
+
+      offerSnap.docs.forEach((offerDoc) => {
+        const businessId = String(offerDoc.data().businessId || "");
+        if (businessId) businessIds.add(businessId);
+      });
+
+      const counts: Record<string, number> = {};
+
+      for (const businessId of businessIds) {
+        let highestCount = 0;
+
+        for (const studentId of studentIds) {
+          try {
+            const usageSnap = await getDoc(
+              doc(
+                db,
+                "businessStudentUsage",
+                `${businessId}_${studentId}`
+              )
+            );
+
+            if (!usageSnap.exists()) continue;
+
+            const data = usageSnap.data();
+
+            if (
+              String(data.membershipCycleId || "") !== currentCycleId
+            ) continue;
+
+            const count = Number(data.count || 0);
+
+            if (Number.isFinite(count) && count >= 0) {
+              highestCount = Math.max(highestCount, count);
+            }
+          } catch (error) {
+            console.error("Business usage document error:", {
+              businessId, studentId, error
+            });
+          }
+        }
+
+        if (highestCount > 0) {
+          counts[businessId] = Math.min(
+            highestCount, MAX_REDEMPTIONS
           );
+        }
+      }
 
-        const offerQuery =
-          query(
-            collection(
-              db,
-              "offers"
-            ),
-            where(
-              "status",
-              "==",
-              "active"
+      const redemptionDocs = new Map<string, any>();
+
+      for (const studentId of studentIds) {
+        try {
+          const snap = await getDocs(
+            query(
+              collection(db, "redemptions"),
+              where("studentId", "==", studentId)
             )
           );
 
-        const offerSnap =
-          await getDocs(
-            offerQuery
-          );
-
-        const businessIds =
-          new Set<string>();
-
-        offerSnap.docs.forEach(
-          (offerDoc) => {
-
-            const data =
-              offerDoc.data();
-
-            const businessId =
-              String(
-                data.businessId ||
-                ""
-              );
-
-            if (
-              businessId
-            ) {
-              businessIds.add(
-                businessId
-              );
-            }
-
-          }
-        );
-
-        const counts: Record<
-          string,
-          number
-        > = {};
-
-        for (
-          const businessId of businessIds
-        ) {
-
-          let highestCount =
-            0;
-
-          for (
-            const studentId of studentIds
-          ) {
-
-            try {
-
-              const usageRef =
-                doc(
-                  db,
-                  "businessStudentUsage",
-                  `${businessId}_${studentId}`
-                );
-
-              const usageSnap =
-                await getDoc(
-                  usageRef
-                );
-
-              if (
-                usageSnap.exists()
-              ) {
-
-                const data =
-                  usageSnap.data();
-
-                const count =
-                  Number(
-                    data.count ||
-                    0
-                  );
-
-                if (
-                  count >
-                  highestCount
-                ) {
-                  highestCount =
-                    count;
-                }
-
-              }
-
-            } catch (error) {
-
-              console.error(
-                "Business usage document error:",
-                {
-                  businessId,
-                  studentId,
-                  error,
-                }
-              );
-
-            }
-
-          }
-
-          if (
-            highestCount >
-            0
-          ) {
-
-            counts[
-              businessId
-            ] =
-              Math.min(
-                highestCount,
-                MAX_REDEMPTIONS
-              );
-
-          }
-
-        }
-
-        /*
-         * Legacy redemption fallback
-         */
-
-        const legacyCounts: Record<
-          string,
-          number
-        > = {};
-
-        const redemptionDocs =
-          new Map<
-            string,
-            any
-          >();
-
-        for (
-          const studentId of studentIds
-        ) {
-
-          try {
-
-            const redemptionQuery =
-              query(
-                collection(
-                  db,
-                  "redemptions"
-                ),
-                where(
-                  "studentId",
-                  "==",
-                  studentId
-                )
-              );
-
-            const redemptionSnap =
-              await getDocs(
-                redemptionQuery
-              );
-
-            redemptionSnap.docs.forEach(
-              (redemptionDoc) => {
-
-                redemptionDocs.set(
-                  redemptionDoc.id,
-                  redemptionDoc.data()
-                );
-
-              }
+          snap.docs.forEach((redemptionDoc) => {
+            redemptionDocs.set(
+              redemptionDoc.id, redemptionDoc.data()
             );
-
-          } catch (error) {
-
-            console.error(
-              "Legacy redemption query error:",
-              error
-            );
-
-          }
-
+          });
+        } catch (error) {
+          console.error("Redemption usage query error:", {
+            studentId, error
+          });
         }
-
-        redemptionDocs.forEach(
-          (data) => {
-
-            const businessId =
-              String(
-                data.businessId ||
-                ""
-              );
-
-            if (
-              !businessId
-            ) {
-              return;
-            }
-
-            legacyCounts[
-              businessId
-            ] =
-              (
-                legacyCounts[
-                  businessId
-                ] ||
-                0
-              ) + 1;
-
-          }
-        );
-
-        Object.keys(
-          legacyCounts
-        ).forEach(
-          (businessId) => {
-
-            if (
-              counts[
-                businessId
-              ] === undefined
-            ) {
-
-              counts[
-                businessId
-              ] =
-                Math.min(
-                  legacyCounts[
-                    businessId
-                  ],
-                  MAX_REDEMPTIONS
-                );
-
-            }
-
-          }
-        );
-
-        setUsageCounts(
-          counts
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Business usage loading error:",
-          error
-        );
-
-        setUsageCounts(
-          {}
-        );
-
       }
 
-    };
+      const cycleCounts: Record<string, number> = {};
 
-  /*
-   * ==========================================
-   * LOAD CATEGORIES
-   * ==========================================
-   */
+      redemptionDocs.forEach((data) => {
+        if (
+          String(data.membershipCycleId || "") !== currentCycleId ||
+          String(data.status || "") !== "redeemed"
+        ) return;
 
+        const businessId = String(data.businessId || "");
+        if (!businessId) return;
+
+        cycleCounts[businessId] =
+          (cycleCounts[businessId] || 0) + 1;
+      });
+
+      for (const businessId of businessIds) {
+        const count = Math.max(
+          counts[businessId] || 0,
+          cycleCounts[businessId] || 0
+        );
+
+        if (count > 0) {
+          counts[businessId] = Math.min(count, MAX_REDEMPTIONS);
+        } else {
+          delete counts[businessId];
+        }
+      }
+
+      setUsageCounts(counts);
+    } catch (error) {
+      console.error("Business usage loading error:", error);
+      setUsageCounts({});
+    }
+  };
   const loadCategories =
     async () => {
 
