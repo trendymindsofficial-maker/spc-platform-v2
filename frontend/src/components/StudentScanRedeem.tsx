@@ -711,28 +711,31 @@ const [scannerOpen, setScannerOpen] = useState(false);
         return;
       }
 
-      const usageRef = doc(
-        db,
-        "businessStudentUsage",
-        `${business.businessId}_${currentUser.uid}`
+      const idToken = await currentUser.getIdToken();
+
+      const usageResponse = await apiFetch(
+        `/api/redemption/usage?businessId=${encodeURIComponent(business.businessId)}&offerId=${encodeURIComponent(offer.id)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
       );
 
-      let usageSnap;
+      const usageResult = await usageResponse.json().catch(() => ({}));
 
-      try {
-        usageSnap = await getDoc(usageRef);
-      } catch (error) {
-        console.error("SCAN_USAGE_READ_FAILED", error);
-        throw new Error("SCAN_USAGE_READ_FAILED");
+      if (!usageResponse.ok) {
+        console.error("SCAN_USAGE_API_FAILED", usageResponse.status, usageResult);
+        throw new Error(
+          usageResult.message || "Unable to verify redemption usage."
+        );
       }
 
-      const usageData = usageSnap.exists() ? usageSnap.data() : null;
-
       const storedCycleId = String(
-        usageData?.membershipCycleId || ""
+        usageResult.membershipCycleId || ""
       ).trim();
 
-      const rawCount = Number(usageData?.count ?? 0);
+      const rawCount = Number(usageResult.count ?? 0);
 
       const freshCount =
         storedCycleId === currentCycleId &&
@@ -748,8 +751,6 @@ const [scannerOpen, setScannerOpen] = useState(false);
         setShowLimitPopup(true);
         return;
       }
-
-      const idToken = await auth.currentUser.getIdToken();
 
       const idempotencyKey = crypto.randomUUID();
 

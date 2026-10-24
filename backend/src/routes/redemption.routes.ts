@@ -374,3 +374,52 @@ redemptionRouter.post(
     });
   })
 );
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/redemption/usage
+|--------------------------------------------------------------------------
+| Returns the authenticated student's usage for one business.
+*/
+redemptionRouter.get(
+  "/usage",
+  requireUser,
+  asyncHandler(async (req, res) => {
+    const uid = currentUser(req).uid;
+    const businessId = readString(req.query.businessId);
+    const offerId = readString(req.query.offerId);
+
+    if (!businessId || !offerId) {
+      throw badRequest("Business and offer are required.");
+    }
+
+    const db = getDb();
+    const offerSnap = await db.collection("offers").doc(offerId).get();
+
+    if (!offerSnap.exists) {
+      throw notFound("Offer not found.");
+    }
+
+    const offer = offerSnap.data() || {};
+
+    if (
+      String(offer.status || "").toLowerCase() !== "active" ||
+      String(offer.businessId || "") !== businessId
+    ) {
+      throw new ApiError(403, "Offer is not available for this business.");
+    }
+
+    const usageSnap = await db
+      .collection("businessStudentUsage")
+      .doc(`${businessId}_${uid}`)
+      .get();
+
+    const usage = usageSnap.exists ? usageSnap.data() || {} : {};
+
+    res.json({
+      success: true,
+      count: Math.max(0, Number(usage.count || 0)),
+      membershipCycleId: String(usage.membershipCycleId || ""),
+    });
+  })
+);
