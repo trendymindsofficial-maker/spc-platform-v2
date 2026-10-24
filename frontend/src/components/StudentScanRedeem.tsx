@@ -717,7 +717,15 @@ const [scannerOpen, setScannerOpen] = useState(false);
         `${business.businessId}_${currentUser.uid}`
       );
 
-      const usageSnap = await getDoc(usageRef);
+      let usageSnap;
+
+      try {
+        usageSnap = await getDoc(usageRef);
+      } catch (error) {
+        console.error("SCAN_USAGE_READ_FAILED", error);
+        throw new Error("SCAN_USAGE_READ_FAILED");
+      }
+
       const usageData = usageSnap.exists() ? usageSnap.data() : null;
 
       const storedCycleId = String(
