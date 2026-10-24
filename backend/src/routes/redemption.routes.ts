@@ -15,8 +15,8 @@ export const redemptionRouter = Router();
 | POST /api/redemption/create
 |--------------------------------------------------------------------------
 |
-| Creates a pending redemption request that the business then approves on
-| its own dashboard.
+| Creates and automatically approves a redemption in one transaction.
+| Keeps request records for history and idempotent retry handling.
 |
 | Everything the browser sends is re-checked here:
 |
@@ -25,9 +25,8 @@ export const redemptionRouter = Router();
 |   - the student must be under the per-business redemption cap
 |   - the offer must exist, be active, and actually belong to the business
 |
-| The cap is deliberately keyed on businessId + studentId rather than
-| offerId: deleting an offer and creating a new one must not reset a
-| student's usage for that business.
+| The cap is keyed on businessId + studentId + membershipCycleId,
+| not offerId. Each membership cycle has a fresh usage cap.
 |
 */
 
@@ -134,11 +133,45 @@ redemptionRouter.post(
         .where("uid", "==", uid);
 
       const offerSnap = await transaction.get(offerRef);
+
+      // Re-read the canonical student inside the transaction.
+      const canonicalStudentSnap = await transaction.get(authStudentRef);
+      if (!canonicalStudentSnap.exists) {
+        throw notFound("Student account was not found.");
+      }
+
+      const canonicalStudent = canonicalStudentSnap.data() || {};
+      const cycleId = String(canonicalStudent.membershipCycleId || "").trim();
+      const currentExpiry = toDate(canonicalStudent.membershipExpiryDate);
+
+      if (
+        canonicalStudent.membershipStatus !== "active" ||
+        canonicalStudent.status !== "active" ||
+        canonicalStudent.paymentStatus !== "paid" ||
+        !currentExpiry ||
+        currentExpiry.getTime() <= Date.now()
+      ) {
+        throw new ApiError(
+          403,
+          "Your SBC membership is not active. Please renew your membership.",
+          "MEMBERSHIP_EXPIRED"
+        );
+      }
+
+      if (!cycleId) {
+        throw new ApiError(
+          409,
+          "Membership cycle verification is required. Please contact SBC support.",
+          "MEMBERSHIP_CYCLE_ID_MISSING"
+        );
+      }
+
       const usageSnap = await transaction.get(usageRef);
       const redemptionsQuery = db
         .collection("redemptions")
         .where("studentId", "==", uid)
-        .where("businessId", "==", businessId);
+        .where("businessId", "==", businessId)
+        .where("membershipCycleId", "==", cycleId);
       const redemptionsSnap = await transaction.get(redemptionsQuery);
       const studentQuerySnap = await transaction.get(studentQuery);
 
@@ -180,11 +213,21 @@ redemptionRouter.post(
         throw notFound("Student profile not found.");
       }
 
-      // Preserve the existing business-wide cap, including legacy history.
-      const storedCount = usageSnap.exists
-        ? Math.max(0, Number(usageSnap.data()?.count || 0))
-        : 0;
-      const currentCount = Math.max(storedCount, redemptionsSnap.size);
+      // Only usage saved for the current membership cycle is relevant.
+      const usageData = usageSnap.exists ? usageSnap.data() || {} : {};
+      const storedCount =
+        usageSnap.exists &&
+        String(usageData.membershipCycleId || "") === cycleId
+          ? Math.max(0, Number(usageData.count || 0))
+          : 0;
+
+      // Count successful records only; records from older cycles are excluded
+      // by the query above, and any non-redeemed record is not usage.
+      const cycleRedemptionCount = redemptionsSnap.docs.filter(
+        (item) => String(item.data().status || "") === "redeemed"
+      ).length;
+
+      const currentCount = Math.max(storedCount, cycleRedemptionCount);
 
       if (currentCount >= MAX_REDEMPTIONS_PER_BUSINESS) {
         throw new ApiError(
@@ -217,6 +260,7 @@ redemptionRouter.post(
         {
           studentId: uid,
           businessId,
+          membershipCycleId: cycleId,
           count: usageNumber,
           maxAllowed: MAX_REDEMPTIONS_PER_BUSINESS,
           updatedAt: timestamp,
@@ -253,6 +297,7 @@ redemptionRouter.post(
       transaction.set(redemptionRef, {
         studentId: uid,
         studentProfileId: studentRef.id,
+        membershipCycleId: cycleId,
         studentName:
           studentData.fullName ||
           studentData.name ||
@@ -281,6 +326,7 @@ redemptionRouter.post(
 
       transaction.set(requestRef, {
         studentId: uid,
+        membershipCycleId: cycleId,
         studentName:
           studentData.fullName ||
           studentData.name ||

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import { getDb } from "../lib/firebase-admin";
+import { toDate } from "../lib/dates";
 import {
   asyncHandler,
   badRequest,
@@ -420,6 +421,55 @@ redeemApprovalRouter.post(
         throw badRequest("The redemption request is missing required information.");
       }
 
+      // Canonical membership document: students/<Firebase Auth UID>
+      const canonicalStudentRef = db
+        .collection("students")
+        .doc(studentAuthUid);
+
+      const canonicalStudentSnap = await transaction.get(
+        canonicalStudentRef
+      );
+
+      if (!canonicalStudentSnap.exists) {
+        throw notFound("Student account was not found.");
+      }
+
+      const canonicalStudent = canonicalStudentSnap.data() || {};
+      const currentCycleId = String(
+        canonicalStudent.membershipCycleId || ""
+      ).trim();
+
+      const membershipExpiry = toDate(
+        canonicalStudent.membershipExpiryDate
+      );
+
+      if (
+        canonicalStudent.membershipStatus !== "active" ||
+        canonicalStudent.status !== "active" ||
+        canonicalStudent.paymentStatus !== "paid" ||
+        !membershipExpiry ||
+        membershipExpiry.getTime() <= Date.now()
+      ) {
+        throw forbidden(
+          "Student membership is inactive or expired. Please renew before redeeming."
+        );
+      }
+
+      if (!currentCycleId) {
+        throw forbidden(
+          "Membership cycle verification is required."
+        );
+      }
+
+      // Do not approve requests from a previous or unverified cycle.
+      if (
+        String(request.membershipCycleId || "") !== currentCycleId
+      ) {
+        throw badRequest(
+          "This redemption request belongs to an old membership cycle. Please create a new request."
+        );
+      }
+
       const offerRef = db.collection("offers").doc(offerId);
       const usageRef = db
         .collection("businessStudentUsage")
@@ -495,16 +545,34 @@ redeemApprovalRouter.post(
         );
       }
 
-      const legacyCount = redemptionsSnap.size;
-      const storedCount = usageSnap.exists
-        ? Number(usageSnap.data()?.count || 0)
-        : 0;
+      // Only successful redemptions belonging to this membership cycle count.
+      const cycleRedemptionCount = redemptionsSnap.docs.filter((doc) => {
+        const data = doc.data();
 
-      const currentCount = Math.max(storedCount, legacyCount);
+        return (
+          data.status === "redeemed" &&
+          String(data.membershipCycleId || "") === currentCycleId
+        );
+      }).length;
+
+      // Ignore usage counters belonging to an older membership cycle.
+      const usageData = usageSnap.exists
+        ? usageSnap.data() || {}
+        : {};
+
+      const storedCount =
+        String(usageData.membershipCycleId || "") === currentCycleId
+          ? Math.max(0, Number(usageData.count || 0))
+          : 0;
+
+      const currentCount = Math.max(
+        storedCount,
+        cycleRedemptionCount
+      );
 
       if (currentCount >= MAX_REDEMPTIONS) {
         throw badRequest(
-          "This student has already used the benefit 4/4 times at this business."
+          `This student has already used the benefit ${MAX_REDEMPTIONS}/${MAX_REDEMPTIONS} times at this business.`
         );
       }
 
@@ -534,6 +602,7 @@ redeemApprovalRouter.post(
         {
           studentId: studentAuthUid,
           businessId,
+          membershipCycleId: currentCycleId,
           count: usageNumber,
           maxAllowed: MAX_REDEMPTIONS,
           updatedAt: now,
@@ -571,6 +640,7 @@ redeemApprovalRouter.post(
       transaction.set(redemptionRef, {
         studentId: studentAuthUid,
         studentProfileId: studentRef.id,
+        membershipCycleId: currentCycleId,
         studentName:
           request.studentName ||
           studentData.fullName ||
