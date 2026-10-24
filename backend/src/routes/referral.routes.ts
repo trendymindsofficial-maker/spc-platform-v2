@@ -80,7 +80,15 @@ referralRouter.post(
       );
     }
 
-    if (!student.razorpayPaymentId || !student.razorpayOrderId) {
+    const verifiedPaymentId = String(
+      student.phonepeTransactionId || ""
+    ).trim();
+
+    const verifiedOrderId = String(
+      student.phonepeMerchantOrderId || ""
+    ).trim();
+
+    if (!verifiedPaymentId || !verifiedOrderId) {
       throw badRequest("Verified payment details are missing.");
     }
 
@@ -149,8 +157,9 @@ referralRouter.post(
           referralCode,
           status: "success",
           paymentStatus: "paid",
-          razorpayPaymentId: String(student.razorpayPaymentId),
-          razorpayOrderId: String(student.razorpayOrderId),
+          paymentProvider: "PhonePe",
+          paymentId: verifiedPaymentId,
+          orderId: verifiedOrderId,
           successfulAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -267,8 +276,9 @@ referralRouter.post(
             referralCode: code,
             status: "success",
             paymentStatus: "paid",
-            razorpayPaymentId: String(data.razorpayPaymentId || ""),
-            razorpayOrderId: String(data.razorpayOrderId || ""),
+            paymentProvider: "PhonePe",
+            paymentId: String(data.phonepeTransactionId || ""),
+            orderId: String(data.phonepeMerchantOrderId || ""),
             successfulAt: FieldValue.serverTimestamp(),
             reconciled: true,
           },

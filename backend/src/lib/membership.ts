@@ -1,7 +1,7 @@
+
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 import {
-  MEMBERSHIP_AMOUNT,
   MEMBERSHIP_PLAN,
 } from "../config/constants";
 import { addOneYear, toDate } from "./dates";
@@ -12,26 +12,25 @@ import { getDb } from "./firebase-admin";
 | MEMBERSHIP GRANTING
 |--------------------------------------------------------------------------
 |
-| One place where a successful payment turns into membership. Both the
-| Razorpay webhook (payment button flow) and the legacy checkout verify
-| endpoint call this, so membership dates and idempotency can never drift
-| between the two.
+| Single membership grant function for PhonePe.
 |
-| Idempotency key: membershipPayments/<razorpayPaymentId>
+| Each successful new payment creates one membership cycle.
+| membershipCycleId = paymentId (stable and deterministic).
 |
-| Razorpay retries webhooks until it gets a 2xx, so the same payment will
-| very likely arrive more than once. The payment document is created
-| inside the same transaction that extends the membership, so a repeat
-| delivery is detected and ignored rather than granting a second year.
+| Duplicate payment callbacks return the original cycle.
+| Payment record and membership update are atomic.
+|
+| IMPORTANT:
+| Existing legacy paid payments without membershipCycleId
+| are rejected for safe manual review. Never invent a new cycle
+| for a duplicate payment.
 |
 */
-
 
 export type PaymentSource =
   | "payment_button_webhook"
   | "checkout_verify"
   | "phonepe_status_verify";
-
 
 export interface GrantMembershipInput {
   uid: string;
@@ -40,195 +39,162 @@ export interface GrantMembershipInput {
   amount: number;
   currency: string;
   source: PaymentSource;
-  paymentProvider?: "Razorpay" | "PhonePe";
+  paymentProvider: "PhonePe";
   payerContact?: string;
   payerEmail?: string;
-  eventId?: string;
 }
+
 export interface GrantMembershipResult {
   alreadyProcessed: boolean;
   isRenewal: boolean;
   membershipStartDate: string | null;
   membershipExpiryDate: string | null;
+  membershipCycleId: string;
 }
 
 export async function grantMembership(
   input: GrantMembershipInput
 ): Promise<GrantMembershipResult> {
+  if (!input.uid || !input.paymentId || !input.orderId) {
+    throw new Error("INVALID_MEMBERSHIP_PAYMENT_INPUT");
+  }
+
   const db = getDb();
 
   const studentRef = db.collection("students").doc(input.uid);
+
   const paymentRef = db
     .collection("membershipPayments")
     .doc(input.paymentId);
 
-  return db.runTransaction<GrantMembershipResult>(async (transaction) => {
-    const existingPayment = await transaction.get(paymentRef);
+  return db.runTransaction<GrantMembershipResult>(
+    async (transaction) => {
+      const existingPaymentSnap = await transaction.get(paymentRef);
 
-    /*
-     * Already handled. Return the stored dates so a retried webhook or a
-     * double-submitted verification gets a consistent answer.
-     */
-    if (existingPayment.exists) {
-      const existing = existingPayment.data() || {};
+      /*
+       * Existing payment:
+       * Return the original grant only when it is already paid
+       * and belongs to the same student.
+       */
+      if (existingPaymentSnap.exists) {
+        const existing = existingPaymentSnap.data() || {};
 
-      const storedStart = toDate(existing.membershipStartDate);
-      const storedExpiry = toDate(existing.membershipExpiryDate);
+        if (
+          existing.status !== "paid" ||
+          String(existing.uid || "") !== input.uid
+        ) {
+          throw new Error("PAYMENT_RECORD_CONFLICT");
+        }
 
-      return {
-        alreadyProcessed: true,
-        isRenewal: existing.type === "renewal",
-        membershipStartDate: storedStart?.toISOString() || null,
-        membershipExpiryDate: storedExpiry?.toISOString() || null,
-      };
-    }
+        const storedStart = toDate(existing.membershipStartDate);
+        const storedExpiry = toDate(existing.membershipExpiryDate);
 
-    const studentSnap = await transaction.get(studentRef);
+        const membershipCycleId = String(
+          existing.membershipCycleId || ""
+        );
 
-    if (!studentSnap.exists) {
-      throw new Error(`STUDENT_NOT_FOUND:${input.uid}`);
-    }
+        if (!membershipCycleId) {
+          throw new Error("MEMBERSHIP_CYCLE_ID_MISSING");
+        }
 
-    const student = studentSnap.data() || {};
-    const paymentDate = new Date();
+        return {
+          alreadyProcessed: true,
+          isRenewal: existing.type === "renewal",
+          membershipStartDate: storedStart?.toISOString() || null,
+          membershipExpiryDate: storedExpiry?.toISOString() || null,
+          membershipCycleId,
+        };
+      }
 
-    /*
-     * A student registering for the first time already has a document at
-     * this point (created as pending_payment before the payment button is
-     * shown), so "renewal" is decided by whether they currently hold an
-     * unexpired membership — not by whether the document exists.
-     */
-    const currentExpiry = toDate(student.membershipExpiryDate);
+      const studentSnap = await transaction.get(studentRef);
 
-// Option C: Every successful payment starts a fresh one-year membership.
-const membershipStartDate = paymentDate;
-const membershipExpiryDate = addOneYear(paymentDate);
+      if (!studentSnap.exists) {
+        throw new Error(`STUDENT_NOT_FOUND:${input.uid}`);
+      }
 
-// Preserve registration vs renewal classification.
-const isRenewal = !!currentExpiry;
-    transaction.set(
-      studentRef,
-      {
-        /*
-         * Activation happens here and only here. Referral crediting and
-         * offer redemption both gate on status/paymentStatus, so they stay
-         * closed until money has actually arrived.
-         */
-        status: "active",
-        paymentStatus: "paid",
-        membershipStatus: "active",
+      const student = studentSnap.data() || {};
 
-        membershipStartDate: Timestamp.fromDate(membershipStartDate),
-        membershipExpiryDate: Timestamp.fromDate(membershipExpiryDate),
-        membershipPlan: MEMBERSHIP_PLAN,
+      /*
+       * Option C:
+       * Every successful NEW payment starts a fresh one-year
+       * membership from the payment grant date.
+       */
+      const paymentDate = new Date();
 
-        paymentAmount: input.amount,
-        paymentCurrency: input.currency,
+      const membershipStartDate = paymentDate;
+      const membershipExpiryDate = addOneYear(paymentDate);
 
-       ...(input.paymentProvider === "PhonePe"
-  ? {
-      phonepeTransactionId: input.paymentId,
-      phonepeMerchantOrderId: input.orderId,
-      paymentProvider: "PhonePe",
-    }
-  : {
-      razorpayPaymentId: input.paymentId,
-      razorpayOrderId: input.orderId,
-      paymentProvider: "Razorpay",
-    }),
+      /*
+       * Stable cycle identifier for this payment.
+       * A retry uses the already-created payment record above.
+       */
+      const membershipCycleId = input.paymentId;
 
-        lastMembershipPaymentId: input.paymentId,
-        lastMembershipOrderId: input.orderId,
-        lastMembershipPaymentAt: FieldValue.serverTimestamp(),
+      /*
+       * Preserve existing registration/renewal classification.
+       */
+      const currentExpiry = toDate(student.membershipExpiryDate);
+      const isRenewal = !!currentExpiry;
 
-        paidAt: FieldValue.serverTimestamp(),
-        membershipUpdatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
 
-    transaction.set(paymentRef, {
-      uid: input.uid,
-      type: isRenewal ? "renewal" : "registration",
-      source: input.source,
+      transaction.set(
+        studentRef,
+        {
+          status: "active",
+          paymentStatus: "paid",
+          membershipStatus: "active",
 
-      amount: input.amount,
-      currency: input.currency,
+          membershipStartDate: Timestamp.fromDate(membershipStartDate),
+          membershipExpiryDate: Timestamp.fromDate(membershipExpiryDate),
+          membershipPlan: MEMBERSHIP_PLAN,
+          membershipCycleId,
 
-      ...(input.paymentProvider === "PhonePe"
-        ? {
-            phonepeTransactionId: input.paymentId,
-            phonepeMerchantOrderId: input.orderId,
-            paymentProvider: "PhonePe",
-          }
-        : {
-            razorpayPaymentId: input.paymentId,
-            razorpayOrderId: input.orderId,
-            paymentProvider: "Razorpay",
-            ...(input.eventId ? { razorpayEventId: input.eventId } : {}),
-          }),
+          paymentAmount: input.amount,
+          paymentCurrency: input.currency,
 
-      membershipStartDate: Timestamp.fromDate(membershipStartDate),
-      membershipExpiryDate: Timestamp.fromDate(membershipExpiryDate),
+          phonepeTransactionId: input.paymentId,
+          phonepeMerchantOrderId: input.orderId,
+          paymentProvider: "PhonePe",
 
-      status: "paid",
-      paidAt: FieldValue.serverTimestamp(),
-      verifiedAt: FieldValue.serverTimestamp(),
-    });
+          lastMembershipPaymentId: input.paymentId,
+          lastMembershipOrderId: input.orderId,
+          lastMembershipPaymentAt: FieldValue.serverTimestamp(),
 
-    return {
-      alreadyProcessed: false,
-      isRenewal,
-      membershipStartDate: membershipStartDate.toISOString(),
-      membershipExpiryDate: membershipExpiryDate.toISOString(),
-    };
-  });
-}
+          paidAt: FieldValue.serverTimestamp(),
+          membershipUpdatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
 
-/**
- * Records a captured payment that could not be tied to a student.
- *
- * The money has already left the customer's account, so it must never be
- * dropped silently. Admins can see these, and a student can claim one
- * from the app with their payment id.
- */
-export async function recordUnmatchedPayment(input: {
-  paymentId: string;
-  orderId: string;
-  amount: number;
-  currency: string;
-  payerContact?: string;
-  payerEmail?: string;
-  payerName?: string;
-  eventId?: string;
-  reason: string;
-}): Promise<void> {
-  const db = getDb();
-
-  await db
-    .collection("membershipPayments")
-    .doc(input.paymentId)
-    .set(
-      {
-        status: "unmatched",
-        source: "payment_button_webhook",
+      transaction.set(paymentRef, {
+        uid: input.uid,
+        type: isRenewal ? "renewal" : "registration",
+        source: input.source,
 
         amount: input.amount,
         currency: input.currency,
-        expectedAmount: MEMBERSHIP_AMOUNT,
 
-        razorpayPaymentId: input.paymentId,
-        razorpayOrderId: input.orderId,
+        membershipCycleId,
 
-        payerContact: input.payerContact || "",
-        payerEmail: input.payerEmail || "",
-        payerName: input.payerName || "",
+        phonepeTransactionId: input.paymentId,
+        phonepeMerchantOrderId: input.orderId,
+        paymentProvider: "PhonePe",
 
-        ...(input.eventId ? { razorpayEventId: input.eventId } : {}),
+        membershipStartDate: Timestamp.fromDate(membershipStartDate),
+        membershipExpiryDate: Timestamp.fromDate(membershipExpiryDate),
 
-        unmatchedReason: input.reason,
-        receivedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+        status: "paid",
+        paidAt: FieldValue.serverTimestamp(),
+        verifiedAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        alreadyProcessed: false,
+        isRenewal,
+        membershipStartDate: membershipStartDate.toISOString(),
+        membershipExpiryDate: membershipExpiryDate.toISOString(),
+        membershipCycleId,
+      };
+    }
+  );
 }

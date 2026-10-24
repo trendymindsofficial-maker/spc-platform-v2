@@ -15,11 +15,6 @@ declare global {
     interface Request {
       user?: DecodedIdToken;
       isAdmin?: boolean;
-      /**
-       * Exact request bytes, captured by express.json's verify hook.
-       * Required for Razorpay webhook signature verification.
-       */
-      rawBody?: Buffer;
     }
   }
 }

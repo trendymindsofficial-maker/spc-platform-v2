@@ -15,7 +15,7 @@ export const MEMBERSHIP_AMOUNT = 199;
 /** Membership duration identifier stored on the student document. */
 export const MEMBERSHIP_PLAN = "1_year";
 
-/** Razorpay works in paise. */
+/** Gateway amount in paise. */
 export const MEMBERSHIP_AMOUNT_PAISE = MEMBERSHIP_AMOUNT * 100;
 
 /** Maximum redemptions per student per business, across all offers. */

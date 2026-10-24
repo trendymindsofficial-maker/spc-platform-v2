@@ -58,38 +58,6 @@ export const FIREBASE_ADMIN_PRIVATE_KEY_BASE64 = readString(
   "FIREBASE_ADMIN_PRIVATE_KEY_BASE64"
 );
 
-/*
-|--------------------------------------------------------------------------
-| Razorpay legacy configuration
-|--------------------------------------------------------------------------
-|
-| Kept for compatibility with existing legacy code.
-| PhonePe is used by the current membership payment flow.
-|
-*/
-
-export const RAZORPAY_KEY_ID = readString("RAZORPAY_KEY_ID");
-
-export const RAZORPAY_KEY_SECRET = readString("RAZORPAY_KEY_SECRET");
-
-export const CHECKOUT_API_ENABLED = Boolean(
-  RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET
-);
-
-export const RAZORPAY_WEBHOOK_SECRET = readString(
-  "RAZORPAY_WEBHOOK_SECRET"
-);
-
-export const RAZORPAY_PAYMENT_BUTTON_ID = readString(
-  "RAZORPAY_PAYMENT_BUTTON_ID"
-);
-
-/*
-|--------------------------------------------------------------------------
-| PhonePe Payment Gateway
-|--------------------------------------------------------------------------
-*/
-
 export const PHONEPE_CLIENT_ID = readString("PHONEPE_CLIENT_ID");
 
 export const PHONEPE_CLIENT_SECRET = readString("PHONEPE_CLIENT_SECRET");

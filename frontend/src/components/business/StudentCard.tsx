@@ -17,7 +17,7 @@ export default function StudentCard({
   redeeming,
   onRedeem,
 }: StudentCardProps) {
-  const limitReached = usedCount >= 4;
+  const limitReached = usedCount >= 6;
 
   const getStatus = () => {
     if (usedCount === 0) {
@@ -28,7 +28,7 @@ export default function StudentCard({
       };
     }
 
-    if (usedCount >= 4) {
+    if (usedCount >= 6) {
       return {
         text: "❌ Limit Reached",
         color: "text-red-700",
@@ -37,7 +37,7 @@ export default function StudentCard({
     }
 
     return {
-      text: `✅ Used ${usedCount} / 4`,
+      text: `✅ Used ${usedCount} / 6`,
       color: "text-blue-700",
       bg: "bg-blue-50",
     };

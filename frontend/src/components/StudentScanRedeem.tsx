@@ -390,40 +390,72 @@ const [scannerOpen, setScannerOpen] = useState(false);
 
       // Usage is optional for loading the business. If its Firestore rule
       // blocks the read, the business and offers must still open normally.
-      if (auth.currentUser) {
-  try {
-    const usageRef = doc(
-      db,
-      "businessStudentUsage",
-      `${businessAuthUid}_${auth.currentUser.uid}`
-    );
+      const currentUser = auth.currentUser;
 
-    const usageSnap = await getDoc(usageRef);
+      if (currentUser) {
+        try {
+          // Read the student's current membership cycle.
+          const studentSnap = await getDoc(
+            doc(db, "students", currentUser.uid)
+          );
 
-    const count = usageSnap.exists()
-      ? Math.min(
-          Number(usageSnap.data().count || 0),
-          MAX_REDEMPTIONS
-        )
-      : 0;
+          const studentData = studentSnap.exists()
+            ? studentSnap.data()
+            : {};
 
-    setUsageCount(count);
+          const currentCycleId = String(
+            studentData.membershipCycleId || ""
+          ).trim();
 
-    // Show limit popup only after this business usage is loaded.
-    setShowLimitPopup(count >= MAX_REDEMPTIONS);
-  } catch (usageError) {
-    console.error(
-      "SBC usage read failed (non-blocking):",
-      usageError
-    );
+          // Read this student's usage at this business.
+          const usageRef = doc(
+            db,
+            "businessStudentUsage",
+            `${businessAuthUid}_${currentUser.uid}`
+          );
 
-    setUsageCount(0);
-    setShowLimitPopup(false);
-  }
-} else {
-  setUsageCount(0);
-  setShowLimitPopup(false);
-}
+          const usageSnap = await getDoc(usageRef);
+
+          const usageData = usageSnap.exists()
+            ? usageSnap.data()
+            : null;
+
+          const storedCycleId = String(
+            usageData?.membershipCycleId || ""
+          ).trim();
+
+          const rawCount = Number(usageData?.count ?? 0);
+
+          // Old membership cycle usage must not carry forward.
+          const validCurrentCycle =
+            Boolean(currentCycleId) &&
+            storedCycleId === currentCycleId;
+
+          const count =
+            validCurrentCycle &&
+            Number.isFinite(rawCount) &&
+            rawCount >= 0
+              ? Math.min(
+                  Math.floor(rawCount),
+                  MAX_REDEMPTIONS
+                )
+              : 0;
+
+          setUsageCount(count);
+          setShowLimitPopup(count >= MAX_REDEMPTIONS);
+        } catch (usageError) {
+          console.error(
+            "SBC usage read failed (non-blocking):",
+            usageError
+          );
+
+          setUsageCount(0);
+          setShowLimitPopup(false);
+        }
+      } else {
+        setUsageCount(0);
+        setShowLimitPopup(false);
+      }
     } catch (error) {
       console.error("Scan business loading error:", error);
       setOffers([]);
@@ -655,18 +687,59 @@ const [scannerOpen, setScannerOpen] = useState(false);
       return;
     }
 
-   if (usageCount >= MAX_REDEMPTIONS) {
-  setShowLimitPopup(true);
-  return;
-}
-
     try {
       setRedeemLoading(true);
 
+      const currentUser = auth.currentUser;
+      if (!currentUser || !business) {
+        alert("Please login again.");
+        return;
+      }
+
+      // Always verify usage against the latest membership cycle.
       const studentSnap = await getDoc(
-        doc(db, "students", auth.currentUser.uid)
+        doc(db, "students", currentUser.uid)
       );
       const studentData = studentSnap.exists() ? studentSnap.data() : {};
+
+      const currentCycleId = String(
+        studentData.membershipCycleId || ""
+      ).trim();
+
+      if (!currentCycleId) {
+        alert("Membership verification required. Please login again.");
+        return;
+      }
+
+      const usageRef = doc(
+        db,
+        "businessStudentUsage",
+        `${business.businessId}_${currentUser.uid}`
+      );
+
+      const usageSnap = await getDoc(usageRef);
+      const usageData = usageSnap.exists() ? usageSnap.data() : null;
+
+      const storedCycleId = String(
+        usageData?.membershipCycleId || ""
+      ).trim();
+
+      const rawCount = Number(usageData?.count ?? 0);
+
+      const freshCount =
+        storedCycleId === currentCycleId &&
+        Number.isFinite(rawCount) &&
+        rawCount >= 0
+          ? Math.min(Math.floor(rawCount), MAX_REDEMPTIONS)
+          : 0;
+
+      setUsageCount(freshCount);
+      setShowLimitPopup(freshCount >= MAX_REDEMPTIONS);
+
+      if (freshCount >= MAX_REDEMPTIONS) {
+        setShowLimitPopup(true);
+        return;
+      }
 
       const idToken = await auth.currentUser.getIdToken();
 
@@ -830,12 +903,10 @@ const [scannerOpen, setScannerOpen] = useState(false);
                     <button
                       type="button"
                       onClick={() => setSelectedOffer(offer)}
-                      disabled={usageCount >= MAX_REDEMPTIONS}
+                      disabled={redeemLoading}
                       className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] transition hover:bg-[#f1cf63] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                     >
-                      {usageCount >= MAX_REDEMPTIONS
-                        ? "🚫 Limit Reached"
-                        : "🎁 Redeem Offer"}
+                      🎁 Redeem Offer
                     </button>
                   </div>
                 </div>
@@ -1219,12 +1290,10 @@ const [scannerOpen, setScannerOpen] = useState(false);
                       <button
                         type="button"
                         onClick={() => setSelectedOffer(offer)}
-                        disabled={usageCount >= MAX_REDEMPTIONS}
+                        disabled={redeemLoading}
                         className="mt-4 w-full rounded-xl bg-[#d4af37] py-3.5 text-sm font-black text-[#07111f] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                       >
-                        {usageCount >= MAX_REDEMPTIONS
-                          ? "🚫 Limit Reached"
-                          : "🎁 Redeem Offer"}
+                        🎁 Redeem Offer
                       </button>
                     </div>
                   </div>

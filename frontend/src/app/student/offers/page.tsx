@@ -711,6 +711,26 @@ export default function StudentOffers() {
 
       try {
 
+        const canonicalStudentSnap = await getDoc(
+          doc(db, "students", studentUid)
+        );
+
+        if (!canonicalStudentSnap.exists()) {
+          console.error("Canonical student document not found.");
+          setUsageCounts({});
+          return;
+        }
+
+        const currentCycleId = String(
+          canonicalStudentSnap.data().membershipCycleId || ""
+        ).trim();
+
+        if (!currentCycleId) {
+          console.error("Current membership cycle ID is missing.");
+          setUsageCounts({});
+          return;
+        }
+
         const studentIds =
           await findStudentIds(
             studentUid
@@ -796,6 +816,13 @@ export default function StudentOffers() {
 
                 const data =
                   usageSnap.data();
+
+                if (
+                  String(data.membershipCycleId || "").trim() !==
+                  currentCycleId
+                ) {
+                  continue;
+                }
 
                 const count =
                   Number(
@@ -908,6 +935,14 @@ export default function StudentOffers() {
 
         redemptionDocs.forEach(
           (data) => {
+
+            if (
+              String(data.membershipCycleId || "").trim() !==
+                currentCycleId ||
+              data.status !== "redeemed"
+            ) {
+              return;
+            }
 
             const businessId =
               String(

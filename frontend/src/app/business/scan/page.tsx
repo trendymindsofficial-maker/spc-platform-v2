@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { apiFetch } from "@/lib/api";
 import { auth, db } from "@/lib/firebase";
 
 import { onAuthStateChanged } from "firebase/auth";
@@ -935,7 +935,7 @@ export default function StudentOffers() {
       ) {
 
         alert(
-          "🚫 You have reached the maximum 4 redemptions for this business."
+          "🚫 You have reached the maximum 6 redemptions for this business."
         );
 
         return;
@@ -1284,243 +1284,113 @@ export default function StudentOffers() {
    * ==========================================
    */
 
-  const redeemMyBenefit =
-    async () => {
 
-      if (
-        !auth.currentUser
-      ) {
+const redeemMyBenefit = async () => {
+  const currentUser = auth.currentUser;
 
-        alert(
-          "Please login again."
-        );
+  if (!currentUser) {
+    alert("Please login again.");
+    router.replace("/student/login");
+    return;
+  }
 
-        router.replace(
-          "/student/login"
-        );
+  if (!selectedOffer || !verifiedBusiness) {
+    alert("Please verify the business first.");
+    return;
+  }
 
-        return;
-      }
+  if (verifiedBusiness.businessId !== selectedOffer.businessId) {
+    alert("Business verification does not match this offer.");
+    return;
+  }
 
-      if (
-        !selectedOffer
-      ) {
-        return;
-      }
+  if (redeemLoading) return;
 
-      if (
-        !verifiedBusiness
-      ) {
+  const studentUid = currentUser.uid;
+  const businessId = selectedOffer.businessId;
+  const offerId = selectedOffer.id;
 
-        alert(
-          "Please verify the business first."
-        );
+  const attemptStorageKey =
+    `sbc_redemption_attempt_${studentUid}_${businessId}_${offerId}`;
 
-        return;
-      }
+  try {
+    setRedeemLoading(true);
 
-      if (
-        verifiedBusiness.businessId !==
-        selectedOffer.businessId
-      ) {
+    let idempotencyKey =
+      window.localStorage.getItem(attemptStorageKey);
 
-        alert(
-          "❌ Business verification does not match this offer."
-        );
+    if (!idempotencyKey) {
+      idempotencyKey = window.crypto.randomUUID();
+      window.localStorage.setItem(
+        attemptStorageKey,
+        idempotencyKey
+      );
+    }
 
-        return;
-      }
+    const idToken = await currentUser.getIdToken();
 
-      const usedCount =
-        getUsageCount(
-          selectedOffer.businessId
-        );
+    const response = await apiFetch("/api/redemption/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        businessId,
+        businessName: verifiedBusiness.businessName,
+        businessVerificationId: verifiedBusiness.businessId,
+        offerId,
+        offerTitle: selectedOffer.title || "SBC Offer",
+        offerDiscount: selectedOffer.discount || "",
+        idempotencyKey,
+      }),
+    });
 
-      if (
-        usedCount >=
-        MAX_REDEMPTIONS
-      ) {
+    const result = await response.json().catch(() => ({}));
 
-        alert(
-          "🚫 You have reached the maximum 4 redemptions for this business."
-        );
+    if (!response.ok || !result?.success) {
+      throw new Error(
+        result?.error || "Unable to redeem this offer."
+      );
+    }
 
-        return;
-      }
+    if (result.status !== "approved") {
+      throw new Error(
+        "Redemption status is not confirmed. Please check your redemption history before retrying."
+      );
+    }
 
-      try {
+    // Redemption confirmed by server.
+    window.localStorage.removeItem(attemptStorageKey);
 
-        setRedeemLoading(
-          true
-        );
+    setApprovedOffer({
+      ...selectedOffer,
+      businessName: verifiedBusiness.businessName,
+    });
 
-        const studentUid =
-          auth.currentUser.uid;
+    setApprovedPoints(Number(result.pointsAwarded || 0));
+    setApprovedTotalPoints(Number(result.totalPoints || 0));
 
-        /*
-         * LOAD STUDENT
-         */
+    setPendingOffer(null);
+    setPendingRequestId(null);
+    setShowVerificationModal(false);
+    setSelectedOffer(null);
+    setVerifiedBusiness(null);
 
-        let studentName =
-          "SBC Student";
+    await loadBusinessUsage(studentUid);
 
-        let studentCardNumber =
-          "";
+  } catch (error) {
+    console.error("Redemption API error:", error);
 
-        try {
-
-          const studentRef =
-            doc(
-              db,
-              "students",
-              studentUid
-            );
-
-          const studentSnap =
-            await getDoc(
-              studentRef
-            );
-
-          if (
-            studentSnap.exists()
-          ) {
-
-            const studentData =
-              studentSnap.data();
-
-            studentName =
-              studentData.name ||
-              studentData.fullName ||
-              studentData.studentName ||
-              "SBC Student";
-
-            studentCardNumber =
-              studentData.cardNumber ||
-              studentData.studentCardNumber ||
-              "";
-
-          }
-
-        } catch (error) {
-
-          console.error(
-            "Student profile loading error:",
-            error
-          );
-
-        }
-
-        /*
-         * ========================================
-         * CREATE PENDING REQUEST
-         * ========================================
-         *
-         * IMPORTANT:
-         *
-         * addDoc returns the request ID.
-         *
-         * We save it in pendingRequestId
-         * so Student can listen in real-time.
-         * ========================================
-         */
-
-        const requestRef =
-          await addDoc(
-            collection(
-              db,
-              "redemptionRequests"
-            ),
-            {
-
-              studentId:
-                studentUid,
-
-              studentName,
-
-              studentCardNumber,
-
-              businessId:
-                selectedOffer.businessId,
-
-              businessName:
-                verifiedBusiness.businessName,
-
-              businessVerificationId:
-                verifiedBusiness.businessId,
-
-              offerId:
-                selectedOffer.id,
-
-              offerTitle:
-                selectedOffer.title ||
-                "SBC Offer",
-
-              offerDiscount:
-                selectedOffer.discount ||
-                "",
-
-              status:
-                "pending",
-
-              createdAt:
-                serverTimestamp(),
-
-            }
-          );
-
-        /*
-         * Save request ID BEFORE
-         * closing the verification modal.
-         */
-
-        setPendingRequestId(
-          requestRef.id
-        );
-
-        /*
-         * Save offer for waiting screen.
-         */
-
-        setPendingOffer(
-          selectedOffer
-        );
-
-        /*
-         * Close verification.
-         */
-
-        setShowVerificationModal(
-          false
-        );
-
-        setSelectedOffer(
-          null
-        );
-
-        setVerifiedBusiness(
-          null
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Create redemption request error:",
-          error
-        );
-
-        alert(
-          "❌ Unable to send redemption request. Please try again."
-        );
-
-      } finally {
-
-        setRedeemLoading(
-          false
-        );
-
-      }
-
-    };
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Unable to redeem this offer. Please try again."
+    );
+  } finally {
+    setRedeemLoading(false);
+  }
+};
 
   /*
    * ==========================================
@@ -1570,7 +1440,7 @@ export default function StudentOffers() {
         <header className="mb-5 flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-[#f4c52b] sm:text-4xl">
-              STUDENT PRIVILEGE PASS
+              STUDENT BENEFIT CARD
             </h1>
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
               Exclusive student offers &amp; benefits

@@ -68,22 +68,7 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(cors(corsOptions));
 
-  /*
-   * The Razorpay webhook signature is an HMAC over the exact bytes
-   * Razorpay sent. Re-serialising the parsed object would change key
-   * order and whitespace and break every signature, so the raw buffer is
-   * stashed here while the body is parsed normally.
-   */
-  app.use(
-    express.json({
-      limit: "1mb",
-      verify: (req, _res, buf) => {
-        if (buf && buf.length > 0) {
-          (req as express.Request).rawBody = Buffer.from(buf);
-        }
-      },
-    })
-  );
+  app.use(express.json({ limit: "1mb" }));
 
   /*
    * Health check for Render and uptime monitors.

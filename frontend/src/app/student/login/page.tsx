@@ -106,8 +106,8 @@ export default function StudentLogin() {
 
       /*
        * An account can exist before its membership is paid for: the
-       * student document has to be created first so the Razorpay
-       * payment webhook has something to match the payment against.
+       * student document has to be created first so the PhonePe
+       * verification flow can activate the membership.
        *
        * Those students are not "waiting for approval" — they simply
        * owe the fee, so send them to the payment page instead of

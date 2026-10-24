@@ -1309,7 +1309,7 @@ export default function StudentRegister() {
 
           <div className="mt-5 rounded-2xl border border-slate-200 bg-[#f8fafc] p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">
-              Your SBC Pass Number
+              Your SBC Card Number
             </p>
             <p className="mt-1 text-lg font-black tracking-wide">
               {registeredCardNumber}
@@ -1331,8 +1331,8 @@ export default function StudentRegister() {
   /*
    * Account created, membership fee still outstanding.
    *
-   * The hosted Razorpay Payment Button takes over from here and the
-   * backend webhook decides when the membership becomes active.
+   * The student can complete the PhonePe membership payment from here.
+   * The backend verifies payment before activating membership.
    */
   if (registeredUid) {
     return (
@@ -1353,7 +1353,7 @@ export default function StudentRegister() {
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
             <p className="text-xs uppercase tracking-wider text-white/45">
-              Your SBC Pass Number
+              Your SBC Card Number
             </p>
             <p className="mt-1 text-lg font-bold tracking-wide">
               {registeredCardNumber}
@@ -1900,7 +1900,7 @@ export default function StudentRegister() {
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
                           Payable on the next step. Secure payment by
-                          Razorpay.
+                          PhonePe.
                         </p>
                       </div>
 
