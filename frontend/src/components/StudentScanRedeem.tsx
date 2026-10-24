@@ -802,7 +802,13 @@ const [scannerOpen, setScannerOpen] = useState(false);
       setSelectedOffer(null);
     } catch (error) {
       console.error("Create scan redemption request error:", error);
-      alert("❌ Unable to send redemption request. Please try again.");
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to send redemption request. Please try again.";
+
+      alert(`❌ Scan redemption failed: ${message}`);
     } finally {
       setRedeemLoading(false);
     }
