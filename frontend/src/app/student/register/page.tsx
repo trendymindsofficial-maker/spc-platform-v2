@@ -50,6 +50,7 @@ export default function StudentRegister() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
 
+  const [termsAccepted, setTermsAccepted] = useState(false);
   /*
    * Set once the account exists and the student still owes the
    * membership fee. Switches the page to the payment step.
@@ -951,6 +952,14 @@ export default function StudentRegister() {
           return;
         }
 
+        // Require policy consent for new student registrations only.
+        if (!termsAccepted) {
+          alert(
+            "Please accept the SBC Student Terms & Conditions, Privacy Policy and Refund Policy to continue."
+          );
+          return;
+        }
+
         // Only a genuinely new student needs the full registration form.
         if (
           !fullName.trim() ||
@@ -1197,6 +1206,13 @@ export default function StudentRegister() {
               199,
             paymentCurrency:
               "INR",
+
+            // Student policy consent evidence
+            termsAccepted: true,
+            termsVersion: "1.0",
+            termsAcceptedAt: serverTimestamp(),
+            privacyPolicyVersion: "1.0",
+            refundPolicyVersion: "1.0",
 
             createdAt:
               serverTimestamp(),
@@ -1910,6 +1926,33 @@ export default function StudentRegister() {
                     </div>
                   </div>
                 )}
+
+                {/* STUDENT TERMS CONSENT */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      disabled={loading}
+                      className="mt-1 h-4 w-4 shrink-0 accent-[#1557d6]"
+                    />
+                    <span className="leading-6">
+                      I have read and agree to the{" "}
+                      <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-[#1557d6] underline">
+                        SBC Student Terms & Conditions
+                      </a>
+                      {" "}and acknowledge the{" "}
+                      <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-[#1557d6] underline">
+                        Privacy Policy
+                      </a>
+                      {" "}and{" "}
+                      <a href="/refund-policy" target="_blank" rel="noreferrer" className="font-bold text-[#1557d6] underline">
+                        Refund Policy
+                      </a>.
+                    </span>
+                  </label>
+                </div>
 
                 {/* REGISTER */}
 
