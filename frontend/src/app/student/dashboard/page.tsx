@@ -2296,11 +2296,11 @@ export default function StudentDashboard() {
                 ✦ Verified SBC Student
               </div>
               <p className="mt-7 text-sm font-semibold text-white/45">Welcome back,</p>
-              <h1 className="mt-1 max-w-full break-words text-3xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                <span className="inline-block max-w-full break-words text-[#f1cf63]">
+              <h1 className="mt-1 w-full min-w-0 text-left text-3xl font-black leading-tight tracking-tight [overflow-wrap:anywhere] sm:text-5xl lg:text-6xl">
+                <span className="text-[#f1cf63]">
                   {student.fullName || "Student"}
                 </span>
-                <span className="ml-2 inline-block">👋</span>
+                <span className="ml-2 whitespace-nowrap">👋</span>
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-white/60 sm:text-base">
                 Your Student Benefit Card unlocks exclusive student benefits and partner offers.
